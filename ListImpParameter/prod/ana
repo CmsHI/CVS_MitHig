@@ -1,0 +1,8 @@
+#!/bin/sh
+
+for num in `seq $1 $2`
+do
+run=`printf "%06d" $num`
+cat analyze_cfg.py | ~/scripts/replace __OUTPUT__ result_r${run} | ~/scripts/replace __INPUT__ pythia_gen_r${run} > ana${run}_cfg.py
+cmsRun ana${run}_cfg.py 1>${run}.ana.out 2>${run}.ana.err
+done
