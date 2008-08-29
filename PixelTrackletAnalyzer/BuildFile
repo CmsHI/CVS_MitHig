@@ -1,0 +1,36 @@
+<use name=hepmc>
+<use name=root>
+<use name=DataFormats/TrackingRecHit>
+<use name=DataFormats/EcalRecHit>
+<use name=DataFormats/Common>
+<use name=DataFormats/SiPixelDigi>
+<use name=SimDataFormats/HepMCProduct>
+<use name=FWCore/ServiceRegistry>
+<use name=PhysicsTools/UtilAlgos>
+<use name=FWCore/Framework>
+<use name=FWCore/PluginManager>
+<use name=SimDataFormats/Vertex>
+<use name=FWCore/ParameterSet>
+<use name=DataFormats/DetId>
+<use name=SimDataFormats/TrackingAnalysis>
+<use name=DataFormats/GeometryVector>
+<use name=Geometry/CaloEventSetup>
+<use name=Geometry/CaloGeometry>
+<use name=Geometry/CommonDetUnit>
+<use name=Geometry/TrackerGeometryBuilder>
+<use name=Geometry/Records>
+<use name=SimTracker/TrackerHitAssociation>
+<flags EDM_PLUGIN=1>
+<export>
+   <lib name=MitHigPixelTrackletAnalyzer>
+   <use name=FWCore/Framework>
+   <use name=FWCore/PluginManager>
+   <use name=FWCore/ParameterSet>
+</export>
+
+
+
+
+
+
+

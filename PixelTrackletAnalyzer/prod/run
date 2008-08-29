@@ -1,0 +1,9 @@
+#!/bin/sh
+
+for num in `seq $1 $2`
+do
+run=`printf "%06d" $num`
+random=$RANDOM
+cat tracklet_cfg.py | ~/scripts/replace __OUTPUT__ pixel_r${run} | ~/scripts/replace __INPUT__ ${run} | ~/scripts/replace __RANDOM__ ${random}> run${run}_cfg.py
+cmsRun run${run}_cfg.py 1>${run}.run.out 2>${run}.run.err
+done

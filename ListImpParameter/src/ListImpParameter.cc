@@ -13,7 +13,7 @@
 //
 // Original Author:  Yetkin Yilmaz
 //         Created:  Tue Dec 18 09:44:41 EST 2007
-// $Id: ListImpParameter.cc,v 1.3 2008/05/28 12:47:44 yilmaz Exp $
+// $Id: ListImpParameter.cc,v 1.1 2008/08/18 12:16:12 yilmaz Exp $
 //
 //
 
@@ -83,10 +83,13 @@ class ListImpParameter : public edm::EDAnalyzer {
 
   
    TNtuple *datatemp;
-   TFile *f;
+   edm::Service<TFileService> f;
    std::string output;           // Output filename
  
    bool doCF_;
+   double etaMax_;
+   double ptMin_;
+
    edm::ESHandle < ParticleDataTable > pdt;
 
 };
@@ -109,9 +112,10 @@ ListImpParameter::ListImpParameter(const edm::ParameterSet& iConfig)
    fNFileName = iConfig.getUntrackedParameter<std::string>("output_n", "n_values.txt");
    fMFileName = iConfig.getUntrackedParameter<std::string>("output_m", "m_values.txt");
    doCF_ = iConfig.getUntrackedParameter<bool>("doMixed", false);
-   // Output
-   output = iConfig.getUntrackedParameter<std::string>("output", "imp.root");
+   etaMax_ = iConfig.getUntrackedParameter<double>("etaMax", 2);
+   ptMin_ = iConfig.getUntrackedParameter<double>("ptMin", 0);
 
+   // Output
 
 }
 
@@ -143,6 +147,9 @@ ListImpParameter::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
    int nc1 = 0; // Charged Multiplicity within |eta|<0.5
    int nc2 = 0; // Charged Multiplicity within |eta|<0.5
 
+   double ptav = 0; //average pt of particles
+   double ptch = 0;  //average pt of charged particles          
+
    if(doCF_){
 
      Handle<CrossingFrame<HepMCProduct> > cf;
@@ -169,14 +176,20 @@ ListImpParameter::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
 	   ++m;
            float pdg_id = (*it)->pdg_id();
            float eta = (*it)->momentum().eta();
+           float pt = (*it)->momentum().perp();
            const ParticleData * part = pdt->particle(pdg_id );
            float charge = part->charge();
-           if (fabs(eta)>0.5) continue;
+           if (fabs(eta)>etaMax_) continue;
+           if (pt<ptMin_) continue;
+	   ptav += pt;
            ++m1;
            if (fabs(pdg_id)==211) ++nc1;
            if (fabs(pdg_id)==321) ++nc1;
            if (fabs(pdg_id)==2212) ++nc1;
-           if (fabs(charge)>0) ++nc2;
+           if (fabs(charge)>0){
+	      ++nc2;
+	      ptch += pt;
+	   }
 	 }
        }
        
@@ -192,17 +205,23 @@ ListImpParameter::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
      HepMC::GenEvent::particle_const_iterator end = evt->particles_end();
      for(HepMC::GenEvent::particle_const_iterator it = begin; it != end; ++it){
        if((*it)->status() == 1){
-	 ++m;
-         float pdg_id = (*it)->pdg_id();
-         const ParticleData * part = pdt->particle(pdg_id );
-         float charge = part->charge();
-         float eta = (*it)->momentum().eta();
-         if (fabs(eta)>0.5) continue;
-         ++m1;
-         if (fabs(pdg_id)==211) ++nc1;
-         if (fabs(pdg_id)==321) ++nc1;
-         if (fabs(pdg_id)==2212) ++nc1;
-         if (fabs(charge)>0) ++nc2;
+	  ++m;
+	  float pdg_id = (*it)->pdg_id();
+	  float eta = (*it)->momentum().eta();
+	  float pt = (*it)->momentum().perp();
+	  const ParticleData * part = pdt->particle(pdg_id );
+	  float charge = part->charge();
+	  if (fabs(eta)>etaMax_) continue;
+	  if (pt<ptMin_) continue;
+	  ptav += pt;
+	  ++m1;
+	  if (fabs(pdg_id)==211) ++nc1;
+	  if (fabs(pdg_id)==321) ++nc1;
+	  if (fabs(pdg_id)==2212) ++nc1;
+	  if (fabs(charge)>0){
+	     ++nc2;
+	     ptch += pt;
+	  }
        }
      }
      
@@ -210,12 +229,17 @@ ListImpParameter::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
 
    const HeavyIon* hi = evt->heavy_ion();
 
+   ptav = ptav / m1;
+   ptch = ptch / nc2;
+
    if(hi){
       double b = hi->impact_parameter();
       int n = hi->Npart_proj()+hi->Npart_targ();
       out_b<<b<<endl;
       out_n<<n<<endl;
-      datatemp->Fill(m,b,n,m1,nc1,nc2);      
+      datatemp->Fill(m,b,n,m1,nc1,nc2,ptav,ptch);      
+   }else{
+      datatemp->Fill(m,0,0,m1,nc1,nc2,ptav,ptch);
    }
 
    out_m<<m<<endl;
@@ -239,23 +263,14 @@ ListImpParameter::beginJob(const edm::EventSetup&)
    if(out_m.good() == false)
       throw cms::Exception("BadFile") << "Can\'t open file " << fMFileName;
 
-   //TFile::TContext context(0);
-   f = TFile::Open(output.c_str(), "recreate");
-
-   datatemp = new TNtuple("event","Event Info","m:b:n:m1:nc1:nc2");
-    
+   datatemp = f->make<TNtuple>("event","Event Info","m:b:n:m1:nc1:nc2:ptav:ptch");
+  
 
 }
 
 // ------------ method called once each job just after ending the event loop  ------------
 void 
 ListImpParameter::endJob() {
-   TFile::TContext context(f);
-
-   datatemp->Write();
- 
-   f->Close();
-
 }
 
 //define this as a plug-in
