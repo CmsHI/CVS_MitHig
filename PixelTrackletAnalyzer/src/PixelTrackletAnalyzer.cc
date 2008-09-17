@@ -11,9 +11,9 @@
      <Notes on implementation>
 */
 //
-// Original Author:  Arya Tafvizi
+// Original Author:  Arya Tafvizi, Yen-Jie Lee
 //         Created:  Tue Jul 22 07:59:06 EDT 2008
-// $Id: PixelTrackletAnalyzer.cc,v 1.3 2008/08/29 16:52:16 yilmaz Exp $
+// $Id: PixelTrackletAnalyzer.cc,v 1.1 2008/08/29 17:24:36 yilmaz Exp $
 //
 //
 
@@ -62,6 +62,9 @@
 #include "SimDataFormats/Vertex/interface/SimVertex.h"
 #include "SimDataFormats/Vertex/interface/SimVertexContainer.h"
 
+#include "DataFormats/VertexReco/interface/Vertex.h"
+#include "DataFormats/VertexReco/interface/VertexFwd.h"
+
 #include "DataFormats/SiPixelDetId/interface/PXBDetId.h"
 #include "DataFormats/SiPixelDetId/interface/PixelSubdetector.h"
 #include "DataFormats/DetId/interface/DetId.h"
@@ -87,8 +90,13 @@
 #include "HepMC/GenEvent.h"
 #include "HepMC/HeavyIon.h"
 
-using namespace std;
+#include "MitHig/PixelTrackletAnalyzer/interface/Tracklet.h"
+// ROOT includes
+#include <Math/VectorUtil.h>
 
+using namespace std;
+using namespace reco;
+using namespace edm;
 
 //
 // class decleration
@@ -104,28 +112,61 @@ class PixelTrackletAnalyzer : public edm::EDAnalyzer {
       virtual void beginJob(const edm::EventSetup&) ;
       virtual void analyze(const edm::Event&, const edm::EventSetup&);
       virtual void endJob() ;
-   void fillTrackDetails(const edm::Event& iEvent, const edm::EventSetup& iSetup, double z = 0, int layer1hits = 0);
+ 
+      void fillTrackDetails(const edm::Event& iEvent, const edm::EventSetup& iSetup, double z = 0, int layer1hits = 0);
+      void fillGeneratorInfo(const edm::Event& iEvent, const edm::EventSetup& iSetup);
+      vector<Tracklet> makeTracklets(const edm::Event& iEvent, vector<const SiPixelRecHit*> layer1, vector<const SiPixelRecHit*> layer2,math::XYZVector vertex, bool invert);
+      void makeTrackletsOld(const edm::Event& iEvent, vector<const SiPixelRecHit*> layer1, vector<const SiPixelRecHit*> layer2,math::XYZVector vertex, vector<Tracklet> recoTracklets);
+      vector<Tracklet> cleanTracklets(vector<Tracklet> input);
+      vector<Tracklet> cleanTracklets1(vector<Tracklet> input);
+      void analyzeTracklets(vector<Tracklet> input, vector<Tracklet> invertedInput);
+      unsigned int associateSimhitToTrackingparticle(unsigned int trid );
+      bool checkprimaryparticle(TrackingParticleRef tp);
 
-      // ----------member data ---------------------------
+
+   // ----------member data -------------------------------------------------------------
 
    double beta_;
    double alpha_;
    double etaMax_;
    double deltaCut_;
+
    int etaBins_;
+   int eventCounter_;
 
    bool zoomSim_;
+   bool doMC_;
+   bool checkSecondLayer_;
+   bool verbose_;
+   bool useRecoVertex_;
+
    TNtuple* ntevent;
    TNtuple* ntgen;
-  TNtuple * ntrechits;
-  TNtuple * ntparticle;
-  TNtuple * ntmatched;
-  TNtuple * ntsim;
-  edm::Service<TFileService> fs;
-  const TrackerGeometry* trGeo;
-  const CaloGeometry *caloGeo;
+   TNtuple* ntrechits;
+   TNtuple* ntparticle;
+   TNtuple* ntmatched;
+   TNtuple* ntInvMatched;
+   TNtuple* ntsim;
+   TNtuple* ntvertex;
+
+   TNtuple* ntpixelsim1;
+   TNtuple* ntpixelsim2;
+   TNtuple* ntpixelrec;
+
+   edm::Service<TFileService> fs;           
+   const TrackerGeometry* trGeo;
+   const CaloGeometry *caloGeo;
+   const PixelGeomDetUnit* pixelLayer;
+   edm::Handle<TrackingParticleCollection> trackingParticles ;
+   
+   float particles[48];
+   float tracklets[48];
+   float layer1Hits[48];
+   float signalTracklets[48];
+   float layer1HitInEta1_;
 
 };
+
 
 //
 // constants, enums and typedefs
@@ -141,13 +182,18 @@ class PixelTrackletAnalyzer : public edm::EDAnalyzer {
 PixelTrackletAnalyzer::PixelTrackletAnalyzer(const edm::ParameterSet& iConfig)
 
 {
-   zoomSim_ = iConfig.getUntrackedParameter<bool>("investigateSimTracks",false);
-   beta_ = iConfig.getUntrackedParameter<double>("inputBeta",1);
+   zoomSim_          = iConfig.getUntrackedParameter<bool>  ("investigateSimTracks",false);
+   beta_             = iConfig.getUntrackedParameter<double>("inputBeta",1);
+   doMC_             = iConfig.getUntrackedParameter<bool>  ("doMC",true);
+   useRecoVertex_             = iConfig.getUntrackedParameter<bool>  ("useRecoVertex",true);
+   checkSecondLayer_ = iConfig.getUntrackedParameter<bool>  ("checkSecondLayer", true);
+   verbose_          = iConfig.getUntrackedParameter<bool>  ("verbose",true);
+
    etaMax_ = 2.;
    etaBins_ = 8;
 
    deltaCut_ = iConfig.getUntrackedParameter<double>("deltaCut",0.2);
-
+   eventCounter_ = 0;
 }
 
 
@@ -171,21 +217,897 @@ PixelTrackletAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& 
   using namespace edm;
   using namespace std;
   using namespace reco;
-  int eventnumber=iEvent.id().event();
   
-  double simvrtxX = 0;
-  double simvrtxY = 0;
-  double simvrtxZ = 0;
+  math::XYZVector vertex(0,0,2);
   int greatestvtx = 0;
+
   vector<const SiPixelRecHit*> layer1;
   vector<const SiPixelRecHit*> layer2;
-  
-  //Make sure to have bigger arrays than a few times your eta bins
-  float particles[48] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-  float tracklets[48] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
-  double ptav = 0;
+  eventCounter_++;
+
+  // Get reconstructed vertices
+  const reco::VertexCollection * recoVertices;
+  edm::Handle<reco::VertexCollection> vertexCollection;
+  iEvent.getByLabel("pixelVertices",vertexCollection);
+  recoVertices = vertexCollection.product();
+
+  //Get MonteCarlo information
+  Handle<TrackingVertexCollection> vertices;
+
+  if (doMC_) 
+  {
+     iEvent.getByLabel("mergedtruth","MergedTrackTruth", vertices);
+     iEvent.getByLabel("mergedtruth","MergedTrackTruth",trackingParticles);
+  }
+
+  // reset counters
+  for (int i = 0; i < 48; i++) 
+  {
+     particles[i]       = 0;
+     tracklets[i]       = 0;
+     signalTracklets[i] = 0;
+     layer1Hits[i]      = 0;
+  }
+
+  //Get reconstructed hits and geometry  
+  const SiPixelRecHitCollection* rechits;
+  Handle<SiPixelRecHitCollection> rchts;
+  iEvent.getByLabel("siPixelRecHits",rchts);
+  rechits = rchts.product();
+      
+  //Fill generator information
+
+  if (doMC_) fillGeneratorInfo(iEvent, iSetup);
+
+
+  // Prepare the primary vertex coordinates
+
+  unsigned int daughter = 0;
+  unsigned int nVertex = 0;
+ 
+  if (doMC_ && !useRecoVertex_) {
+     nVertex = vertices->size();
+
+     for (unsigned int i = 0 ; i< vertices->size(); ++i)
+     {
+        daughter = (*vertices)[i].nDaughterTracks();
+        if( daughter > (*vertices)[greatestvtx].nDaughterTracks())
+        {
+           greatestvtx = i;
+        }
+     }
+
+     if(vertices->size()>0)
+     {
+        vertex = math::XYZVector((*vertices)[greatestvtx].position().x(),
+                                 (*vertices)[greatestvtx].position().y(),
+                                 (*vertices)[greatestvtx].position().z());
+     }
+  }
+
+  if (useRecoVertex_) {
+     nVertex = recoVertices->size();
+
+     for (unsigned int i = 0 ; i< recoVertices->size(); ++i)
+     {
+        daughter = (*recoVertices)[i].tracksSize();
+        if( daughter > (*recoVertices)[greatestvtx].tracksSize())
+        {
+           greatestvtx = i;
+        }
+     }
+
+     if(recoVertices->size()>0)
+     {
+        vertex = math::XYZVector((*recoVertices)[greatestvtx].position().x(),
+                                 (*recoVertices)[greatestvtx].position().y(),
+                                 (*recoVertices)[greatestvtx].position().z());
+     }
+
+  }
+
+  if (verbose_) cout <<"vertex: "<<vertex<<endl;
+
+  ntvertex->Fill(vertex.x(),vertex.y(),vertex.z(),daughter,nVertex);
   
+  // Prepare the reconstructed hits
+  for(SiPixelRecHitCollection::id_iterator id = rechits->id_begin(); id!= rechits->id_end(); id++)
+  {
+     if((*id).subdetId() == int(PixelSubdetector::PixelBarrel))
+     {
+	PXBDetId pid(*id);
+	SiPixelRecHitCollection::range range;
+	int layer = pid.layer();
+	if(layer == 1 || layer == 2)
+        {
+	   range = rechits->get(*id);
+	   pixelLayer = dynamic_cast<const PixelGeomDetUnit*> (trGeo->idToDet(*id));
+	}
+	
+	for(SiPixelRecHitCollection::const_iterator recHit = range.first; recHit!= range.second; recHit++)
+	{
+	   if(layer == 1) layer1.push_back(&(*recHit));
+	   if(layer == 2) layer2.push_back(&(*recHit));
+	}
+     }
+  }
+
+
+  layer1HitInEta1_ = 0;
+
+  for(unsigned int i1 = 0; i1 < layer1.size(); ++i1)          //loops over and gets spatial information and associated simhits for each rechit
+  {
+     const SiPixelRecHit* recHit1 = layer1[i1];
+    
+     pixelLayer = dynamic_cast<const PixelGeomDetUnit*> (trGeo->idToDet(recHit1->geographicalId()));
+    
+     GlobalPoint gpos1 = pixelLayer->toGlobal(recHit1->localPosition());
+    
+     // Calculate the rechit position with respect to the vertex
+     math::XYZVector rechitPos(gpos1.x(),gpos1.y(),gpos1.z()-vertex.z());
+     double eta1 = rechitPos.eta();
+     for(int ietat = 0 ; ietat < etaBins_; ++ietat)
+     {
+	double etaBin = ietat * 0.5 - 2;
+	if(eta1<etaBin || eta1>=etaBin+(2*etaMax_/etaBins_)) continue;
+        ++layer1Hits[ietat];
+     }
+     if (fabs(eta1)<1) layer1HitInEta1_++;
+      
+  }
+
+  vector<Tracklet> protoTracklets;
+  vector<Tracklet> recoTracklets;
+
+  vector<Tracklet> protoInvertedTracklets;
+  vector<Tracklet> recoInvertedTracklets;
+
+  protoTracklets = makeTracklets(iEvent,layer1,layer2,vertex,0);
+  recoTracklets  = cleanTracklets(protoTracklets);
+
+  protoInvertedTracklets = makeTracklets(iEvent,layer1,layer2,vertex,1);
+  recoInvertedTracklets  = cleanTracklets(protoInvertedTracklets);
+
+  analyzeTracklets(recoTracklets,recoInvertedTracklets);
+
+  if (verbose_) cout <<"number of reconstructed Tracklets: "<<recoTracklets.size()<<endl;
+
+  Float_t tmpvar[32];
+  for (int it = 0 ; it <8; it++) 
+  {
+     tmpvar[it] = tracklets[it];
+     tmpvar[it+8] = signalTracklets[it];
+     tmpvar[it+16] = layer1Hits[it];
+  }
+  ntevent->Fill(tmpvar);
+
+  if(zoomSim_) fillTrackDetails(iEvent, iSetup, vertex.z(), layer1.size());
+
+}
+
+// ------------ method called once each job just before starting event loop  ------------                                                                                                                                       
+void
+PixelTrackletAnalyzer::beginJob(const edm::EventSetup& iSetup){
+
+   edm::ESHandle<CaloGeometry> pGeo;
+   iSetup.get<CaloGeometryRecord>().get(pGeo);
+   caloGeo = pGeo.product();
+
+   edm::ESHandle<TrackerGeometry> tGeo;
+   iSetup.get<TrackerDigiGeometryRecord>().get(tGeo);
+   trGeo = tGeo.product();
+
+   ntevent =  fs->make<TNtuple>("ntevent","","trt1:trt2:trt3:trt4:trt5:trt6:trt7:trt8:strt1:strt2:strt3:strt4:strt5:strt6:strt7:strt8:hit1:hit2:hit3:hit4:hit5:hit6:hit7:hit8");
+   ntmatched = fs->make<TNtuple>("ntmatched","","eta1:matchedeta:phi1:matchedphi:deta:dphi:signalCheck:tid:r1id:r2id:evtid:nhit1:sid:ptype");
+   ntInvMatched = fs->make<TNtuple>("ntInvMatched","","eta1:matchedeta:phi1:matchedphi:deta:dphi");
+   ntrechits =  fs->make<TNtuple>("ntrechits","","eta1:eta2:phi1:phi2");
+   ntparticle =  fs->make<TNtuple>("ntparticle","","eta:theta:phi:charge:energy:p:pt:px:py:pz:pdgid:status:useless:vrtxX:vrtxY:vrtxZ:simvrtxX:simvrtxY:simvrtxZ:eta1:eta2:eta3:phi1:phi2:phi3:trackid1:trackid2:trackid3:processtype1:processtype2:processtype3:energyloss1:energyloss2:energyloss3:particletype1:particletype2:particletype3:particlecounter:layer1hits");
+   ntsim = fs->make<TNtuple>("ntsim","","eta1:eta2:phi1:phi2:pabs:pt:pid:ptype:energyloss:isprimary");
+   ntgen = fs->make<TNtuple>("ntgen","","had1:had2:had3:had4:had5:had6:had7:had8:lep1:lep2:lep3:lep4:lep5:lep6:lep7:lep8");
+   ntvertex = fs->make<TNtuple>("ntvertex","","x:y:z:n:nvtx");
+
+   ntpixelsim1 = fs->make<TNtuple>("ntl","","x:y:z:r:type:part:id");
+   ntpixelsim2 = fs->make<TNtuple>("nth","","x:y:z:r:type:part:id");
+   ntpixelrec = fs->make<TNtuple>("ntr","","x:y:z:r:layer");
+
+
+
+}
+
+// ------------ method called once each job just after ending the event loop  ------------  
+
+void
+PixelTrackletAnalyzer::endJob() {
+
+}
+
+
+void
+PixelTrackletAnalyzer::fillTrackDetails(const edm::Event& iEvent, const edm::EventSetup& iSetup, double simvrtxZ, int layer1hits){
+
+   /// For debugging / Getting detailed information about the propagation of tracks
+
+   double simvrtxX = 0;
+   double simvrtxY = 0;
+
+
+   //Get reconstructed hits and geometry                                                                                    
+   const SiPixelRecHitCollection* rechits;
+   Handle<SiPixelRecHitCollection> rchts;
+   iEvent.getByLabel("siPixelRecHits",rchts);
+   rechits = rchts.product();
+
+   Handle<PSimHitContainer> simhits1;
+   iEvent.getByLabel(InputTag("g4SimHits","TrackerHitsPixelBarrelHighTof"),simhits1);
+
+   Handle<PSimHitContainer> simhits2;
+   iEvent.getByLabel(InputTag("g4SimHits","TrackerHitsPixelBarrelLowTof"),simhits2);
+
+   for(int i1 = 0; i1 < simhits1->size(); ++i1){
+      const PSimHit & hit = (*simhits1)[i1];
+      int detid = hit.detUnitId();
+      const PixelGeomDetUnit* pxlayer;
+      PXBDetId pid(detid);
+      pxlayer = dynamic_cast<const PixelGeomDetUnit*> (trGeo->idToDet(pid));
+      if(!pxlayer) continue;
+      GlobalPoint gpos=pxlayer->toGlobal(hit.localPosition());
+      double x = gpos.x();
+      double y = gpos.y();
+      double z = gpos.z() - simvrtxZ;
+      double r = sqrt(x*x+y*y);
+      int part = hit.particleType();
+      int type = hit.processType();
+      int id = hit.trackId();
+      ntpixelsim1->Fill(x,y,z,r,type,part,id);
+   }
+
+   for(int i2 = 0; i2 < simhits2->size(); ++i2){
+      const PSimHit & hit = (*simhits2)[i2];
+      int detid = hit.detUnitId();
+      const PixelGeomDetUnit* pxlayer;
+      PXBDetId pid(detid);
+      pxlayer = dynamic_cast<const PixelGeomDetUnit*> (trGeo->idToDet(pid));
+      if(!pxlayer) continue;
+      GlobalPoint gpos=pxlayer->toGlobal(hit.localPosition());
+      double x = gpos.x();
+      double y = gpos.y();
+      double z = gpos.z() - simvrtxZ;
+      double r = sqrt(x*x+y*y);
+      int part = hit.particleType();
+      int type = hit.processType();
+      int id = hit.trackId();
+      ntpixelsim2->Fill(x,y,z,r,type,part,id);
+   }
+
+   for(SiPixelRecHitCollection::id_iterator id = rechits->id_begin(); id!= rechits->id_end(); id++)
+      {
+	 if((*id).subdetId() == int(PixelSubdetector::PixelBarrel))
+	    {
+	       PXBDetId pid(*id);
+	       SiPixelRecHitCollection::range range;
+	       int layer = pid.layer();
+	       if(layer == 1 || layer == 2)
+		  {
+		     range = rechits->get(*id);
+		     pixelLayer = dynamic_cast<const PixelGeomDetUnit*> (trGeo->idToDet(*id));
+		     
+		     for(SiPixelRecHitCollection::const_iterator recHit = range.first; recHit!= range.second; recHit++)
+			{
+			   const SiPixelRecHit & hit = *recHit;
+			   
+			   pixelLayer = dynamic_cast<const PixelGeomDetUnit*> (trGeo->idToDet(hit.geographicalId()));
+			   
+			   GlobalPoint gpos1 = pixelLayer->toGlobal(hit.localPosition());
+
+			   double x = gpos1.x();
+			   double y = gpos1.y();
+			   double z = gpos1.z() - simvrtxZ;
+			   double r = sqrt(x*x+y*y);
+			   ntpixelrec->Fill(x,y,z,r,layer);
+			}
+		  }
+	    }
+      }
+   
+
+  //gets the information from trackingparticle  
+  const TrackingParticleCollection TPCProd = *(trackingParticles.product());
+  for (TrackingParticleCollection::size_type i=0; i<TPCProd.size(); i++)
+  {
+     TrackingParticleRef tp(trackingParticles, i);
+    
+     double eta = tp->eta();
+     double theta = tp->theta();
+     double charge = tp->charge();
+     double phi = tp->phi();
+     double p = tp->p();
+     double pt = tp->pt();
+     double px = tp->px();
+     double py = tp->py();
+     double pz = tp->pz();
+     double energy = tp->energy();
+     double vrtxX = tp->vx();
+     double vrtxY = tp->vy();
+     double vrtxZ = tp->vz();
+     int pdgid = tp->pdgId();
+     int status = tp->status();
+     double eta1=20;
+     double eta2=20;
+     double eta3=20;
+     double phi1=20;
+     double phi2=20;
+     double phi3=20;
+     int processtype1 = 0;
+     int particletype1 = 0;
+     double energyloss1 = 0;
+     int trackid1 = 0;
+     int processtype2 = 0;
+     int particletype2 = 0;
+     double energyloss2 = 0;
+     int trackid2 = 0;
+     int processtype3 = 0;
+     int particletype3 = 0;
+     double energyloss3 = 0;
+     int trackid3 = 0;
+     
+    
+     vector <PSimHit> particlesimhits = tp->trackPSimHit();
+     for(vector<PSimHit>::const_iterator simhit = particlesimhits.begin(); simhit != particlesimhits.end(); ++simhit)
+     {
+        double hiteta=-99;
+        double hitphi=-99;
+        double hitphiatentry=-99;
+        double hitenergyloss=-99;
+        int hitparticletype=0;
+        int hittrackid=-99;
+        int hitprocesstype=0;
+      
+        int detid = simhit->detUnitId();
+        const PixelGeomDetUnit* pxlayer;
+        PXBDetId pid(detid);
+        pxlayer = dynamic_cast<const PixelGeomDetUnit*> (trGeo->idToDet(pid));
+        if(!pxlayer) continue;
+        GlobalPoint gpos=pxlayer->toGlobal(simhit->localPosition());
+        double x = gpos.x();
+        double y = gpos.y();
+        double z = gpos.z() - simvrtxZ;
+        double rh = sqrt(x*x+y*y);
+        double r = sqrt(x*x+y*y+z*z);
+        double cos = z/r;
+        double sin = rh/r;
+        hiteta = -1*log((1-cos)/sin);
+        hitphi=gpos.phi();
+        hitphiatentry=simhit->phiAtEntry();
+        hitparticletype=simhit->particleType();
+        hittrackid=simhit->trackId();
+        hitenergyloss=simhit->energyLoss();
+        hitprocesstype=simhit->processType();
+        int layer = 0;
+        // for each particle, finds out if it hits any of the pixel barrel layers and if so, records the information  
+        if(fabs(sqrt(x*x+y*y)-4.4)<1 && fabs(hiteta)<1)
+        {
+   	   layer=1;
+	   if(hiteta<eta1 && hitprocesstype==2)
+           {
+	      eta1=hiteta;
+	      phi1=hitphi;
+	      processtype1=hitprocesstype;
+	      particletype1=hitparticletype;
+	      energyloss1=hitenergyloss;
+	      trackid1=hittrackid;
+	   }
+        }  
+        if(fabs(sqrt(x*x+y*y)-7.3)<1 && fabs(hiteta)<1)
+        {  
+	   layer=2;
+	   if(hiteta<eta2 && hitprocesstype==2)
+           {
+	      eta2=hiteta;
+	      phi2=hitphi;
+	      processtype2=hitprocesstype;
+	      particletype2=hitparticletype;
+   	      energyloss2=hitenergyloss;
+	      trackid2=hittrackid;
+	   }
+	
+        }
+        if(fabs(sqrt(x*x+y*y)-10.2)<1 && fabs(hiteta)<1)
+        {  
+	   layer=3;
+	   if(hiteta<eta3 && hitprocesstype==2)
+           {
+	     eta3=hiteta;
+	     phi3=hitphi;
+	     processtype3=hitprocesstype;
+	     particletype3=hitparticletype;
+	     energyloss3=hitenergyloss;
+	     trackid3=hittrackid;
+	   }
+        }
+     }
+
+     Float_t fillarray[39];
+     fillarray[0]=eta;                //eta of the tracking particle
+     fillarray[1]=theta;              //theta of the tracking particle  
+     fillarray[2]=phi;                //phi of the tracking particle
+     fillarray[3]=charge;             //charge of the tracking particle
+     fillarray[4]=energy;             //energy of the tracking particle
+     fillarray[5]=p;                  //absolute momentum of the tracking particle 
+     fillarray[6]=pt;                 //pt of the tracking particle
+     fillarray[7]=px;                 //x, y, and z components of the momentum of the tracking particle
+     fillarray[8]=py;                 //
+     fillarray[9]=pz;                 //
+     fillarray[10]=pdgid;             //pdgid for the tracking particle
+     fillarray[11]=status;            //status of the tracking particle
+     fillarray[12]=-222;              //
+     fillarray[13]=vrtxX;             //Vertex position of the tracking particle
+     fillarray[14]=vrtxY;             //
+     fillarray[15]=vrtxZ;             //
+     fillarray[16]=simvrtxX;          //SimVertex position -- obtained by finding the vertex with the most number of daughter tracks
+     fillarray[17]=simvrtxY;          //
+     fillarray[18]=simvrtxZ;          //
+     fillarray[19]=eta1;              //information of the hits on the 3 layers
+     fillarray[20]=eta2;
+     fillarray[21]=eta3;
+     fillarray[22]=phi1;
+     fillarray[23]=phi2;
+     fillarray[24]=phi3;
+     fillarray[25]=trackid1;
+     fillarray[26]=trackid2;
+     fillarray[27]=trackid3;
+     fillarray[28]=processtype1;
+     fillarray[29]=processtype2;
+     fillarray[30]=processtype3;
+     fillarray[31]=energyloss1;
+     fillarray[32]=energyloss2;	       
+     fillarray[33]=energyloss3;
+     fillarray[34]=particletype1;
+     fillarray[35]=particletype2;
+     fillarray[36]=particletype3;
+     fillarray[37]=i;                 //Particle Counter
+     fillarray[38]=layer1hits;
+     ntparticle->Fill(fillarray);
+     
+  }
+}
+
+// Make Tracklets from hits
+vector<Tracklet> PixelTrackletAnalyzer::makeTracklets(const edm::Event& iEvent,vector<const SiPixelRecHit*> layer1, vector<const SiPixelRecHit*> layer2, math::XYZVector vertex, bool invert)
+{
+  vector<Tracklet> recoTracklets;
+  TrackerHitAssociator theHitAssociator(iEvent);
+
+  for(unsigned int i1 = 0; i1 < layer1.size(); ++i1)          //loops over and gets spatial information and associated simhits for each rechit
+  {
+     // Ids
+     int rechit1Type = 0;
+     int rechit2Type = 0;
+     int trackletType = -1;
+     int signalExistCheck = 0;
+     int signalCheck = 0;
+    
+     const SiPixelRecHit* recHit1 = layer1[i1];
+    
+     pixelLayer = dynamic_cast<const PixelGeomDetUnit*> (trGeo->idToDet(recHit1->geographicalId()));
+    
+     GlobalPoint gpos1 = pixelLayer->toGlobal(recHit1->localPosition());
+    
+     // Calculate the rechit position with respect to the vertex
+     math::XYZVector rechitPos(gpos1.x(),gpos1.y(),gpos1.z()-vertex.z());
+     double phi1 = rechitPos.phi();
+     double eta1 = rechitPos.eta();
+
+     // Get the associated simHit
+     int trid = -9999; 
+
+     if (doMC_) {
+        vector<PSimHit> simHits1 = theHitAssociator.associateHit(*recHit1);
+        const PSimHit * bestSimHit1 = 0;
+        if (verbose_) cout <<"Rechit "<<i1<<" "<<eta1<<" "<<phi1<<" "<<endl;
+        if (verbose_) cout <<"Number of matched simHits:"<<simHits1.size()<<endl;
+        int simIdx =0;
+        for(vector<PSimHit>::const_iterator simHit1 = simHits1.begin(); simHit1!= simHits1.end(); simHit1++)   //gets the primary simhit and its specifications for the rechit 
+        {  
+           simIdx++;
+           unsigned int associatedTPID = associateSimhitToTrackingparticle((&(*simHit1))->trackId());
+           cout <<"AssociatedPID: "<<associatedTPID<<" "<<endl;
+           if (associatedTPID == -1) continue;    // doesn't match to any Trackingparticle
+
+           TrackingParticleRef associatedTP(trackingParticles, associatedTPID);
+
+           int detid = (&(*simHit1))->detUnitId();
+           int ptype = (&(*simHit1))->processType();
+
+           const PixelGeomDetUnit* pxlayer;
+           PXBDetId pid(detid);
+           pxlayer = dynamic_cast<const PixelGeomDetUnit*> (trGeo->idToDet(pid));
+           if(!pxlayer) continue;
+           GlobalPoint gpos=pxlayer->toGlobal((&(*simHit1))->localPosition());
+           GlobalPoint vgpos(gpos.x(),gpos.y(),gpos.z()-vertex.z());
+           bool isprimary = checkprimaryparticle(associatedTP);
+
+           if (verbose_) cout <<"Matched "<<simIdx<<" : "<<vgpos.eta()<<" "<<vgpos.phi()<<" , "<<"TP: "<<associatedTP->eta()<<" "<<associatedTP->phi()<<" Primary? "<<isprimary<<" Processtype:"<<ptype<<endl; 
+
+           if (isprimary && bestSimHit1==0)
+   	   { 
+	     bestSimHit1 = &(*simHit1);
+	   }
+
+           if (!isprimary) continue;
+
+	   /////??????????  WHY LOOP NOT ENDED HERE??? FILL FOR THE SAME RECHIT SEVERAL TIMES??
+
+           for(unsigned int i2 = 0; i2 < layer2.size(); ++i2)
+           {
+              const SiPixelRecHit* recHit2 = layer2[i2];
+              vector<PSimHit> simHits2 = theHitAssociator.associateHit(*recHit2);
+              const PSimHit * bestSimHit2 = 0;
+              pixelLayer = dynamic_cast<const PixelGeomDetUnit*> (trGeo->idToDet(recHit2->geographicalId()));
+              GlobalPoint gpos2 = pixelLayer->toGlobal(recHit2->localPosition());
+              math::XYZVector rechitPos2(gpos2.x(),gpos2.y(),gpos2.z()-vertex.z());
+              double phi2 = rechitPos2.phi();
+              double eta2 = rechitPos2.eta();
+
+              if (verbose_) cout <<"----- Rechit "<<i2<<" "<<eta2<<" "<<phi2<<" "<<endl;
+
+              for(vector<PSimHit>::const_iterator simHit2 = simHits2.begin(); simHit2!= simHits2.end(); simHit2++)
+              {
+                 unsigned int associatedTPID2 = associateSimhitToTrackingparticle((&(*simHit2))->trackId());
+
+                 if (associatedTPID2 == -1) continue;    // doesn't match to any Trackingparticle
+
+                 TrackingParticleRef associatedTP2(trackingParticles, associatedTPID2);
+
+                 bool isprimary2 = checkprimaryparticle(associatedTP2);
+
+                 int detid2 = (&(*simHit2))->detUnitId();
+                 int ptype2 = (&(*simHit2))->processType();
+                 const PixelGeomDetUnit* pxlayer2;
+                 PXBDetId pid2(detid2);
+                 pxlayer2 = dynamic_cast<const PixelGeomDetUnit*> (trGeo->idToDet(pid2));
+                 if(!pxlayer2) continue;
+                 GlobalPoint gpos2=pxlayer->toGlobal((&(*simHit2))->localPosition());
+                 GlobalPoint vgpos2(gpos2.x(),gpos2.y(),gpos2.z()-vertex.z());
+
+                 if (verbose_) cout <<"----- Matched "<<simIdx<<" : "<<vgpos2.eta()<<" "<<vgpos2.phi()<<" , "<<"TP: "<<associatedTP2->eta()<<" "<<associatedTP2->phi()<<" Primary? "<<isprimary2<<" Processtype:"<<ptype2<<endl; 
+
+
+                 if (!isprimary2) continue;
+                 if (isprimary2)
+	         {
+	            bestSimHit2 = &(*simHit2);
+  	         }
+
+                 int trid2 = bestSimHit2->trackId();
+   	         if(trid2 == (&(*simHit1))->trackId()&&trid2 != -9999)
+                 {
+                    signalExistCheck = 1;  
+ 	         }
+              }
+           }
+        } 
+
+        if(bestSimHit1!=0)
+        {
+           trid = bestSimHit1->trackId();  
+        }
+     }
+
+     // Match with second layer reconstructed hits
+     for(unsigned int i2 = 0; i2 < layer2.size(); ++i2)
+     {
+        const SiPixelRecHit* recHit2 = layer2[i2];
+        pixelLayer = dynamic_cast<const PixelGeomDetUnit*> (trGeo->idToDet(recHit2->geographicalId()));
+      
+        GlobalPoint gpos2 = pixelLayer->toGlobal(recHit2->localPosition());
+        // Calculate the rechit position with respect to the vertex
+        math::XYZVector rechit2Pos(gpos2.x(),gpos2.y(),gpos2.z()-vertex.z());
+        double phi2 = rechit2Pos.phi();
+        double eta2 = rechit2Pos.eta();
+        if (invert==1) eta2*=-1;
+        ntrechits->Fill(eta1,eta2,phi1,phi2);
+
+        double trid2=-9999;
+        int trackletProcessType=0;
+        if(doMC_) {
+ 
+           vector<PSimHit> simHits2 = theHitAssociator.associateHit(*recHit2);
+           const PSimHit * bestSimHit2 = 0;
+           for(vector<PSimHit>::const_iterator simHit2 = simHits2.begin(); simHit2!= simHits2.end(); simHit2++)
+           {
+
+              unsigned int associatedTPID2 = associateSimhitToTrackingparticle((&(*simHit2))->trackId());
+
+              if (associatedTPID2 == -1) continue;    // doesn't match to any Trackingparticle
+
+              TrackingParticleRef associatedTP2(trackingParticles, associatedTPID2);
+              bool isprimary = checkprimaryparticle(associatedTP2);
+              if (isprimary)
+	      {
+	         bestSimHit2 = &(*simHit2);
+	         break;
+	      }
+           }
+      
+           if(bestSimHit2!=0)
+           {	//for each simhit on the first layer, finds the simhits on the second layer with the same trackid. 
+  	      if(bestSimHit2->trackId() == (unsigned int)trid && trid !=-9999)
+              {
+	         double pabs = bestSimHit2->momentumAtEntry().mag();
+	         int particletype = bestSimHit2->particleType();
+	         trackletProcessType = bestSimHit2->processType();
+	         double energyloss = bestSimHit2->energyLoss();
+	         double pt = bestSimHit2->momentumAtEntry().perp();
+                 unsigned int associatedTPID = associateSimhitToTrackingparticle(trid);
+
+                 if (associatedTPID == -1) continue;    // doesn't match to any Trackingparticle
+
+                 TrackingParticleRef associatedTP2(trackingParticles, associatedTPID);
+
+                 bool isprimary = checkprimaryparticle(associatedTP2);
+                 float var[20];
+                 var[0]=eta1;
+                 var[1]=eta2;
+                 var[2]=phi1;
+                 var[3]=phi2;
+                 var[4]=pabs;
+                 var[5]=pt;
+                 var[6]=particletype;
+                 var[7]=trackletProcessType;
+                 var[8]=energyloss;
+      	         var[9]=isprimary;
+   	         if (!invert) ntsim->Fill(var);                         
+	      }
+              trid2 = bestSimHit2->trackId();
+           }          
+        }
+        
+        // Tracklet id
+        if(trid!=-9999)
+        {
+	   if(trid2 != -9999)
+           {
+	      if(trid2 == trid)
+              {
+	         signalCheck = 1;
+	      }
+           }
+        }
+
+        if(trid!=-9999)
+        {
+           rechit1Type = 1;
+        }
+           
+        if(trid2!=-9999)
+        {
+           rechit2Type = 1;
+        }
+
+        if (rechit1Type == 1) 
+        {
+           if (rechit2Type == 1) 
+           {
+              if (signalCheck == 1 ) trackletType = 1; 
+              else                   trackletType = 2;
+           } else {
+              trackletType = 3;
+           }
+         } else {
+           if (rechit2Type == 1)
+           {
+              trackletType = 4;
+           } else {
+              trackletType = 5;
+           }
+        }
+
+        Tracklet mytracklet(eta1,eta2,phi1,phi2);
+
+        mytracklet.setIt1(i1);
+        mytracklet.setIt2(i2);
+        mytracklet.setId1(rechit1Type);
+        mytracklet.setId2(rechit2Type);
+        mytracklet.setId(trackletType);
+        mytracklet.setSId(signalExistCheck);
+        mytracklet.setType(trackletProcessType);
+        recoTracklets.push_back(mytracklet);
+     }
+  }
+
+
+  return recoTracklets;
+}
+
+
+// Clean the Tracklet with multiple use
+vector<Tracklet> PixelTrackletAnalyzer::cleanTracklets(vector<Tracklet> input)
+{
+   vector<Tracklet> output;
+   sort( input.begin() , input.end() , compareTracklet);
+
+   if (verbose_) {
+      for (unsigned int i = 0; i < input.size(); i++)
+      {
+         cout <<input[i].deta()<<" "<<input[i].getIt1()<<" "<<input[i].getIt2()<<endl;
+      }
+   }
+
+   int used1[1000];
+   int used2[1000];
+
+   for (int i=0;i<1000;i++) { 
+      used1[i]=0;
+      used2[i]=0;
+   } 
+
+   for (unsigned int i = 0; i < input.size(); i++)
+   {
+      int i1=input[i].getIt1();
+      int i2=input[i].getIt2();
+      if (used1[i1]==0&&used2[i2]==0) {
+         Tracklet tmp = input[i];
+         output.push_back(tmp);
+         used1[i1]=1;
+         if (checkSecondLayer_) used2[i2]=1;
+      }
+   }
+
+   if (verbose_) {
+      cout <<"Output:"<<endl;
+
+      for (unsigned int i = 0; i < output.size(); i++)
+      {
+         cout <<output[i].deta()<<" "<<output[i].getIt1()<<" "<<output[i].getIt2()<<endl;
+      }
+   }
+   
+   return output;
+}
+
+// Clean the Tracklet with multiple use
+vector<Tracklet> PixelTrackletAnalyzer::cleanTracklets1(vector<Tracklet> input)
+{
+   vector<Tracklet> output;
+   sort( input.begin() , input.end() , compareTracklet);
+
+   if (verbose_) {
+      for (unsigned int i = 0; i < input.size(); i++)
+      {
+         cout <<input[i].deta()<<" "<<input[i].getIt1()<<" "<<input[i].getIt2()<<endl;
+      }
+   }
+
+   int used1[1000];
+   int used2[1000];
+
+   for (int i=0;i<1000;i++) { 
+      used1[i]=0;
+      used2[i]=-1;
+   } 
+
+   for (unsigned int i = 0; i < input.size(); i++)
+   {
+      int i1=input[i].getIt1();
+      int i2=input[i].getIt2();
+      if (used1[i1]==0&&used2[i2]<=0) {
+         Tracklet tmp = input[i];
+         if (used2[i2]==0) {
+            output.push_back(tmp);
+            used1[i1]++;
+         }
+         if (checkSecondLayer_) used2[i2]++;
+      }
+   }
+
+   if (verbose_) {
+      cout <<"Output:"<<endl;
+
+      for (unsigned int i = 0; i < output.size(); i++)
+      {
+         cout <<output[i].deta()<<" "<<output[i].getIt1()<<" "<<output[i].getIt2()<<endl;
+      }
+   }
+   
+   return output;
+}
+
+// Make Ntuple
+void PixelTrackletAnalyzer::analyzeTracklets(vector<Tracklet> input, vector<Tracklet> invertedInput)
+{
+
+  for (unsigned int i = 0; i < input.size(); i++) 
+  {
+     float var[100];
+     int signalCheck=0;
+     if (input[i].getId()==1) signalCheck=1; 
+
+     var[0]=input[i].eta1();
+     var[1]=input[i].eta2();
+     var[2]=input[i].phi1();
+     var[3]=input[i].phi2();
+     var[4]=input[i].deta();
+     var[5]=input[i].dphi();
+     var[6]=signalCheck; 
+     var[7]=input[i].getId();
+     var[8]=input[i].getId1();
+     var[9]=input[i].getId2();
+     var[10]=eventCounter_;
+     var[11]=layer1HitInEta1_;
+     var[12]=input[i].getSId();
+     var[13]=input[i].getType();
+
+     ntmatched->Fill(var);
+    
+     if(input[i].deta() < deltaCut_)
+     {
+        for(int ietat = 0 ; ietat < etaBins_; ++ietat)
+        {
+	   double etaBin = ietat * 0.5 - 2;
+	   if(input[i].eta1()<etaBin || input[i].eta1()>=etaBin+0.5) continue;
+	   ++tracklets[ietat];
+	   if (signalCheck) ++signalTracklets[ietat];
+        }
+     }
+  }
+
+  for (unsigned int i = 0; i < invertedInput.size(); i++) 
+  {
+     float var[100];
+
+     var[0]=invertedInput[i].eta1();
+     var[1]=invertedInput[i].eta2();
+     var[2]=invertedInput[i].phi1();
+     var[3]=invertedInput[i].phi2();
+     var[4]=invertedInput[i].deta();
+     var[5]=invertedInput[i].dphi();
+
+     ntInvMatched->Fill(var);
+  }
+}
+
+unsigned int PixelTrackletAnalyzer::associateSimhitToTrackingparticle(unsigned int trid )
+{
+
+ unsigned int ref=-1;
+
+ const TrackingParticleCollection TPCProd = *(trackingParticles.product());
+ for (TrackingParticleCollection::size_type i=0; i<TPCProd.size(); i++){
+    TrackingParticleRef tp(trackingParticles, i);
+    vector <PSimHit> particlesimhits = tp->trackPSimHit();
+    for(vector<PSimHit>::const_iterator simhit = particlesimhits.begin(); simhit != particlesimhits.end(); ++simhit)
+    {
+       //cout <<"       matching TP: "<<i<<" TPsimhitid: "<<simhit->trackId()<<" simhitId: "<<trid<<endl;
+       if(simhit->trackId()==trid)
+       {
+          ref=i;
+          break;
+       }
+   }
+   if (ref!=-1) break;
+ }
+
+ return ref;
+}
+
+bool PixelTrackletAnalyzer::checkprimaryparticle(TrackingParticleRef tp)
+{
+  int primarycheck=2;
+  if(((tp->charge()==1)||(tp->charge()==-1))&&(tp->vertex().Rho()<0.2))
+  {
+     primarycheck=1;
+  } else {
+     primarycheck=0;
+  }
+  return primarycheck;
+}       
+
+ //define this as a plug-in
+ DEFINE_FWK_MODULE(PixelTrackletAnalyzer);
+
+void PixelTrackletAnalyzer::fillGeneratorInfo(const edm::Event& iEvent, const edm::EventSetup& iSetup)
+{
   //Generator Level Information
   //Important information:
   //
@@ -202,382 +1124,45 @@ PixelTrackletAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& 
   // had: number of hadrons
   // lep: number of leptons
   // trt: number of tracklets
+  // signalTrt: number of signal tracklets
+
+  using namespace edm;
+  using namespace std;
+  using namespace reco;
 
   Handle<HepMCProduct> mc;
   iEvent.getByLabel("source",mc);
+
+
   const HepMC::GenEvent* hepevt = mc->GetEvent();
   for( HepMC::GenEvent::particle_const_iterator pi = hepevt->particles_begin();
-       pi != hepevt->particles_end(); pi++ ){
+       pi != hepevt->particles_end(); pi++ )
+  {
      HepMC::GenParticle* p = *pi;
-     if(p->status() != 1) continue;
+     int partid = p->pdg_id();  
+     double pt = p->momentum().perp();
      double eta = p->momentum().eta();
-     for(int ieta = 0 ; ieta < etaBins_; ++ieta){
-	double etaBin = ((double)ieta-2*etaMax_)/(double)etaBins_/2*etaMax_;
-	if(eta<etaBin || eta>=etaBin+0.5) continue;
-	int partid = p->pdg_id();
-	double pt = p->momentum().perp();
-	if(abs( partid ) == 211 ||
+     double phi = p->momentum().phi();
+     if (verbose_) cout <<"Event "<<eventCounter_<<" : "<<partid<<" pt: "<<pt<<" eta: "<<eta<<" phi: "<<phi<<" stat:"<<p->status()<<endl;
+     if (p->status() != 1) continue;
+  
+     for(int ieta = 0 ; ieta < etaBins_; ++ieta)
+     {
+        double etaBin = ieta * 0.5 - 2;
+        if(eta<etaBin || eta>=etaBin+0.5) continue;
+        if(abs( partid ) == 211 ||
 	   abs( partid ) == 321 ||
 	   abs( partid ) == 2212 ||
-	   abs( partid ) == 3122  ){
-	   ptav = ptav + pt;
+	   abs( partid ) == 3122  )
+        {
 	   particles[ieta]++;
 	}
-	if(abs(partid)==11 || abs(partid)==13){
+	if(abs(partid)==11 || abs(partid)==13)
+        {
 	   particles[ieta+8]++;
 	}
      }
   }
-
+  cout <<"Hadron/Lepton: "<<particles<<endl;
   ntgen->Fill(particles);
-
-  //finds the primary vertex coordinates
-  Handle<TrackingVertexCollection> vertices;
-  iEvent.getByLabel("mergedtruth","MergedTrackTruth", vertices);
-  int daughter = 0;
-  for (int i = 0 ; i< vertices->size(); ++i){
-    daughter = (*vertices)[i].nDaughterTracks();
-    if( daughter > (*vertices)[greatestvtx].nDaughterTracks()){
-      greatestvtx = i;
-    }}
-  if(vertices->size()>0){
-    simvrtxZ = (*vertices)[greatestvtx].position().z();
-    simvrtxY = (*vertices)[greatestvtx].position().y();
-    simvrtxX = (*vertices)[greatestvtx].position().x();
-  }
-  
-  TrackerHitAssociator theHitAssociator(iEvent);
-  const SiPixelRecHitCollection* rechits;
-  Handle<SiPixelRecHitCollection> rchts;
-  iEvent.getByLabel("siPixelRecHits",rchts);
-  rechits = rchts.product();
-  const PixelGeomDetUnit* pixelLayer;
-  for(SiPixelRecHitCollection::id_iterator id = rechits->id_begin(); id!= rechits->id_end(); id++)
-    {
-      if((*id).subdetId() == int(PixelSubdetector::PixelBarrel)){
-	PXBDetId pid(*id);
-	SiPixelRecHitCollection::range range;
-	int layer = pid.layer();
-	if(layer == 1 || layer == 2){
-	  range = rechits->get(*id);
-	  pixelLayer = dynamic_cast<const PixelGeomDetUnit*> (trGeo->idToDet(*id));
-	}
-	
-	
-	for(SiPixelRecHitCollection::const_iterator recHit = range.first; recHit!= range.second; recHit++)
-	  {
-	    if(layer == 1)layer1.push_back(&(*recHit));
-	    if(layer == 2)layer2.push_back(&(*recHit));
-	    
-	  }
-      }
-      
-    }
-
-  int layer1hits=layer1.size();    //total number of rechits on the first layer
-
-  for(int i1 = 0; i1 < layer1.size(); ++i1){          //loops over and gets spatial information and associated simhits for each rechit
-
-    bool signalcheck=0;
-    double matchedeta=50;
-    double matchedphi=50;
-    double deltaeta=100;
-    double matchedinveta2=50;
-    double matchedinvphi2=50;
-    double deltainveta=100;
-    
-    const SiPixelRecHit* recHit1 = layer1[i1];
-    
-    pixelLayer = dynamic_cast<const PixelGeomDetUnit*> (trGeo->idToDet(recHit1->geographicalId()));
-    
-    GlobalPoint gpos1 = pixelLayer->toGlobal(recHit1->localPosition());
-    
-    double z1 = gpos1.z() - simvrtxZ;
-    double x1 = gpos1.x();
-    double y1 = gpos1.y();
-    double phi1 = gpos1.phi();
-    
-    double rh1 = sqrt(x1*x1 + y1*y1);
-    double r1 = sqrt(x1*x1 + y1*y1 + z1*z1);
-    double cos1 = z1/r1;
-    double sin1 = rh1/r1;
-    double eta1 = -1*log((1-cos1)/sin1);
-    vector<PSimHit> simHits1 = theHitAssociator.associateHit(*recHit1);
-    const PSimHit * bestSimHit1 = 0;
-    
-    for(vector<PSimHit>::const_iterator simHit1 = simHits1.begin(); simHit1!= simHits1.end(); simHit1++){   //gets the primary simhit and its specifications for the rechit 
-      if(simHit1->processType() == 2)
-	{
-	  bestSimHit1 = &(*simHit1);
-	  break;
-	}}
-    
-    int trid = -9999; 
-    if(bestSimHit1!=0){
-      trid = bestSimHit1->trackId();  
-    }
-    for(int i2 = 0; i2 < layer2.size(); ++i2){
-      const SiPixelRecHit* recHit2 = layer2[i2];
-      pixelLayer = dynamic_cast<const PixelGeomDetUnit*> (trGeo->idToDet(recHit2->geographicalId()));
-      
-      GlobalPoint gpos2 = pixelLayer->toGlobal(recHit2->localPosition());
-      double z2 = gpos2.z() - simvrtxZ;
-      double x2 = gpos2.x();
-      double y2 = gpos2.y();
-      double phi2 = gpos2.phi();
-      double rh2 = sqrt(x2*x2 + y2*y2);
-      double r2 = sqrt(x2*x2 + y2*y2 + z2*z2);
-      double cos2 = z2/r2;
-      double sin2 = rh2/r2;
-      double eta2 = -1*log((1-cos2)/sin2);
-      double inveta2 = -1*eta2;
-      ntrechits->Fill(eta1,eta2,phi1,phi2);
-      
-      vector<PSimHit> simHits2 = theHitAssociator.associateHit(*recHit2);
-      const PSimHit * bestSimHit2 = 0;
-      for(vector<PSimHit>::const_iterator simHit2 = simHits2.begin(); simHit2!= simHits2.end(); simHit2++){
-	if(simHit2->processType() == 2)
-	  {
-	    bestSimHit2 = &(*simHit2);
-	    break;
-	  }
-      }
-      if(bestSimHit2!=0){	//for each simhit on the first layer, finds the simhits on the second layer with the same trackid. 
-	if(bestSimHit2->trackId() == trid){
-	  double pabs = bestSimHit2->momentumAtEntry().mag();
-	  int particletype = bestSimHit2->particleType();
-	  double energyloss = bestSimHit2->energyLoss();
-	  double pt = bestSimHit2->momentumAtEntry().perp();
-	  ntsim->Fill(eta1,eta2,phi1,phi2,pabs,pt,particletype,energyloss);                         
-	}}          
-      
-      if(fabs(eta1-eta2)<deltaeta){     //for each rechit on the first layer, finds the rechit on the second layer that has the closest eta value. if they are both from the same track, then signalcheck==1.
-	signalcheck=0;
-	deltaeta=fabs(eta1-eta2);
-	matchedeta=eta2;
-	matchedphi=phi2;
-	if(trid!=-9999){
-	  if(bestSimHit2){
-	    if(bestSimHit2->trackId() == trid){
-	      signalcheck=1;
-	    }}}
-      }
-      if(fabs(eta1-inveta2)<deltainveta){
-	deltainveta=fabs(eta1-inveta2);
-	matchedinveta2=inveta2;
-	matchedinvphi2=phi2;
-      }
-    }
-    ntmatched->Fill(eta1,matchedeta,phi1,matchedphi,matchedinveta2,matchedinvphi2,signalcheck,layer1hits);
-    
-    if(deltaeta < deltaCut_){
-       for(int ietat = 0 ; ietat < etaBins_; ++ietat){
-	  double etaBin = ((double)ietat-2*etaMax_)/(double)etaBins_/2*etaMax_;
-	  if(eta1<etaBin || eta1>=etaBin+(2*etaMax_/etaBins_)) continue;
-	  ++tracklets[ietat];
-       }
-    }
-  }
-
-  ntevent->Fill(tracklets);
-
-  if(zoomSim_) fillTrackDetails(iEvent, iSetup, simvrtxZ, layer1hits);
-
 }
-
-// ------------ method called once each job just before starting event loop  ------------                                                                                                                                       
-void
-PixelTrackletAnalyzer::beginJob(const edm::EventSetup& iSetup){
-
-   edm::ESHandle<CaloGeometry> pGeo;
-   iSetup.get<CaloGeometryRecord>().get(pGeo);
-   caloGeo = pGeo.product();
-
-   edm::ESHandle<TrackerGeometry> tGeo;
-   iSetup.get<TrackerDigiGeometryRecord>().get(tGeo);
-   trGeo = tGeo.product();
-
-   ntevent =  fs->make<TNtuple>("ntevent","","trt1:trt2:trt3:trt4:trt5:trt6:trt7:trt8");
-
-   ntmatched = fs->make<TNtuple>("ntmatched","","eta1:matchedeta:phi1:matchedphi:matchedinveta2:matchedinvphi2:signalcheck:layer1hits");
-   ntrechits =  fs->make<TNtuple>("ntrechits","","eta1:eta2:phi1:phi2");
-   ntparticle =  fs->make<TNtuple>("ntparticle","","eta:theta:phi:charge:energy:p:pt:px:py:pz:pdgid:status:useless:vrtxX:vrtxY:vrtxZ:simvrtxX:simvrtxY:simvrtxZ:eta1:eta2:eta3:phi1:phi2:phi3:trackid1:trackid2:trackid3:processtype1:processtype2:processtype3:energyloss1:energyloss2:energyloss3:particletype1:particletype2:particletype3:particlecounter:layer1hits");
-   ntsim = fs->make<TNtuple>("ntsim","","eta1:eta2:phi1:phi2:pabs:pt:particletype:energyloss");
-   ntgen = fs->make<TNtuple>("ntgen","","had1:had2:had3:had4:had5:had6:had7:had8:lep1:lep2:lep3:lep4:lep5:lep6:lep7:lep8");
-
-}
-
-// ------------ method called once each job just after ending the event loop  ------------  
-
-void
-PixelTrackletAnalyzer::endJob() {
-
-}
-
-
-void
-PixelTrackletAnalyzer::fillTrackDetails(const edm::Event& iEvent, const edm::EventSetup& iSetup, double simvrtxZ, int layer1hits){
-
-
-   /// For debugging / Getting detailed information about the propagation of tracks
-
-   double simvrtxX = 0;
-   double simvrtxY = 0;
-
-  //TrackingParticles information  
-   edm::Handle<TrackingParticleCollection> TPColl ;
-  iEvent.getByLabel("mergedtruth","MergedTrackTruth",TPColl);
-  //gets the information from trackingparticle  
-  const TrackingParticleCollection TPCProd = *(TPColl.product());
-  for (TrackingParticleCollection::size_type i=0; i<TPCProd.size(); i++){
-    TrackingParticleRef tp(TPColl, i);
-    
-    double eta = tp->eta();
-    double theta = tp->theta();
-    double charge = tp->charge();
-    double phi = tp->phi();
-    double p = tp->p();
-    double pt = tp->pt();
-    double px = tp->px();
-    double py = tp->py();
-    double pz = tp->pz();
-    double energy = tp->energy();
-    double vrtxX = tp->vx();
-    double vrtxY = tp->vy();
-    double vrtxZ = tp->vz();
-    int pdgid = tp->pdgId();
-    int status = tp->status();
-    double eta1=20;
-    double eta2=20;
-    double eta3=20;
-    double phi1=20;
-    double phi2=20;
-    double phi3=20;
-    int processtype1;
-    int particletype1;
-    double energyloss1;
-    int trackid1;
-    int processtype2;
-    int particletype2;
-    double energyloss2;
-    int trackid2;
-    int processtype3;
-    int particletype3;
-    double energyloss3;
-    int trackid3;
-    
-    
-    vector <PSimHit> particlesimhits = tp->trackPSimHit();
-    for(vector<PSimHit>::const_iterator simhit = particlesimhits.begin(); simhit != particlesimhits.end(); ++simhit){
-      double hiteta=-99;
-      double hitphi=-99;
-      double hitphiatentry=-99;
-      double hitenergyloss=-99;
-      int hitparticletype=0;
-      int hittrackid=-99;
-      int hitprocesstype=0;
-      
-      int detid = simhit->detUnitId();
-      const PixelGeomDetUnit* pxlayer;
-      PXBDetId pid(detid);
-      pxlayer = dynamic_cast<const PixelGeomDetUnit*> (trGeo->idToDet(pid));
-      if(!pxlayer) continue;
-      GlobalPoint gpos=pxlayer->toGlobal(simhit->localPosition());
-      double x = gpos.x();
-      double y = gpos.y();
-      double z = gpos.z() - simvrtxZ;
-      double rh = sqrt(x*x+y*y);
-      double r = sqrt(x*x+y*y+z*z);
-      double cos = z/r;
-      double sin = rh/r;
-      hiteta = -1*log((1-cos)/sin);
-      hitphi=gpos.phi();
-      hitphiatentry=simhit->phiAtEntry();
-      hitparticletype=simhit->particleType();
-      hittrackid=simhit->trackId();
-      hitenergyloss=simhit->energyLoss();
-      hitprocesstype=simhit->processType();
-      int layer = 0;
-      // for each particle, finds out if it hits any of the pixel barrel layers and if so, records the information  
-      if(fabs(sqrt(x*x+y*y)-4.4)<1 && fabs(hiteta)<1){
-	layer=1;
-	if(hiteta<eta1 && hitprocesstype==2){
-	  eta1=hiteta;
-	  phi1=hitphi;
-	  processtype1=hitprocesstype;
-	  particletype1=hitparticletype;
-	  energyloss1=hitenergyloss;
-	  trackid1=hittrackid;
-	}
-      } 
-      if(fabs(sqrt(x*x+y*y)-7.3)<1 && fabs(hiteta)<1){
-	layer=2;
-	if(hiteta<eta2 && hitprocesstype==2){
-	  eta2=hiteta;
-	  phi2=hitphi;
-	  processtype2=hitprocesstype;
-	  particletype2=hitparticletype;
-	  energyloss2=hitenergyloss;
-	  trackid2=hittrackid;
-	}
-	
-      }
-      if(fabs(sqrt(x*x+y*y)-10.2)<1 && fabs(hiteta)<1){
-	layer=3;
-	if(hiteta<eta3 && hitprocesstype==2){
-	  eta3=hiteta;
-	  phi3=hitphi;
-	  processtype3=hitprocesstype;
-	  particletype3=hitparticletype;
-	  energyloss3=hitenergyloss;
-	  trackid3=hittrackid;
-	}
-      }
-    }
-    Float_t fillarray[39];
-    fillarray[0]=eta;                //eta of the tracking particle
-    fillarray[1]=theta;              //theta of the tracking particle  
-    fillarray[2]=phi;                //phi of the tracking particle
-    fillarray[3]=charge;             //charge of the tracking particle
-    fillarray[4]=energy;             //energy of the tracking particle
-    fillarray[5]=p;                  //absolute momentum of the tracking particle 
-    fillarray[6]=pt;                 //pt of the tracking particle
-    fillarray[7]=px;                 //x, y, and z components of the momentum of the tracking particle
-    fillarray[8]=py;
-    fillarray[9]=pz;
-    fillarray[10]=pdgid;             //pdgid for the tracking particle
-    fillarray[11]=status;            //status of the tracking particle
-    fillarray[12]=-222;
-    fillarray[13]=vrtxX;             //Vertex position of the tracking particle
-    fillarray[14]=vrtxY;
-    fillarray[15]=vrtxZ;
-    fillarray[16]=simvrtxX;            //SimVertex position -- obtained by finding the vertex with the most number of daughter tracks
-    fillarray[17]=simvrtxY;
-    fillarray[18]=simvrtxZ;
-    fillarray[19]=eta1;                  //information of the hits on the 3 layers
-    fillarray[20]=eta2;
-    fillarray[21]=eta3;
-    fillarray[22]=phi1;
-    fillarray[23]=phi2;
-    fillarray[24]=phi3;
-    fillarray[25]=trackid1;
-    fillarray[26]=trackid2;
-    fillarray[27]=trackid3;
-    fillarray[28]=processtype1;
-    fillarray[29]=processtype2;
-    fillarray[30]=processtype3;
-    fillarray[31]=energyloss1;
-    fillarray[32]=energyloss2;	       
-    fillarray[33]=energyloss3;
-    fillarray[34]=particletype1;
-    fillarray[35]=particletype2;
-    fillarray[36]=particletype3;
-    fillarray[37]=i;                   //Particle Counter
-    fillarray[38]=layer1hits;
-    ntparticle->Fill(fillarray);
-    
-  }
-}
-
- //define this as a plug-in
- DEFINE_FWK_MODULE(PixelTrackletAnalyzer);

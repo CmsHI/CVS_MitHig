@@ -10,9 +10,9 @@
 #include <iostream>
 
 void formatHist(TH1* h, int col = 1, double norm = 1);
-void saveCanvas(TCanvas* c, int date = 20080829);
+void saveCanvas(TCanvas* c, int date = 20080916);
 
-void analyze_tracklets(const char* infile = "p0829.root", double etaMax = 2.){
+void analyze_tracklet_deltaEta(const char* infile = "tracklet0915.root", double etaMax = 2.){
   const char* outfile = "output.root";
 
   /// Parameters
@@ -37,6 +37,8 @@ void analyze_tracklets(const char* infile = "p0829.root", double etaMax = 2.){
   f->cd("ana;1");
   TNtuple * ntparticle= dynamic_cast<TNtuple *>(f->Get("ana/ntparticle"));
   TNtuple * ntmatched= dynamic_cast<TNtuple *>(f->Get("ana/ntmatched"));
+  TNtuple * ntInvMatched= dynamic_cast<TNtuple *>(f->Get("ana/ntInvMatched"));
+
   TNtuple * ntgen = dynamic_cast<TNtuple *>(f->Get("ana/ntgen"));
   TNtuple * ntevent = dynamic_cast<TNtuple *>(f->Get("ana/ntevent"));
 
@@ -75,9 +77,9 @@ void analyze_tracklets(const char* infile = "p0829.root", double etaMax = 2.){
 
   ntmatched->SetBranchAddress("eta1",&matchedeta1);
   ntmatched->SetBranchAddress("matchedeta",&matchedeta2);
-  ntmatched->SetBranchAddress("matchedinveta2",&matchedinveta2);
-  ntmatched->SetBranchAddress("signalcheck",&signalcheck);
-  ntmatched->SetBranchAddress("layer1hits",&layer1hits);
+  ntInvMatched->SetBranchAddress("matchedeta",&matchedinveta2);
+  ntmatched->SetBranchAddress("signalCheck",&signalcheck);
+  //  ntmatched->SetBranchAddress("layer1hits",&layer1hits);
   ntparticle->SetBranchAddress("eta1",&eta1);
   ntparticle->SetBranchAddress("eta2",&eta2);
   ntparticle->SetBranchAddress("charge",&charge);
@@ -90,6 +92,8 @@ void analyze_tracklets(const char* infile = "p0829.root", double etaMax = 2.){
 
   for(int i = 0; i<matchedentries;i++){
     ntmatched->GetEntry(i);
+    ntInvMatched->GetEntry(i);
+
     if(fabs(matchedeta1)>etaMax) continue;
     if(fabs(matchedeta2)>etaMax) continue;
     if(fabs(matchedinveta2)>etaMax) continue;
