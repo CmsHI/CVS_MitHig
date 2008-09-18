@@ -1,0 +1,20 @@
+#!/bin/sh
+
+cfg=tracklet_pp900GeV_cfg.py
+
+a=$PWD
+
+cd ~yetkin/cms217/src
+. ~yetkin/set
+
+cd $a
+mkdir proc-$1
+cd proc-$1
+
+run=`printf "%06d" $1`
+random=$RANDOM
+cat $a/$cfg | replace __OUTPUT__ pixel_r${run} | replace __INPUT__ ${run} | replace __RANDOM__ ${random}> run${run}_cfg.py
+cmsRun run${run}_cfg.py 1>${run}.run.out 2>${run}.run.err
+cd ..
+tar cvfz proc-$1.tgz proc-$1
+rm proc-$1 -rf

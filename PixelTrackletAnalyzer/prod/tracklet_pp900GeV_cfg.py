@@ -15,6 +15,29 @@ process.load("Configuration.StandardSequences.RawToDigi_cff")
 process.load("Configuration.StandardSequences.Reconstruction_cff")
 process.load("SimGeneral.HepPDTESSource.pythiapdt_cfi")
 process.load("Configuration.StandardSequences.FakeConditions_cff")
+process.load("RecoVertex.BeamSpotProducer.BeamSpot_cfi")
+
+# Timing service
+process.Timing = cms.Service("Timing") 
+
+# Pixel Track and Pixel Vertexing
+from RecoPixelVertexing.PixelVertexFinding.PixelVertexes_cfi import *
+#from RecoPixelVertexing.PixelLowPtUtilities.MinBiasTracking_cff import *
+#from RecoPixelVertexing.PixelLowPtUtilities.firstStep_cff import *
+
+import RecoPixelVertexing.PixelLowPtUtilities.AllPixelTracks_cfi
+pixel3ProtoTracks = RecoPixelVertexing.PixelLowPtUtilities.AllPixelTracks_cfi.allPixelTracks.clone()
+
+pixelVertices.TrackCollection = 'pixel3ProtoTracks'
+pixelVertices.UseError = True
+pixelVertices.WtAverage = True
+pixelVertices.ZOffset = 5.
+pixelVertices.ZSeparation = 0.3
+pixelVertices.NTrkMin = 3
+pixelVertices.PtMin = 0.15
+
+process.pixel3ProtoTracks = pixel3ProtoTracks
+process.pixelVertices = pixelVertices
 
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
 
@@ -42,8 +65,12 @@ process.RandomNumberGeneratorService = cms.Service("RandomNumberGeneratorService
 
 process.ecalloc = cms.Sequence(process.ecalWeightUncalibRecHit*process.ecalRecHit)
 
-process.ana = cms.EDAnalyzer('PixelTrackletAnalyzer'
+process.ana = cms.EDAnalyzer('PixelTrackletAnalyzer',useRecoVertex = cms.untracked.bool(True)
                              )
+
+process.anasim = cms.EDAnalyzer('SimTrackAnalyzer',
+                                useRecoVertex = cms.untracked.bool(True)
+                                )
 
 process.TFileService = cms.Service('TFileService',
                                 fileName = cms.string('__OUTPUT__.hist.root')
@@ -53,8 +80,8 @@ process.output = cms.OutputModule("PoolOutputModule",
                                    fileName = cms.untracked.string('__OUTPUT__.root')
                                   )
 
-process.reconstruct = cms.Path(process.mix*process.trackingParticles*process.doAllDigi*process.L1Emulator*process.DigiToRaw*process.RawToDigi*process.trackerlocalreco*process.ecalloc)
-process.analyze = cms.Path(process.ana)
+process.reconstruct = cms.Path(process.mix*process.trackingParticles*process.doAllDigi*process.L1Emulator*process.DigiToRaw*process.RawToDigi*process.trackerlocalreco*process.ecalloc*process.offlineBeamSpot*process.pixel3ProtoTracks*process.pixelVertices)
+process.analyze = cms.Path(process.ana+process.anasim)
 #process.save = cms.EndPath(process.output)
 
 
