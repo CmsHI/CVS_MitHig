@@ -1,4 +1,6 @@
+#ifndef PIXELTRACKLET_H
 #define PI 3.14159265358979
+#define PIXELTRACKLET_H
 
 class Tracklet
 {
@@ -95,3 +97,6 @@ double Tracklet::dR2()
 }
 
 bool compareTracklet(Tracklet a,Tracklet b) {    return fabs(a.dR2())<fabs(b.dR2()); }
+
+#endif
+
