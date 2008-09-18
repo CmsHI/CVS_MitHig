@@ -1,0 +1,9 @@
+#!/bin/sh
+
+for run in `seq $1 $2`
+do
+num=`printf "%04d" $run`
+./condor.sh run_batch $num
+done
+
+
