@@ -1,6 +1,6 @@
 #!/bin/sh
 
-cfg=tracklet_pp900GeV_cfg.py
+cfg=tracklet_cfg.py
 
 a=$PWD
 

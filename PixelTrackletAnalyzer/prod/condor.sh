@@ -30,7 +30,7 @@ Output       = $ldir/$outfile.out
 Error        = $ldir/$outfile.err
 Log          = /tmp/yetkin/$outfile.log
 
-transfer_input_files = $dir/tracklet_${data}_cfg.py
+transfer_input_files = $dir/tracklet_cfg.py
 should_transfer_files   = YES
 when_to_transfer_output = ON_EXIT
 
