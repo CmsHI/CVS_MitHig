@@ -1,6 +1,8 @@
 #!/bin/sh
 
 cfg=tracklet_cfg.py
+#datatag=pythia_mb_10TeV_d20080823
+datatag=pythia_mb_900GeV_vtxFlat_d20080823
 
 a=$PWD
 
@@ -8,13 +10,15 @@ cd ~yetkin/cms217/src
 . ~yetkin/set
 
 cd $a
-mkdir proc-$1
-cd proc-$1
 
 run=`printf "%06d" $1`
+
+mkdir proc-$run
+cd proc-$run
+
 random=$RANDOM
-cat $a/$cfg | replace __OUTPUT__ pixel_r${run} | replace __INPUT__ ${run} | replace __RANDOM__ ${random}> run${run}_cfg.py
+cat $a/$cfg | replace __DATATAG__ $datatag | replace __OUTPUT__ pixel_r${run} | replace __INPUT__ ${run} | replace __RANDOM__ ${random}> run${run}_cfg.py
 cmsRun run${run}_cfg.py 1>${run}.run.out 2>${run}.run.err
 cd ..
-tar cvfz proc-$1.tgz proc-$1
-rm proc-$1 -rf
+tar cvfz proc-$run.tgz proc-$run
+rm proc-$run -rf

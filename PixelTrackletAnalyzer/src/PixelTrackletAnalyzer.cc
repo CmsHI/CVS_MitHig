@@ -13,7 +13,7 @@
 //
 // Original Author:  Arya Tafvizi, Yen-Jie Lee
 //         Created:  Tue Jul 22 07:59:06 EDT 2008
-// $Id: PixelTrackletAnalyzer.cc,v 1.1 2008/08/29 17:24:36 yilmaz Exp $
+// $Id: PixelTrackletAnalyzer.cc,v 1.3 2008/09/18 10:36:13 yilmaz Exp $
 //
 //
 
@@ -123,6 +123,8 @@ class PixelTrackletAnalyzer : public edm::EDAnalyzer {
 
    // ----------member data -------------------------------------------------------------
 
+   string vertexSrc_;
+
    double beta_;
    double alpha_;
    double etaMax_;
@@ -176,6 +178,7 @@ PixelTrackletAnalyzer::PixelTrackletAnalyzer(const edm::ParameterSet& iConfig)
    beta_             = iConfig.getUntrackedParameter<double>("inputBeta",1);
    doMC_             = iConfig.getUntrackedParameter<bool>  ("doMC",true);
    useRecoVertex_             = iConfig.getUntrackedParameter<bool>  ("useRecoVertex",true);
+   vertexSrc_ = iConfig.getUntrackedParameter<string>("vertexSrc","pixelVertices");
    checkSecondLayer_ = iConfig.getUntrackedParameter<bool>  ("checkSecondLayer", true);
    verbose_          = iConfig.getUntrackedParameter<bool>  ("verbose",true);
 
@@ -219,7 +222,7 @@ PixelTrackletAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& 
   // Get reconstructed vertices
   const reco::VertexCollection * recoVertices;
   edm::Handle<reco::VertexCollection> vertexCollection;
-  iEvent.getByLabel("pixelVertices",vertexCollection);
+  iEvent.getByLabel(vertexSrc_,vertexCollection);
   recoVertices = vertexCollection.product();
 
   //Get MonteCarlo information

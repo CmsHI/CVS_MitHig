@@ -39,12 +39,16 @@ pixelVertices.PtMin = 0.15
 process.pixel3ProtoTracks = pixel3ProtoTracks
 process.pixelVertices = pixelVertices
 
+process.pixelVertexFromClusters = cms.EDProducer('PixelVertexProducerClusters')
+
 process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(-1) )
 
 process.source = cms.Source("PoolSource",
     # replace 'myfile.root' with the source file you want to use
     fileNames = cms.untracked.vstring(
-        "dcache:///pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/sim/pythia_900GeV_d20080526/pythia_900GeV_d20080526_r__INPUT__.root"
+            "dcache:///pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/sim/__DATATAG__/__DATATAG___r__INPUT__.root"
+#            "dcache:///pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/sim/pythia_900GeV_d20080526/pythia_900GeV_d20080526_r__INPUT__.root"
+
     )
 )
 
@@ -69,8 +73,14 @@ process.ana = cms.EDAnalyzer('PixelTrackletAnalyzer',useRecoVertex = cms.untrack
                              )
 
 process.anasim = cms.EDAnalyzer('SimTrackAnalyzer',
-                                useRecoVertex = cms.untracked.bool(True)
+                                useRecoVertex = cms.untracked.bool(True),
+                                vertexSrc = cms.untracked.string('pixelVertices')
                                 )
+
+process.ana_cluster = cms.EDAnalyzer('PixelTrackletAnalyzer',
+                                    useRecoVertex = cms.untracked.bool(True),
+                                    vertexSrc = cms.untracked.string('pixelVertexFromClusters')
+                                    )
 
 process.TFileService = cms.Service('TFileService',
                                 fileName = cms.string('__OUTPUT__.hist.root')
@@ -80,8 +90,8 @@ process.output = cms.OutputModule("PoolOutputModule",
                                    fileName = cms.untracked.string('__OUTPUT__.root')
                                   )
 
-process.reconstruct = cms.Path(process.mix*process.trackingParticles*process.doAllDigi*process.L1Emulator*process.DigiToRaw*process.RawToDigi*process.trackerlocalreco*process.ecalloc*process.offlineBeamSpot*process.pixel3ProtoTracks*process.pixelVertices)
-process.analyze = cms.Path(process.ana+process.anasim)
+process.reconstruct = cms.Path(process.mix*process.trackingParticles*process.doAllDigi*process.L1Emulator*process.DigiToRaw*process.RawToDigi*process.trackerlocalreco*process.ecalloc*process.offlineBeamSpot*process.pixel3ProtoTracks*process.pixelVertices*process.pixelVertexFromClusters)
+process.analyze = cms.Path(process.ana+process.ana_cluster+process.anasim)
 #process.save = cms.EndPath(process.output)
 
 

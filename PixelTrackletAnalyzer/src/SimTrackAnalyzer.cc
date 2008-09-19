@@ -13,7 +13,7 @@
 //
 // Original Author:  Arya Tafvizi, Yen-Jie Lee
 //         Created:  Tue Jul 22 07:59:06 EDT 2008
-// $Id: SimTrackAnalyzer.cc,v 1.2 2008/09/17 12:54:32 yilmaz Exp $
+// $Id: SimTrackAnalyzer.cc,v 1.1 2008/09/18 10:36:13 yilmaz Exp $
 //
 //
 
@@ -83,6 +83,7 @@
 
 #include "TNtuple.h"
 #include "TH1F.h"
+#include "TH2D.h"
 #include "TFile.h"
 
 #include "HepMC/GenParticle.h"
@@ -112,7 +113,7 @@ class SimTrackAnalyzer : public edm::EDAnalyzer {
       virtual void analyze(const edm::Event&, const edm::EventSetup&);
       virtual void endJob() ;
  
-      void analyzeHits(const edm::Event& iEvent, const edm::EventSetup& iSetup, double z = 0, int layer1hits = 0);
+      bool analyzeHits(const edm::Event& iEvent, const edm::EventSetup& iSetup, double z = 0, int layer1hits = 0);
    void analyzeTracks(const edm::Event& iEvent, const edm::EventSetup& iSetup, double z = 0, int layer1hits = 0);
    void fillGeneratorInfo(const edm::Event& iEvent, const edm::EventSetup& iSetup);
       int associateSimhitToTrackingparticle(unsigned int trid );
@@ -133,6 +134,9 @@ class SimTrackAnalyzer : public edm::EDAnalyzer {
    bool checkSecondLayer_;
    bool verbose_;
    bool useRecoVertex_;
+  bool doOneEvent_;
+  bool switch_;
+
 
    TNtuple* ntevent;
    TNtuple* ntgen;
@@ -179,12 +183,16 @@ SimTrackAnalyzer::SimTrackAnalyzer(const edm::ParameterSet& iConfig)
    useRecoVertex_             = iConfig.getUntrackedParameter<bool>  ("useRecoVertex",true);
    checkSecondLayer_ = iConfig.getUntrackedParameter<bool>  ("checkSecondLayer", true);
    verbose_          = iConfig.getUntrackedParameter<bool>  ("verbose",true);
+   doOneEvent_ = iConfig.getUntrackedParameter<bool>  ("doOneEvent",true);
 
    etaMax_ = 2.;
    etaBins_ = 8;
 
    deltaCut_ = iConfig.getUntrackedParameter<double>("deltaCut",0.2);
    eventCounter_ = 0;
+
+   switch_ = true;
+
 }
 
 
@@ -205,6 +213,8 @@ SimTrackAnalyzer::~SimTrackAnalyzer()
 void
 SimTrackAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
+  if(switch_){
+
   using namespace edm;
   using namespace std;
   using namespace reco;
@@ -357,10 +367,10 @@ SimTrackAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
   }
   ntevent->Fill(tmpvar);
 
-  analyzeHits(iEvent, iSetup, vertex.z(), layer1.size());
+  switch_ = (!analyzeHits(iEvent, iSetup, vertex.z(), layer1.size()));
 
   if(zoomSim_) analyzeTracks(iEvent, iSetup, vertex.z(), layer1.size());
-
+  }
 }
 
 // ------------ method called once each job just before starting event loop  ------------   
@@ -397,12 +407,13 @@ SimTrackAnalyzer::endJob() {
 }
 
 
-void
+bool
 SimTrackAnalyzer::analyzeHits(const edm::Event& iEvent, const edm::EventSetup& iSetup, double simvrtxZ, int layer1hits){
 
    double simvrtxX = 0;
    double simvrtxY = 0;
 
+   TH2D h("focus","",100,-0.5,0.5,100,4.,5.0);
 
    //Get reconstructed hits and geometry                                                                                                                 
    const SiPixelRecHitCollection* rechits;
@@ -431,6 +442,7 @@ SimTrackAnalyzer::analyzeHits(const edm::Event& iEvent, const edm::EventSetup& i
       int part = hit.particleType();
       int type = hit.processType();
       int id = hit.trackId();
+      h.Fill(x,y);
       ntpixelsim1->Fill(x,y,z,r,type,part,id);
    }
 
@@ -449,6 +461,7 @@ SimTrackAnalyzer::analyzeHits(const edm::Event& iEvent, const edm::EventSetup& i
       int part = hit.particleType();
       int type = hit.processType();
       int id = hit.trackId();
+      h.Fill(x,y);
       ntpixelsim2->Fill(x,y,z,r,type,part,id);
    }
    for(SiPixelRecHitCollection::id_iterator id = rechits->id_begin(); id!= rechits->id_end(); id++)
@@ -476,12 +489,20 @@ SimTrackAnalyzer::analyzeHits(const edm::Event& iEvent, const edm::EventSetup& i
                            double z = gpos1.z() - simvrtxZ;
                            double r = sqrt(x*x+y*y);
                            ntpixelrec->Fill(x,y,z,r,layer);
+			   h.Fill(x,y);
                         }
                   }
             }
       }
-
-
+   
+   if(h.GetMean(2) < 4){
+      ntpixelsim1->Reset();
+      ntpixelsim2->Reset();
+      ntpixelrec->Reset();
+      return false;
+      
+   }else return true;
+   
 }
 
 void
