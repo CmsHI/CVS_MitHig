@@ -11,9 +11,9 @@
      <Notes on implementation>
 */
 //
-// Original Author:  Yi Chen
+// Original Author:  Yi Chen, such a cool guy!
 //         Created:  Tue Nov  6 14:04:33 EST 2007
-// $Id$
+// $Id: SESDoubleCandidateNtupleExporter.cc,v 1.1 2008/08/18 12:26:03 yjlee Exp $
 //
 //
 
