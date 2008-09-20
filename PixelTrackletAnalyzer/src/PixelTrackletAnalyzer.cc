@@ -13,7 +13,7 @@
 //
 // Original Author:  Arya Tafvizi, Yen-Jie Lee
 //         Created:  Tue Jul 22 07:59:06 EDT 2008
-// $Id: PixelTrackletAnalyzer.cc,v 1.3 2008/09/18 10:36:13 yilmaz Exp $
+// $Id: PixelTrackletAnalyzer.cc,v 1.6 2008/09/20 04:59:22 yjlee Exp $
 //
 //
 
@@ -135,6 +135,7 @@ class PixelTrackletAnalyzer : public edm::EDAnalyzer {
    bool checkSecondLayer_;
    bool verbose_;
    bool useRecoVertex_;
+   string vertexSrc_;
 
    TNtuple* ntevent;
    TNtuple* ntgen;
@@ -178,7 +179,7 @@ PixelTrackletAnalyzer::PixelTrackletAnalyzer(const edm::ParameterSet& iConfig)
    useRecoVertex_             = iConfig.getUntrackedParameter<bool>  ("useRecoVertex",true);
    checkSecondLayer_ = iConfig.getUntrackedParameter<bool>  ("checkSecondLayer", true);
    verbose_          = iConfig.getUntrackedParameter<bool>  ("verbose",true);
-
+   vertexSrc_ = iConfig.getUntrackedParameter<string>("vertexSrc","pixelVertices");
    etaMax_ = 2.;
    etaBins_ = 8;
 
@@ -219,7 +220,7 @@ PixelTrackletAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& 
   // Get reconstructed vertices
   const reco::VertexCollection * recoVertices;
   edm::Handle<reco::VertexCollection> vertexCollection;
-  iEvent.getByLabel("pixelVertices",vertexCollection);
+  iEvent.getByLabel(vertexSrc_,vertexCollection);
   recoVertices = vertexCollection.product();
 
   //Get MonteCarlo information
