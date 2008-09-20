@@ -21,8 +21,12 @@ class TrackletCorrections : public TNamed
       void save();
 
    private:
+
       TH3D* alphas_;
       TH3D* betas_;
+
+      string dataTag_;
+      string mcTag_;
 
       int hitBins_;
       int etaBins_;
@@ -40,6 +44,7 @@ class TrackletCorrections : public TNamed
 
       // Optional data
 
+      string comments_;
       double comEnergy_;
 
 };
