@@ -2,7 +2,7 @@
 #define PI 3.14159265358979
 #define PIXELTRACKLETCORR_H
 
-
+#include <string>
 #include "TH3D.h"
 #include "TFile.h"
 #include "TNamed.h"
@@ -25,8 +25,8 @@ class TrackletCorrections : public TNamed
       TH3D* alphas_;
       TH3D* betas_;
 
-      string dataTag_;
-      string mcTag_;
+      std::string dataTag_;
+      std::string mcTag_;
 
       int hitBins_;
       int etaBins_;
@@ -44,7 +44,7 @@ class TrackletCorrections : public TNamed
 
       // Optional data
 
-      string comments_;
+      std::string comments_;
       double comEnergy_;
 
 };
