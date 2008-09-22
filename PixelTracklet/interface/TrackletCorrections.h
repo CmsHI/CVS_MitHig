@@ -14,22 +14,56 @@ class TrackletCorrections : public TNamed
    public :
      TrackletCorrections();
    TrackletCorrections(TFile* f);
-   TrackletCorrections(int hitbins, int etabins, int zbins);
+   TrackletCorrections(int hitbins, int etabins = 1, int zbins = 1);
 
       ~TrackletCorrections(){};
 
    
-
       double alpha(double hits, double eta, double z, bool find = true);
       double beta(double hits, double eta, double z, bool find = true);
 
-      double getDeltaR() {return deltaRCut_;}
+      double getDeltaRCut() {return deltaRCut_;}
+      double getMidEtaCut() { return  midEtaCut_;}
+      int getHitBins() { return  hitBins_;}
+      int getEtaBins() { return  etaBins_;}
+      int getZBins() { return  zBins_;}
 
-      //      void setAlpha(double hits, double eta, double z, double value, bool find = true);
+      int size();  // Total number of divisions in 3D
+
+      void getBin(int value);
+
+      double binEtaMax();
+      double binEtaMin();
+      double binHitMax();
+      double binHitMin();
+      double binZMax();
+      double binZMin();
+
+      double getHitMax() { return  hitMax_;}
+      double getEtaMax() { return  etaMax_;}
+      double getZMax() { return  zMax_;}
+
+      std::string getDataTag() { return  dataTag_;}
+      std::string getMCTag() { return  mcTag_;}
+
+      void start();
+
+      void setAlpha(double hits, double eta, double z, double value, bool find = true);
       void setBeta(double hits, double eta, double z, double value, bool find = true);
 
-      void setDeltaR(double value) {deltaRCut_ = value;}
+      void setDeltaRCut(double value) {deltaRCut_ = value;}
+      void setMidEtaCut(double value) { midEtaCut_ = value;}
 
+      void setHitBins(int value) {hitBins_ = value;}
+      void setEtaBins(int value) {etaBins_ = value;}
+      void setZBins(int value) {zBins_ = value;}
+
+      void setHitMax(double value) {hitMax_ = value;}
+      void setEtaMax(double value) {etaMax_ = value;}
+      void setZMax(double value) {zMax_ = value;}
+
+      void setDataTag(std::string value) { dataTag_= value;}
+      void setMCTag(std::string value) { mcTag_= value;}
 
       void save(const char* output);
 
@@ -48,8 +82,13 @@ class TrackletCorrections : public TNamed
 
       int zBins_;
 
+      int bin_;
+      int binx_;
+      int biny_;
+      int binz_;
+
       double deltaRCut_;
-      double midEtaCut;
+      double midEtaCut_;
       double etaMax_;
       double zMax_;
       double hitMin_;
@@ -63,12 +102,15 @@ class TrackletCorrections : public TNamed
 
       ClassDef(TrackletCorrections,1)
 
-
 };
 
 
 
 TrackletCorrections::TrackletCorrections() : alphas_(0), betas_(0) {
+  bin_ = -1;
+  binx_ = -1;
+  biny_ = -1;
+  binz_ = -1;
   std::cout<<"Please make sure the alpha and beta histograms are set correctly. TrackletCorrections::TrackletCorrections(TFile* f) is suggested."<<std::endl;
 }
 
@@ -78,12 +120,17 @@ TrackletCorrections::TrackletCorrections(TFile* f) {
   TrackletCorrections* corr = dynamic_cast<TrackletCorrections*>(f->Get("corrections"));
   alphas_ = dynamic_cast<TH3D*>(f->Get("alpha"));
   betas_ = dynamic_cast<TH3D*>(f->Get("beta"));
-  
+
+  bin_ = -1;
+  binx_ = -1;
+  biny_ = -1;
+  binz_ = -1;
+
   *this = *corr;
 
 }
 
-TrackletCorrections::TrackletCorrections(int hitbins, int etabins, int zbins){
+TrackletCorrections::TrackletCorrections(int hitbins, int etabins, int zbins) : alphas_(0), betas_(0) {
    // Create new correction object
 
   this->SetName("corrections");
@@ -92,6 +139,11 @@ TrackletCorrections::TrackletCorrections(int hitbins, int etabins, int zbins){
   hitMin_ = 0;
   hitMax_ = 50;
 
+  bin_ = -1;
+  binx_ = -1;
+  biny_ = -1;
+  binz_ = -1;
+
   alphas_ = new TH3D("alpha","",hitbins,hitMin_,hitMax_,etabins,-etaMax_,etaMax_,zbins,-zMax_,zMax_);
   betas_ = new TH3D("beta","",hitbins,hitMin_,hitMax_,etabins,-etaMax_,etaMax_,zbins,-zMax_,zMax_);
 
@@ -99,8 +151,6 @@ TrackletCorrections::TrackletCorrections(int hitbins, int etabins, int zbins){
 
 double TrackletCorrections::alpha(double hits, double eta, double z, bool find) 
 {
-
-
   std::cout<<"function working"<<std::endl;
 
    double alpha = -1;
@@ -116,7 +166,6 @@ double TrackletCorrections::alpha(double hits, double eta, double z, bool find)
 
 double TrackletCorrections::beta(double hits, double eta, double z, bool find)
 {
-
    double beta = -1;
    if(find){
       int bin = betas_->FindBin(hits,eta,z);
@@ -126,22 +175,108 @@ double TrackletCorrections::beta(double hits, double eta, double z, bool find)
    }
 
    return beta;
+}
 
+int TrackletCorrections::size(){
+  return (alphas_->GetNbinsX())*(alphas_->GetNbinsY())*(alphas_->GetNbinsZ());
+}
+
+
+void TrackletCorrections::start()
+{
+alphas_ = new TH3D("alpha","",hitBins_,hitMin_,hitMax_,etaBins_,-etaMax_,etaMax_,zBins_,-zMax_,zMax_);
+betas_ = new TH3D("alpha","",hitBins_,hitMin_,hitMax_,etaBins_,-etaMax_,etaMax_,zBins_,-zMax_,zMax_);
+}
+
+
+
+void TrackletCorrections::setAlpha(double hits, double eta, double z, double value, bool find)
+{
+  if(find){
+    int bin = alphas_->FindBin(hits,eta,z);
+    alphas_->SetBinContent(bin,value);
+  }else{
+    alphas_->SetBinContent(hits,eta,z,value);
+  }
 }
 
 void TrackletCorrections::setBeta(double hits, double eta, double z, double value, bool find)
 {
-
-  double beta = -1;
   if(find){
     int bin = betas_->FindBin(hits,eta,z);
-    beta = betas_->GetBinContent(bin);
+    betas_->SetBinContent(bin,value);
   }else{
-    beta = betas_->GetBinContent(hits,eta,z);
+    betas_->SetBinContent(hits,eta,z,value);
   }
-
-
 }
+
+void TrackletCorrections::getBin(int value){
+  bin_ = value;
+  alphas_->GetBinXYZ(bin_,binx_,biny_,binz_);
+}
+
+double TrackletCorrections::binHitMax(){
+  double result = -99999;
+  if(bin_ < 0){
+    std::cout<<"Bin not set!"<<std::endl;
+  }else{
+    result = alphas_->GetXaxis()->GetBinUpEdge(binx_);
+  }
+  return result;
+}
+
+double TrackletCorrections::binEtaMax(){
+  double result = -99999;
+  if(bin_ < 0){
+    std::cout<<"Bin not set!"<<std::endl;
+  }else{
+    result = alphas_->GetYaxis()->GetBinUpEdge(biny_);
+  }
+  return result;
+}
+
+double TrackletCorrections::binZMax(){
+  double result = -99999;
+  if(bin_ < 0){
+    std::cout<<"Bin not set!"<<std::endl;
+  }else{
+    result = alphas_->GetZaxis()->GetBinUpEdge(binz_);
+  }
+  return result;
+}
+
+
+double TrackletCorrections::binHitMin(){
+  double result = -99999;
+  if(bin_ < 0){
+    std::cout<<"Bin not set!"<<std::endl;
+  }else{
+    result = alphas_->GetXaxis()->GetBinLowEdge(binx_);
+  }
+  return result;
+}
+
+double TrackletCorrections::binEtaMin(){
+  double result = -99999;
+  if(bin_ < 0){
+    std::cout<<"Bin not set!"<<std::endl;
+  }else{
+    result = alphas_->GetYaxis()->GetBinLowEdge(biny_);
+  }
+  return result;
+}
+
+double TrackletCorrections::binZMin(){
+  double result = -99999;
+  if(bin_ < 0){
+    std::cout<<"Bin not set!"<<std::endl;
+  }else{
+    result = alphas_->GetZaxis()->GetBinLowEdge(binz_);
+  }
+  return result;
+}
+
+
 
 
 void TrackletCorrections::save(const char* output){
@@ -151,6 +286,16 @@ void TrackletCorrections::save(const char* output){
   alphas_->Write();
   betas_->Write();
   this->Write();
+
+  std::cout<<"Tracklet Corrections saved with values: "<<std::endl;
+  std::cout<<"Delta R Cut                 : "<<deltaRCut_<<std::endl;
+  std::cout<<"Number of Layer 1 Hit Bins  : "<<hitBins_<<std::endl;
+  std::cout<<"Maximum Hits in Layer 1     : "<<hitMax_<<std::endl;
+  std::cout<<"Number of Eta Bins          : "<<etaBins_<<std::endl;
+  std::cout<<"Maximum Eta                 : "<<etaMax_<<std::endl;
+  std::cout<<"   : "<<std::endl;
+  std::cout<<"   : "<<std::endl;
+
   out->Close();
 
 }
