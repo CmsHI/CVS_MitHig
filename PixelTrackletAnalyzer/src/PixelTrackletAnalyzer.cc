@@ -13,7 +13,7 @@
 //
 // Original Author:  Arya Tafvizi, Yen-Jie Lee
 //         Created:  Tue Jul 22 07:59:06 EDT 2008
-// $Id: PixelTrackletAnalyzer.cc,v 1.6 2008/09/20 04:59:22 yjlee Exp $
+// $Id: PixelTrackletAnalyzer.cc,v 1.7 2008/09/20 09:11:17 yilmaz Exp $
 //
 //
 
@@ -90,7 +90,10 @@
 #include "HepMC/GenEvent.h"
 #include "HepMC/HeavyIon.h"
 
-#include "MitHig/PixelTrackletAnalyzer/interface/Tracklet.h"
+#include "MitHig/PixelTracklet/interface/Tracklet.h"
+#include "MitHig/PixelTracklet/interface/TrackletCorrections.h"
+
+
 // ROOT includes
 #include <Math/VectorUtil.h>
 
@@ -401,6 +404,10 @@ PixelTrackletAnalyzer::beginJob(const edm::EventSetup& iSetup){
 
 void
 PixelTrackletAnalyzer::endJob() {
+
+  int nbins = 1;
+  TrackletCorrections* corr = new TrackletCorrections(nbins,nbins,nbins);
+  corr->save("trackletcorrections.root");
 
 }
 

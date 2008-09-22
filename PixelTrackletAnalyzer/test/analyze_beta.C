@@ -54,7 +54,7 @@ double getBeta(const char* infile, double etaMax, int MinHit, int MaxHit)
 
   TFile *f = new TFile(infile);
   f->cd("ana;1");
-  TNtuple * ntparticle= dynamic_cast<TNtuple *>(f->Get("ana/ntparticle"));
+  TNtuple * ntparticle= dynamic_cast<TNtuple *>(f->Get("anasim/ntparticle"));
   TNtuple * ntmatched= dynamic_cast<TNtuple *>(f->Get("ana/ntmatched"));
   TNtuple * ntInvMatched= dynamic_cast<TNtuple *>(f->Get("ana/ntInvMatched"));
   TNtuple * ntgen = dynamic_cast<TNtuple *>(f->Get("ana/ntgen"));
