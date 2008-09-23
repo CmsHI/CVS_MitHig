@@ -1,5 +1,5 @@
 {
-gSystem->Load("$CMSSW_BASE/lib/slc4_ia32_gcc345/libMitHigTrackletData.so");
+gSystem->Load("$CMSSW_BASE/lib/slc4_ia32_gcc345/libMitHigPixelTracklet.so");
 
    gStyle->SetErrorX(0);
    gStyle->SetPalette(1,0);
