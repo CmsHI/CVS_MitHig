@@ -51,6 +51,9 @@ class TrackletCorrections : public TNamed
       void setAlpha(double hits, double eta, double z, double value, bool find = true);
       void setBeta(double hits, double eta, double z, double value, bool find = true);
 
+      void setAlpha(int bin, double value);
+      void setBeta(int bin, double value);
+
       void setDeltaRCut(double value) {deltaRCut_ = value;}
       void setMidEtaCut(double value) { midEtaCut_ = value;}
 
@@ -134,10 +137,16 @@ TrackletCorrections::TrackletCorrections(int hitbins, int etabins, int zbins) : 
    // Create new correction object
 
   this->SetName("corrections");
+
+  // Deafults - should be removed
   etaMax_ = 2;
   zMax_ = 10;
   hitMin_ = 0;
   hitMax_ = 50;
+
+  hitBins_ = hitbins;
+  etaBins_ = etabins;
+  zBins_ = zbins;
 
   bin_ = -1;
   binx_ = -1;
@@ -184,8 +193,10 @@ int TrackletCorrections::size(){
 
 void TrackletCorrections::start()
 {
+  delete alphas_;
+  delete betas_;
 alphas_ = new TH3D("alpha","",hitBins_,hitMin_,hitMax_,etaBins_,-etaMax_,etaMax_,zBins_,-zMax_,zMax_);
-betas_ = new TH3D("alpha","",hitBins_,hitMin_,hitMax_,etaBins_,-etaMax_,etaMax_,zBins_,-zMax_,zMax_);
+betas_ = new TH3D("beta","",hitBins_,hitMin_,hitMax_,etaBins_,-etaMax_,etaMax_,zBins_,-zMax_,zMax_);
 }
 
 
@@ -200,6 +211,16 @@ void TrackletCorrections::setAlpha(double hits, double eta, double z, double val
   }
 }
 
+void TrackletCorrections::setAlpha(int bin, double value){
+  this->getBin(bin);
+  this->setAlpha(binx_,biny_,binz_,value,false);
+}
+
+void TrackletCorrections::setBeta(int bin, double value){
+  this->getBin(bin);
+  this->setBeta(binx_,biny_,binz_,value,false);
+}
+
 void TrackletCorrections::setBeta(double hits, double eta, double z, double value, bool find)
 {
   if(find){
@@ -211,8 +232,22 @@ void TrackletCorrections::setBeta(double hits, double eta, double z, double valu
 }
 
 void TrackletCorrections::getBin(int value){
+
+  // Modified version of TH1::GetBinXYZ() with overflows skipped
+
   bin_ = value;
-  alphas_->GetBinXYZ(bin_,binx_,biny_,binz_);
+
+  int nx = hitBins_;
+  int ny = etaBins_;
+
+  binx_ = (bin_%nx);
+  biny_ = (((bin_-binx_)/nx)%ny);
+  binz_ = (((bin_-binx_)/nx -biny_)/ny);
+
+  binx_++;
+  biny_++;
+  binz_++;
+
 }
 
 double TrackletCorrections::binHitMax(){
