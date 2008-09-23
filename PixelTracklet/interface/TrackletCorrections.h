@@ -17,10 +17,12 @@ class TrackletCorrections : public TNamed
    TrackletCorrections(int hitbins, int etabins = 1, int zbins = 1);
 
       ~TrackletCorrections(){};
-
    
       double alpha(double hits, double eta, double z, bool find = true);
       double beta(double hits, double eta, double z, bool find = true);
+
+      double alpha(int bin);
+      double beta(int bin);
 
       double getDeltaRCut() {return deltaRCut_;}
 
@@ -162,6 +164,16 @@ TrackletCorrections::TrackletCorrections(int hitbins, int etabins, int zbins) : 
   alphas_ = new TH3D("alpha","",hitbins,hitMin_,hitMax_,etabins,-etaMax_,etaMax_,zbins,-zMax_,zMax_);
   betas_ = new TH3D("beta","",hitbins,hitMin_,hitMax_,etabins,-etaMax_,etaMax_,zbins,-zMax_,zMax_);
 
+}
+
+double TrackletCorrections::alpha(int bin){
+  this->getBin(bin);
+  return this->alpha(binx_,biny_,binz_,false);
+}
+
+double TrackletCorrections::beta(int bin){
+  this->getBin(bin);
+  return this->beta(binx_,biny_,binz_,false);
 }
 
 double TrackletCorrections::alpha(double hits, double eta, double z, bool find) 
