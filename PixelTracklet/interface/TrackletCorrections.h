@@ -23,6 +23,10 @@ class TrackletCorrections : public TNamed
       double beta(double hits, double eta, double z, bool find = true);
 
       double getDeltaRCut() {return deltaRCut_;}
+
+      double getNormDRMin() {return normMax_;}
+      double getNormDRMax() {return normMin_;}
+
       double getMidEtaCut() { return  midEtaCut_;}
       int getHitBins() { return  hitBins_;}
       int getEtaBins() { return  etaBins_;}
@@ -97,6 +101,8 @@ class TrackletCorrections : public TNamed
       double hitMin_;
       double hitMax_;
 
+      double normMax_;
+      double normMin_;
 
       // Optional data
 

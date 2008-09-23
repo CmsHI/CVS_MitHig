@@ -51,7 +51,7 @@ struct TrackletData
     ntmatched->SetBranchAddress("phi1",&matchedphi1);
     ntmatched->SetBranchAddress("matchedeta",&matchedeta2);
     ntmatched->SetBranchAddress("matchedphi",&matchedphi2);
-    //  ntmatched->SetBranchAddress("signalCheck",&signalcheck);
+    ntmatched->SetBranchAddress("signalCheck",&signalcheck);
     ntmatched->SetBranchAddress("sid",&signalcheck);
     ntmatched->SetBranchAddress("deta",&deta);
     ntmatched->SetBranchAddress("dphi",&dphi);
@@ -107,8 +107,8 @@ struct TrackletData
   Float_t vntrk;
   Float_t nvtx;
 
-  double getBeta(TrackletCorrections* corr, int bin);
-  double getAlpha(TrackletCorrections* corr, int bin);
+  double getBeta(TrackletCorrections* corr, int bin, bool saveplots = false);
+  double getAlpha(TrackletCorrections* corr, int bin, bool saveplots = false);
 
   int counter;
 };

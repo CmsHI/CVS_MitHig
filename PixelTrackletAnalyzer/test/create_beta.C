@@ -18,7 +18,7 @@ using namespace std;
 void formatHist(TH1* h, int col = 1, double norm = 1);
 void saveCanvas(TCanvas* c, int date = 20080829);
 
-void create_beta(const char* infile = "p0829.root", double etaMax = 1.){
+void create_beta(const char* infile = "p0829.root", double etaMax = 1., const char* outfile = "histograms.root"){
 
   gROOT->Reset();
   gROOT->ProcessLine(".x rootlogon.C");
@@ -33,13 +33,13 @@ void create_beta(const char* infile = "p0829.root", double etaMax = 1.){
   TH1::SetDefaultSumw2();
 
   double hitmax = 40;
-  int hitbins = 4;
-  int etabins = 2;
+  int hitbins = 1;
+  int etabins = 1;
 
-  TrackletCorrections* corr = new TrackletCorrections(hitbins, etabins,2);
+  TrackletCorrections* corr = new TrackletCorrections(hitbins, etabins,1);
 
   corr->setMidEtaCut(0);
-  corr->setDeltaRCut(0.02);
+  corr->setDeltaRCut(0.2);
   corr->setHitBins(hitbins);
   corr->setHitMax(hitmax);
   corr->setEtaMax(etaMax);
@@ -57,17 +57,21 @@ void create_beta(const char* infile = "p0829.root", double etaMax = 1.){
   //  TrackletData data(ntparticle,ntmatched,ntInvMatched,ntgen,ntevent,ntvertex,ntcorr);
   TrackletData data(f);
 
+
+  TFile *of = new TFile(outfile,"recreate");
+
   for(int ibin = 0; ibin < size; ++ibin){
-    corr->setBeta(ibin,data.getBeta(corr,ibin));
+    corr->setBeta(ibin,data.getBeta(corr,ibin,true));
   }
 
-  cout<<"Corrections size : "<<size<<endl;
+  of->Write();
+  of->Close();
 
   corr->save("corrections.root");
 
 }
 
-double TrackletData::getBeta(TrackletCorrections* corr, int bin)
+double TrackletData::getBeta(TrackletCorrections* corr, int bin,bool saveplots)
 {
 
   /// Parameters
@@ -104,9 +108,9 @@ double TrackletData::getBeta(TrackletCorrections* corr, int bin)
 
   cout<<"      "<<endl;
 
-  double normRange = 0.6;
-  double deltaCut = 0.1;
-  int etaBins = 8;
+  double normRange = 0.6; // corr->getNormDRMin();
+  double deltaCut = corr->getDeltaRCut();
+  int etaBins = corr->getEtaBins();
   int nBins = 20;
 
   TH1F * h1 = new TH1F(Form("h1_%d",counter),Form("Everything;D;#_{pixel pairs}/event/%.2f",1/(double)nBins),nBins,0,2);
@@ -143,7 +147,6 @@ double TrackletData::getBeta(TrackletCorrections* corr, int bin)
     if(layer1hits<MinHit) continue;    
     float dR= sqrt(deta*deta+dphi*dphi/43./43.);
 
-
     h1->Fill(fabs(dR));
     h6->Fill(fabs(dR));
     if(signalcheck==1){
@@ -177,12 +180,15 @@ double TrackletData::getBeta(TrackletCorrections* corr, int bin)
     h5->Fill(fabs(eta1-eta2));
   }
 
+
+  if(saveplots){
   formatHist(h1,1,nevents);
   formatHist(h2,2,nevents);
   formatHist(h3,3,nevents);
   formatHist(h4,4,nevents);
   formatHist(h5,5,nevents);
   formatHist(h6,6,nevents);
+  }
 
   //// Normalization of background
 
@@ -200,7 +206,7 @@ double TrackletData::getBeta(TrackletCorrections* corr, int bin)
 
 }
 
-double TrackletData::getAlpha(TrackletCorrections* corr, int bin){
+double TrackletData::getAlpha(TrackletCorrections* corr, int bin, bool saveplots){
   return 0;
 }
 
@@ -213,6 +219,7 @@ void formatHist(TH1* h, int col, double norm){
   h->GetYaxis()->SetTitleOffset(1.15);
   h->GetXaxis()->CenterTitle();
   h->GetYaxis()->CenterTitle();
+  h->Write();
 
 }
 
