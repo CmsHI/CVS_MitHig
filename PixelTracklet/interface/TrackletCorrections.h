@@ -30,6 +30,9 @@ class TrackletCorrections : public TNamed
       double getNormDRMax() {return normMin_;}
 
       double getMidEtaCut() { return  midEtaCut_;}
+
+      double getCPhi() { return cPhi_;}
+
       int getHitBins() { return  hitBins_;}
       int getEtaBins() { return  etaBins_;}
       int getZBins() { return  zBins_;}
@@ -62,6 +65,8 @@ class TrackletCorrections : public TNamed
 
       void setDeltaRCut(double value) {deltaRCut_ = value;}
       void setMidEtaCut(double value) { midEtaCut_ = value;}
+
+      void setCPhi(double value) {cPhi_ = value;}
 
       void setHitBins(int value) {hitBins_ = value;}
       void setEtaBins(int value) {etaBins_ = value;}
@@ -96,15 +101,23 @@ class TrackletCorrections : public TNamed
       int biny_;
       int binz_;
 
+
+
+      // Analysis Parameters
+
       double deltaRCut_;
       double midEtaCut_;
+      double normMax_;
+      double normMin_;
+      double cPhi_;
+
+      // Analysis Regions
+
       double etaMax_;
       double zMax_;
       double hitMin_;
       double hitMax_;
 
-      double normMax_;
-      double normMin_;
 
       // Optional data
 
@@ -329,9 +342,6 @@ double TrackletCorrections::binZMin(){
   return result;
 }
 
-
-
-
 void TrackletCorrections::save(const char* output){
 
   TFile* out = new TFile(output,"recreate");
@@ -346,7 +356,6 @@ void TrackletCorrections::save(const char* output){
   std::cout<<"Maximum Hits in Layer 1     : "<<hitMax_<<std::endl;
   std::cout<<"Number of Eta Bins          : "<<etaBins_<<std::endl;
   std::cout<<"Maximum Eta                 : "<<etaMax_<<std::endl;
-  std::cout<<"   : "<<std::endl;
   std::cout<<"   : "<<std::endl;
 
   out->Close();

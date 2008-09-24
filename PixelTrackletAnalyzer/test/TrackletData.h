@@ -20,18 +20,21 @@ struct TrackletData
                TNtuple *nt3=0,
                TNtuple *nt4=0,
                TNtuple *nt5=0,
-               TNtuple *nt6=0
+               TNtuple *nt6=0,
+	       TrackletCorrections* tc = 0
                ) :
     ntparticle(nt1),
-    ntmatched(nt2),
-    ntInvMatched(nt3),
-    ntgen(nt4),
-    ntevent(nt5),
-    ntvertex(nt6)
-    {;}
+       ntmatched(nt2),
+       ntInvMatched(nt3),
+       ntgen(nt4),
+       ntevent(nt5),
+       ntvertex(nt6),
+       corr(tc)
+  {;}
+  
+  TrackletData(TFile* f, TrackletCorrections* tc = 0){
 
-  TrackletData(TFile* f){
-
+    corr = tc;  // It wouldn't copy anything, right?
     f->cd("ana;1");
     ntparticle= dynamic_cast<TNtuple *>(f->Get("anasim/ntparticle"));
     ntmatched= dynamic_cast<TNtuple *>(f->Get("ana/ntmatched"));
@@ -82,6 +85,8 @@ struct TrackletData
   TNtuple * ntvertex;
   TNtuple * ntcorr;
 
+  TrackletCorrections* corr;
+
   Float_t matchedeta1;
   Float_t matchedeta2;
   Float_t matchedinveta2;
@@ -107,11 +112,39 @@ struct TrackletData
   Float_t vntrk;
   Float_t nvtx;
 
-  double getBeta(TrackletCorrections* corr, int bin, bool saveplots = false);
-  double getAlpha(TrackletCorrections* corr, int bin, bool saveplots = false);
+  double getBeta(int bin, bool saveplots = false);
+  double getAlpha(int bin, bool saveplots = false);
+  double deltaR(double eta, double phi);
+  double deltaR2(double eta, double phi);
 
   int counter;
 };
 
 
+double TrackletData::deltaR(double eta, double phi){
+  return sqrt(deltaR2(eta,phi));
+}
+
+double TrackletData::deltaR2(double eta, double phi){
+  double c = this->corr->getCPhi();
+  return eta*eta+c*c*phi*phi;
+}
+
+void formatHist(TH1* h, int col, double norm){
+  h->Scale(1/norm);
+  h->SetLineColor(col);
+  h->SetMarkerColor(col);
+  h->GetYaxis()->SetTitleOffset(1.15);
+  h->GetXaxis()->CenterTitle();
+  h->GetYaxis()->CenterTitle();
+  h->Write();
+}
+
+void saveCanvas(TCanvas* c, int date){
+  c->Write();
+  c->Draw();
+  c->Print(Form("./figures/%s_d%d.gif",c->GetName(),date));
+  c->Print(Form("./figures/%s_d%d.eps",c->GetName(),date));
+  c->Print(Form("./figures/%s_d%d.C",c->GetName(),date));
+}
 

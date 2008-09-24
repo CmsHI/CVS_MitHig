@@ -18,7 +18,7 @@ using namespace std;
 void formatHist(TH1* h, int col = 1, double norm = 1);
 void saveCanvas(TCanvas* c, int date = 20080829);
 
-void create_beta(const char* infile = "p0829.root", double etaMax = 1., const char* outfile = "histograms.root"){
+void create_beta(const char* infile = "/server/03a/yetkin/data/pythia900GeV_d20080920.root", double etaMax = 1., const char* outfile = "histograms.root"){
 
   gROOT->Reset();
   gROOT->ProcessLine(".x rootlogon.C");
@@ -33,8 +33,8 @@ void create_beta(const char* infile = "p0829.root", double etaMax = 1., const ch
   TH1::SetDefaultSumw2();
 
   double hitmax = 40;
-  int hitbins = 1;
-  int etabins = 1;
+  int hitbins = 4;
+  int etabins = 4;
 
   TrackletCorrections* corr = new TrackletCorrections(hitbins, etabins,1);
 
@@ -43,7 +43,7 @@ void create_beta(const char* infile = "p0829.root", double etaMax = 1., const ch
   corr->setHitBins(hitbins);
   corr->setHitMax(hitmax);
   corr->setEtaMax(etaMax);
-  corr->setZMax(5);
+  corr->setZMax(20);
 
   corr->start();
 
@@ -54,14 +54,13 @@ void create_beta(const char* infile = "p0829.root", double etaMax = 1., const ch
   cout<<"Corrections size : "<<size<<endl;
 
   TFile *f = new TFile(infile);
-  //  TrackletData data(ntparticle,ntmatched,ntInvMatched,ntgen,ntevent,ntvertex,ntcorr);
-  TrackletData data(f);
 
+  TrackletData data(f,corr);
 
   TFile *of = new TFile(outfile,"recreate");
 
   for(int ibin = 0; ibin < size; ++ibin){
-    corr->setBeta(ibin,data.getBeta(corr,ibin,true));
+    corr->setBeta(ibin,data.getBeta(ibin,true));
   }
 
   of->Write();
@@ -71,7 +70,7 @@ void create_beta(const char* infile = "p0829.root", double etaMax = 1., const ch
 
 }
 
-double TrackletData::getBeta(TrackletCorrections* corr, int bin,bool saveplots)
+double TrackletData::getBeta(int bin,bool saveplots)
 {
 
   /// Parameters
@@ -206,30 +205,10 @@ double TrackletData::getBeta(TrackletCorrections* corr, int bin,bool saveplots)
 
 }
 
-double TrackletData::getAlpha(TrackletCorrections* corr, int bin, bool saveplots){
+double TrackletData::getAlpha(int bin, bool saveplots){
   return 0;
 }
 
-
-void formatHist(TH1* h, int col, double norm){
-
-  h->Scale(1/norm);
-  h->SetLineColor(col);
-  h->SetMarkerColor(col);
-  h->GetYaxis()->SetTitleOffset(1.15);
-  h->GetXaxis()->CenterTitle();
-  h->GetYaxis()->CenterTitle();
-  h->Write();
-
-}
-
-void saveCanvas(TCanvas* c, int date){
-  c->Write();
-  c->Draw();
-  c->Print(Form("./figures/%s_d%d.gif",c->GetName(),date));
-  c->Print(Form("./figures/%s_d%d.eps",c->GetName(),date));
-  c->Print(Form("./figures/%s_d%d.C",c->GetName(),date));
-}
 
 
 
