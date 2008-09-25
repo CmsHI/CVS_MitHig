@@ -40,10 +40,15 @@ void create_beta(const char* infile = "/server/03a/yetkin/data/pythia900GeV_d200
 
   corr->setMidEtaCut(0);
   corr->setDeltaRCut(0.2);
+  corr->setCPhi(43);
+  corr->setNormDRMin(0.6);
+  corr->setHistBins(20);
+
   corr->setHitBins(hitbins);
   corr->setHitMax(hitmax);
   corr->setEtaMax(etaMax);
   corr->setZMax(20);
+
 
   corr->start();
 
@@ -107,10 +112,10 @@ double TrackletData::getBeta(int bin,bool saveplots)
 
   cout<<"      "<<endl;
 
-  double normRange = 0.6; // corr->getNormDRMin();
+  double normRange = corr->getNormDRMin();
   double deltaCut = corr->getDeltaRCut();
   int etaBins = corr->getEtaBins();
-  int nBins = 20;
+  int nBins = corr->getHistBins(); //20;
 
   TH1F * h1 = new TH1F(Form("h1_%d",counter),Form("Everything;D;#_{pixel pairs}/event/%.2f",1/(double)nBins),nBins,0,2);
   TH1F * h2 = new TH1F(Form("h2_%d",counter),"Signal",nBins,0,2);
@@ -144,7 +149,10 @@ double TrackletData::getBeta(int bin,bool saveplots)
     if(fabs(matchedeta2)>etaMax) continue;
     if(layer1hits>MaxHit) continue;
     if(layer1hits<MinHit) continue;    
-    float dR= sqrt(deta*deta+dphi*dphi/43./43.);
+
+    //    float dR= sqrt(deta*deta+dphi*dphi/43./43.);
+    // This is not the standard delta R - It is with the phi normalized with corr->getCPhi();
+    double dR = deltaR(deta,dphi);
 
     h1->Fill(fabs(dR));
     h6->Fill(fabs(dR));
@@ -164,9 +172,11 @@ double TrackletData::getBeta(int bin,bool saveplots)
     //    if(fabs(inveta2)>etaMax) continue;
     if(fabs(inveta1)<0.1) continue;
     
-
-    float dR= sqrt(invdeta*invdeta+invdphi*invdphi);
+    //    float dR= sqrt(invdeta*invdeta+invdphi*invdphi);
+    // This is not the standard delta R - It is with the phi normalized with corr->getCPhi();
+    double dR = deltaR(invdeta,invdphi);
     h4->Fill(dR);
+
 
     //    h4->Fill(fabs(invdeta));
 

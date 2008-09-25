@@ -33,6 +33,8 @@ class TrackletCorrections : public TNamed
 
       double getCPhi() { return cPhi_;}
 
+      int getHistBins() { return histBins_;}
+
       int getHitBins() { return  hitBins_;}
       int getEtaBins() { return  etaBins_;}
       int getZBins() { return  zBins_;}
@@ -64,9 +66,15 @@ class TrackletCorrections : public TNamed
       void setBeta(int bin, double value);
 
       void setDeltaRCut(double value) {deltaRCut_ = value;}
+
+      void setNormDRMin(double value) {normMin_ = value;}
+      void setNormDRMax(double value) {normMax_ = value;}
+
       void setMidEtaCut(double value) { midEtaCut_ = value;}
 
       void setCPhi(double value) {cPhi_ = value;}
+
+      void setHistBins(int value) { histBins_ = value;}
 
       void setHitBins(int value) {hitBins_ = value;}
       void setEtaBins(int value) {etaBins_ = value;}
@@ -90,6 +98,8 @@ class TrackletCorrections : public TNamed
 
       std::string dataTag_;
       std::string mcTag_;
+
+      int histBins_;
 
       int hitBins_;
       int etaBins_;
