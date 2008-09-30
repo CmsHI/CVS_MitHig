@@ -33,8 +33,8 @@ void create_beta(const char* infile = "/server/03a/yetkin/data/pythia900GeV_d200
   TH1::SetDefaultSumw2();
 
   double hitmax = 40;
-  int hitbins = 4;
-  int etabins = 4;
+  int hitbins = 1;
+  int etabins = 1;
 
   TrackletCorrections* corr = new TrackletCorrections(hitbins, etabins,1);
 
@@ -42,7 +42,11 @@ void create_beta(const char* infile = "/server/03a/yetkin/data/pythia900GeV_d200
   corr->setDeltaRCut(0.2);
   corr->setCPhi(43);
   corr->setNormDRMin(0.6);
+  corr->setNormDRMin(5);
+
   corr->setHistBins(20);
+  corr->setHistMax(5);
+
 
   corr->setHitBins(hitbins);
   corr->setHitMax(hitmax);
@@ -112,21 +116,26 @@ double TrackletData::getBeta(int bin,bool saveplots)
 
   cout<<"      "<<endl;
 
-  double normRange = corr->getNormDRMin();
   double deltaCut = corr->getDeltaRCut();
   int etaBins = corr->getEtaBins();
   int nBins = corr->getHistBins(); //20;
+  int max = corr->getHistMax(); //20;
 
-  TH1F * h1 = new TH1F(Form("h1_%d",counter),Form("Everything;D;#_{pixel pairs}/event/%.2f",1/(double)nBins),nBins,0,2);
-  TH1F * h2 = new TH1F(Form("h2_%d",counter),"Signal",nBins,0,2);
-  TH1F * h3 = new TH1F(Form("h3_%d",counter),"Background",nBins,0,2);
-  TH1F * h4 = new TH1F(Form("h4_%d",counter),"Normalized Reproduced Background",nBins,0,2);
-  TH1F * h5 = new TH1F(Form("h5_%d",counter),"",nBins,0,2);
-  TH1F * h6 = new TH1F(Form("h6_%d",counter),"Reproduced Background Subtracted",nBins,0,2);
-  TH1F * h7 = new TH1F(Form("h7_%d",counter),"",nBins,0,2);
-  TH1F * h8 = new TH1F(Form("h8_%d",counter),"",nBins,0,2);
-  TH1F * h9 = new TH1F(Form("h9_%d",counter),"",nBins,0,2);
-  TH1F * h10 = new TH1F(Form("h10_%d",counter),"",nBins,0,2);
+  double normMin = corr->getNormDRMin();
+  double normMax = corr->getNormDRMax();
+
+
+
+  TH1F * h1 = new TH1F(Form("h1_%d",counter),Form("Everything;D;#_{pixel pairs}/event/%.2f",1/(double)nBins),nBins,0,max);
+  TH1F * h2 = new TH1F(Form("h2_%d",counter),"Signal",nBins,0,max);
+  TH1F * h3 = new TH1F(Form("h3_%d",counter),"Background",nBins,0,max);
+  TH1F * h4 = new TH1F(Form("h4_%d",counter),"Normalized Reproduced Background",nBins,0,max);
+  TH1F * h5 = new TH1F(Form("h5_%d",counter),"",nBins,0,max);
+  TH1F * h6 = new TH1F(Form("h6_%d",counter),"Reproduced Background Subtracted",nBins,0,max);
+  TH1F * h7 = new TH1F(Form("h7_%d",counter),"",nBins,0,max);
+  TH1F * h8 = new TH1F(Form("h8_%d",counter),"",nBins,0,max);
+  TH1F * h9 = new TH1F(Form("h9_%d",counter),"",nBins,0,max);
+  TH1F * h10 = new TH1F(Form("h10_%d",counter),"",nBins,0,max);
 
   TProfile * dNdEtaHadron = new TProfile(Form("dNdEtaHadron_%d",counter),"",32,-2.1,2.1);
   TProfile * dNdEtaLepton = new TProfile(Form("dNdEtaLepton_%d",counter),"",32,-2.1,2.1);
@@ -201,14 +210,14 @@ double TrackletData::getBeta(int bin,bool saveplots)
 
   //// Normalization of background
 
-  Float_t sc = ((h1->Integral((int)(normRange*nBins),nBins,"width"))/(h4->Integral((int)(normRange*nBins),nBins,"width")));
+  Float_t sc = ((h1->Integral((int)(normMin*nBins/max),(int)(normMax*nBins/max),"width"))/(h4->Integral((int)(normMin*nBins/max),(int)(normMax*nBins/max),"width")));
 
   cout<<"background normalization: "<<sc<<endl;
   h4->Scale(sc);
   h6->Add(h4,-1);
 
   //// Determination of correction factor beta
-  double beta = 1-((h2->Integral(0,(int)(deltaCut*nBins),"width"))/(h6->Integral(0,(int)(deltaCut*nBins),"width")));
+  double beta = (h6->Integral(0,(int)(deltaCut*nBins/max),"width")/(h1->Integral(0,(int)(deltaCut*nBins/max),"width")));
   cout<<"beta: "<<beta<<endl;
 
   return beta;

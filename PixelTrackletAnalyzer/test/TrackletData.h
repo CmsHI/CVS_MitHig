@@ -1,4 +1,5 @@
 #include <iostream>
+#include <math.h>
 #include <TROOT.h>
 #include <TStyle.h>
 #include <TLegend.h>
@@ -55,7 +56,9 @@ struct TrackletData
     ntmatched->SetBranchAddress("matchedeta",&matchedeta2);
     ntmatched->SetBranchAddress("matchedphi",&matchedphi2);
     ntmatched->SetBranchAddress("signalCheck",&signalcheck);
-    ntmatched->SetBranchAddress("sid",&signalcheck);
+
+    //    ntmatched->SetBranchAddress("sid",&signalcheck);
+
     ntmatched->SetBranchAddress("deta",&deta);
     ntmatched->SetBranchAddress("dphi",&dphi);
     ntmatched->SetBranchAddress("nhit1",&layer1hits);
