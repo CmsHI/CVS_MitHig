@@ -13,7 +13,7 @@
 //
 // Original Author:  Arya Tafvizi, Yen-Jie Lee
 //         Created:  Tue Jul 22 07:59:06 EDT 2008
-// $Id: PixelTrackletAnalyzer.cc,v 1.7 2008/09/20 09:11:17 yilmaz Exp $
+// $Id: PixelTrackletAnalyzer.cc,v 1.8 2008/09/22 13:25:24 yilmaz Exp $
 //
 //
 
@@ -92,6 +92,7 @@
 
 #include "MitHig/PixelTracklet/interface/Tracklet.h"
 #include "MitHig/PixelTracklet/interface/TrackletCorrections.h"
+#include "MitHig/PixelTrackletAnalyzer/interface/TrackletFinder.h"
 
 
 // ROOT includes
@@ -104,6 +105,10 @@ using namespace edm;
 //
 // class decleration
 //
+
+namespace {
+  bool compareTracklet(Tracklet a,Tracklet b) {    return fabs(a.dR2())<fabs(b.dR2()); }
+}
 
 class PixelTrackletAnalyzer : public edm::EDAnalyzer {
    public:
