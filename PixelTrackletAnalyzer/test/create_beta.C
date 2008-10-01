@@ -18,7 +18,7 @@ using namespace std;
 void formatHist(TH1* h, int col = 1, double norm = 1);
 void saveCanvas(TCanvas* c, int date = 20080829);
 
-void create_beta(const char* infile = "/server/03a/yetkin/data/pythia900GeV_d20080920.root", double etaMax = 1., const char* outfile = "histograms.root"){
+void create_beta(const char* infile = "/server/03a/yetkin/data/pythia900GeV_d20080920.root", const char* outfile = "histograms.root"){
 
   gROOT->Reset();
   gROOT->ProcessLine(".x rootlogon.C");
@@ -32,42 +32,34 @@ void create_beta(const char* infile = "/server/03a/yetkin/data/pythia900GeV_d200
 
   TH1::SetDefaultSumw2();
 
-  double hitmax = 40;
-  int hitbins = 1;
-  int etabins = 1;
+  int hitbins = 2;
+  int etabins = 2;
 
   TrackletCorrections* corr = new TrackletCorrections(hitbins, etabins,1);
 
-  corr->setMidEtaCut(0);
-  corr->setDeltaRCut(0.2);
+  corr->setMidEtaCut(0); // 0.1
+  corr->setDeltaRCut(0.25);
   corr->setCPhi(43);
   corr->setNormDRMin(0.6);
   corr->setNormDRMin(5);
 
-  corr->setHistBins(20);
+  corr->setHistBins(40);
   corr->setHistMax(5);
 
-
-  corr->setHitBins(hitbins);
-  corr->setHitMax(hitmax);
-  corr->setEtaMax(etaMax);
+  corr->setHitMax(40);
+  corr->setEtaMax(2);
   corr->setZMax(20);
 
 
   corr->start();
 
-  int di=hitmax/hitbins;
-
   int size  =  corr->size();
- 
   cout<<"Corrections size : "<<size<<endl;
 
   TFile *f = new TFile(infile);
-
   TrackletData data(f,corr);
 
   TFile *of = new TFile(outfile,"recreate");
-
   for(int ibin = 0; ibin < size; ++ibin){
     corr->setBeta(ibin,data.getBeta(ibin,true));
   }
@@ -92,6 +84,8 @@ double TrackletData::getBeta(int bin,bool saveplots)
   double MaxHit = corr->binHitMax();
   double MinZ = corr->binZMin();
   double MaxZ = corr->binZMax();
+
+  double midEtaCut = corr->getMidEtaCut();
   
   cout<<"Bin : "<<bin<<endl;
   cout<<"      "<<endl;
@@ -107,13 +101,6 @@ double TrackletData::getBeta(int bin,bool saveplots)
 
   cout<<"Z Min   = "<<MinZ<<endl;
   cout<<"Z Max   = "<<MaxZ<<endl;
-  cout<<"      "<<endl;
-
-
-  cout<<"-------------"<<endl;  
-  cout<<"      "<<endl;
-  cout<<"      "<<endl;
-
   cout<<"      "<<endl;
 
   double deltaCut = corr->getDeltaRCut();
@@ -154,8 +141,15 @@ double TrackletData::getBeta(int bin,bool saveplots)
 
   for(int i = 0; i<matchedentries;i++){
     ntmatched->GetEntry(i);
-    if(fabs(matchedeta1)>=etaMax) continue;
-    if(fabs(matchedeta2)>etaMax) continue;
+
+    if(matchedeta1>=etaMax) continue;
+    if(matchedeta2>etaMax) continue;
+    if(matchedeta1<etaMin) continue;
+    if(matchedeta2<=etaMin) continue;
+
+    //    if(fabs(matchedeta1)>=etaMax) continue;
+    //    if(fabs(matchedeta2)>etaMax) continue;
+
     if(layer1hits>MaxHit) continue;
     if(layer1hits<MinHit) continue;    
 
@@ -177,9 +171,10 @@ double TrackletData::getBeta(int bin,bool saveplots)
 
   for(int i = 0; i<invmatchedentries;i++){
     ntInvMatched->GetEntry(i);
-    if(fabs(inveta1)>etaMax) continue;
-    //    if(fabs(inveta2)>etaMax) continue;
-    if(fabs(inveta1)<0.1) continue;
+    if(inveta1>etaMax) continue;
+    if(inveta1<=etaMin) continue;
+
+    if(fabs(inveta1)<midEtaCut) continue;
     
     //    float dR= sqrt(invdeta*invdeta+invdphi*invdphi);
     // This is not the standard delta R - It is with the phi normalized with corr->getCPhi();
@@ -193,7 +188,9 @@ double TrackletData::getBeta(int bin,bool saveplots)
   
   for(int i = 0; i<partentries;i++){
     ntparticle->GetEntry(i);
-    if(fabs(eta1)>etaMax || fabs(eta2)>etaMax) continue;
+    if(eta1>etaMax || eta2>etaMax) continue;
+    if(eta1<=etaMin || eta2<=etaMin) continue;
+
     if(charge==0) continue;
     h5->Fill(fabs(eta1-eta2));
   }
@@ -219,6 +216,16 @@ double TrackletData::getBeta(int bin,bool saveplots)
   //// Determination of correction factor beta
   double beta = (h6->Integral(0,(int)(deltaCut*nBins/max),"width")/(h1->Integral(0,(int)(deltaCut*nBins/max),"width")));
   cout<<"beta: "<<beta<<endl;
+
+  cout<<"      "<<endl;
+  cout<<"      "<<endl;
+
+  cout<<"-------------"<<endl;
+  cout<<"      "<<endl;
+  cout<<"      "<<endl;
+
+  cout<<"      "<<endl;
+
 
   return beta;
 
