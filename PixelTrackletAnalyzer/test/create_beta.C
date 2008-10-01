@@ -32,16 +32,16 @@ void create_beta(const char* infile = "/server/03a/yetkin/data/pythia900GeV_d200
 
   TH1::SetDefaultSumw2();
 
-  int hitbins = 2;
-  int etabins = 2;
+  int hitbins = 10;
+  int etabins = 1;
 
   TrackletCorrections* corr = new TrackletCorrections(hitbins, etabins,1);
 
   corr->setMidEtaCut(0); // 0.1
   corr->setDeltaRCut(0.25);
-  corr->setCPhi(43);
-  corr->setNormDRMin(0.6);
-  corr->setNormDRMin(5);
+  corr->setCPhi(1/43);
+  corr->setNormDRMin(1);
+  corr->setNormDRMax(2);
 
   corr->setHistBins(40);
   corr->setHistMax(5);
@@ -117,7 +117,7 @@ double TrackletData::getBeta(int bin,bool saveplots)
   TH1F * h2 = new TH1F(Form("h2_%d",counter),"Signal",nBins,0,max);
   TH1F * h3 = new TH1F(Form("h3_%d",counter),"Background",nBins,0,max);
   TH1F * h4 = new TH1F(Form("h4_%d",counter),"Normalized Reproduced Background",nBins,0,max);
-  TH1F * h5 = new TH1F(Form("h5_%d",counter),"",nBins,0,max);
+  TH1F * h5 = new TH1F(Form("h5_%d",counter),"Un-Normalized Reproduced Background",nBins,0,max);
   TH1F * h6 = new TH1F(Form("h6_%d",counter),"Reproduced Background Subtracted",nBins,0,max);
   TH1F * h7 = new TH1F(Form("h7_%d",counter),"",nBins,0,max);
   TH1F * h8 = new TH1F(Form("h8_%d",counter),"",nBins,0,max);
@@ -155,15 +155,15 @@ double TrackletData::getBeta(int bin,bool saveplots)
 
     //    float dR= sqrt(deta*deta+dphi*dphi/43./43.);
     // This is not the standard delta R - It is with the phi normalized with corr->getCPhi();
-    double dR = deltaR(deta,dphi);
+    double dR = deltaR(matchedeta1,matchedphi1,matchedeta2,matchedphi2);
 
-    h1->Fill(fabs(dR));
-    h6->Fill(fabs(dR));
+    h1->Fill(dR);
+    h6->Fill(dR);
     if(signalcheck==1){
-      h2->Fill(fabs(dR));
+      h2->Fill(dR);
     }
     if(signalcheck==0){
-      h3->Fill(fabs(dR));
+      h3->Fill(dR);
     } 
   }
 
@@ -178,7 +178,7 @@ double TrackletData::getBeta(int bin,bool saveplots)
     
     //    float dR= sqrt(invdeta*invdeta+invdphi*invdphi);
     // This is not the standard delta R - It is with the phi normalized with corr->getCPhi();
-    double dR = deltaR(invdeta,invdphi);
+    double dR = deltaR(inveta1,invphi1,inveta2,invphi2);
     h4->Fill(dR);
 
 
@@ -210,11 +210,12 @@ double TrackletData::getBeta(int bin,bool saveplots)
   Float_t sc = ((h1->Integral((int)(normMin*nBins/max),(int)(normMax*nBins/max),"width"))/(h4->Integral((int)(normMin*nBins/max),(int)(normMax*nBins/max),"width")));
 
   cout<<"background normalization: "<<sc<<endl;
+  h5->Add(h4);
   h4->Scale(sc);
   h6->Add(h4,-1);
 
   //// Determination of correction factor beta
-  double beta = (h6->Integral(0,(int)(deltaCut*nBins/max),"width")/(h1->Integral(0,(int)(deltaCut*nBins/max),"width")));
+  double beta = (h4->Integral(0,(int)(deltaCut*nBins/max),"width")/(h1->Integral(0,(int)(deltaCut*nBins/max),"width")));
   cout<<"beta: "<<beta<<endl;
 
   cout<<"      "<<endl;

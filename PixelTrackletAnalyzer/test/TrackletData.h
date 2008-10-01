@@ -11,6 +11,7 @@
 #include <TNtuple.h>
 #include <iostream>
 #include <TLine.h>
+#include <TMath.h>
 #include "../../PixelTracklet/interface/TrackletCorrections.h"
 
 struct TrackletData
@@ -117,19 +118,24 @@ struct TrackletData
 
   double getBeta(int bin, bool saveplots = false);
   double getAlpha(int bin, bool saveplots = false);
-  double deltaR(double eta, double phi);
-  double deltaR2(double eta, double phi);
+  double deltaR(double eta1, double phi1, double eta2, double phi2);
+  double deltaR2(double eta1, double phi1, double eta2, double phi2);
 
   int counter;
 };
 
 
-double TrackletData::deltaR(double eta, double phi){
-  return sqrt(deltaR2(eta,phi));
+double TrackletData::deltaR(double eta1, double phi1, double eta2, double phi2){
+  return sqrt(deltaR2(eta1,phi1,eta2,phi2));
 }
 
-double TrackletData::deltaR2(double eta, double phi){
+double TrackletData::deltaR2(double eta1, double phi1, double eta2, double phi2){
   double c = this->corr->getCPhi();
+  double pi = TMath::Pi();
+  double eta = eta1-eta2;
+  double phi = phi1-phi2;
+  if(phi > 2*pi) phi -= 2*pi;
+  if(phi > pi) phi = 2*pi-phi;
   return eta*eta+c*c*phi*phi;
 }
 
