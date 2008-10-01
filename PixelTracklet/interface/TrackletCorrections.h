@@ -34,6 +34,7 @@ class TrackletCorrections : public TNamed
       double getCPhi() { return cPhi_;}
 
       int getHistBins() { return histBins_;}
+      int getHistMax() { return histMax_;}
 
       int getHitBins() { return  hitBins_;}
       int getEtaBins() { return  etaBins_;}
@@ -75,6 +76,7 @@ class TrackletCorrections : public TNamed
       void setCPhi(double value) {cPhi_ = value;}
 
       void setHistBins(int value) { histBins_ = value;}
+      void setHistMax(int value) { histMax_ = value;}
 
       void setHitBins(int value) {hitBins_ = value;}
       void setEtaBins(int value) {etaBins_ = value;}
@@ -100,6 +102,7 @@ class TrackletCorrections : public TNamed
       std::string mcTag_;
 
       int histBins_;
+      int histMax_;
 
       int hitBins_;
       int etaBins_;
