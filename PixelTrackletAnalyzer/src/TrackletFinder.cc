@@ -178,7 +178,7 @@ void TrackletFinder::fillPixelEvent(TNtuple* nt1, TNtuple* nt2){
       // Calculate the rechit position with respect to the vertex
       //      math::XYZVector rechit2Pos(gpos2.x(),gpos2.y(),gpos2.z()-vertex_.z());
 
-      nt1->Fill(gpos2.x(),gpos2.y(),gpos2.z());
+      nt2->Fill(gpos2.x(),gpos2.y(),gpos2.z());
 
       math::XYZVector rechit2Pos(gpos2.x(),gpos2.y(),gpos2.z()-vertex_.z());
       double phi2 = rechit2Pos.phi();
