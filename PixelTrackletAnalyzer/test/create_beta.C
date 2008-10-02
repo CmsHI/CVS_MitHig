@@ -18,7 +18,7 @@ using namespace std;
 void formatHist(TH1* h, int col = 1, double norm = 1);
 void saveCanvas(TCanvas* c, int date = 20080829);
 
-void create_beta(const char* infile = "/server/03a/yetkin/data/pythia900GeV_d20080920.root", const char* outfile = "histograms.root"){
+void create_beta(const char* infile = "/server/03a/yetkin/data/pythia_mb_900GeV_vtxFlat_d20081001.hist.root", const char* outfile = "histograms.root"){
 
   gROOT->Reset();
   gROOT->ProcessLine(".x rootlogon.C");
@@ -33,7 +33,7 @@ void create_beta(const char* infile = "/server/03a/yetkin/data/pythia900GeV_d200
   TH1::SetDefaultSumw2();
 
   int hitbins = 10;
-  int etabins = 1;
+  int etabins = 2;
 
   TrackletCorrections* corr = new TrackletCorrections(hitbins, etabins,1);
 
@@ -46,7 +46,7 @@ void create_beta(const char* infile = "/server/03a/yetkin/data/pythia900GeV_d200
   corr->setHistBins(40);
   corr->setHistMax(5);
 
-  corr->setHitMax(40);
+  corr->setHitMax(50);
   corr->setEtaMax(2);
   corr->setZMax(20);
 
@@ -78,8 +78,12 @@ double TrackletData::getBeta(int bin,bool saveplots)
 
   corr->getBin(bin);
 
-  double etaMin = corr->binEtaMin();
-  double etaMax = corr->binEtaMax();
+  //  double etaMin = corr->binEtaMin();
+  //  double etaMax = corr->binEtaMax();
+
+  double etaMax = corr->getEtaMax();
+  double etaMin = -etaMax;
+
   double MinHit = corr->binHitMin();
   double MaxHit = corr->binHitMax();
   double MinZ = corr->binZMin();
@@ -106,7 +110,7 @@ double TrackletData::getBeta(int bin,bool saveplots)
   double deltaCut = corr->getDeltaRCut();
   int etaBins = corr->getEtaBins();
   int nBins = corr->getHistBins(); //20;
-  int max = corr->getHistMax(); //20;
+  double max = corr->getHistMax(); //20;
 
   double normMin = corr->getNormDRMin();
   double normMax = corr->getNormDRMax();
@@ -192,7 +196,7 @@ double TrackletData::getBeta(int bin,bool saveplots)
     if(eta1<=etaMin || eta2<=etaMin) continue;
 
     if(charge==0) continue;
-    h5->Fill(fabs(eta1-eta2));
+    h7->Fill(fabs(eta1-eta2));
   }
 
 

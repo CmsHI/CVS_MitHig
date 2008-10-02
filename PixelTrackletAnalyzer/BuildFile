@@ -12,6 +12,7 @@
 <use name=FWCore/Framework>
 <use name=FWCore/PluginManager>
 <use name=SimDataFormats/Vertex>
+<use name=SimGeneral/HepPDTRecord>
 <use name=FWCore/ParameterSet>
 <use name=DataFormats/DetId>
 <use name=SimDataFormats/TrackingAnalysis>

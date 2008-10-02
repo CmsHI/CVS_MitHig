@@ -13,7 +13,7 @@
 //
 // Original Author:  Yilmaz Yetkin
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackletCounter.cc,v 1.1 2008/09/30 13:56:05 yilmaz Exp $
+// $Id: TrackletCounter.cc,v 1.2 2008/10/02 00:14:59 yilmaz Exp $
 //
 //
 
@@ -198,7 +198,7 @@ TrackletCounter::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
    HepMC::GenEvent::particle_const_iterator end = evt->particles_end();
    for(HepMC::GenEvent::particle_const_iterator it = begin; it != end; ++it){
      if((*it)->status() == 1){
-       float pdg_id = (*it)->pdg_id();
+       int pdg_id = (*it)->pdg_id();
        float eta = (*it)->momentum().eta();
        int bin = corrections_->findBin(nhits,eta,z);
        float pt = (*it)->momentum().perp();
@@ -227,14 +227,30 @@ TrackletCounter::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup
 void 
 TrackletCounter::beginJob(const edm::EventSetup& iSetup)
 {
+   iSetup.getData(pdt);
   
-  TFile* infile = new TFile(betafile.data(),"read");
-  corrections_  = new TrackletCorrections(infile);
+   //  TFile* infile = TFile::Open(betafile.data(),"read");
+   //  corrections_  = new TrackletCorrections(infile);
+  corrections_  = new TrackletCorrections(10,8,1);
+
+  corrections_->setMidEtaCut(0); // 0.1
+  corrections_->setDeltaRCut(0.25);
+  corrections_->setCPhi(1/43);
+  corrections_->setNormDRMin(1);
+  corrections_->setNormDRMax(2);
+
+  corrections_->setHistBins(40);
+  corrections_->setHistMax(5);
+
+  corrections_->setHitMax(40);
+  corrections_->setEtaMax(2);
+  corrections_->setZMax(20);
+
+  corrections_->start();
 
   edm::ESHandle<TrackerGeometry> tGeo;
   iSetup.get<TrackerDigiGeometryRecord>().get(tGeo);
   trGeo = tGeo.product();
-
 
   finder_ = new TrackletFinder(corrections_,trGeo,true);
 
