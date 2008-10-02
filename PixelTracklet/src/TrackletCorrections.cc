@@ -125,12 +125,17 @@ void TrackletCorrections::setBeta(int bin, double value){
 void TrackletCorrections::setBeta(double hits, double eta, double z, double value, bool find)
 {
   if(find){
-    int bin = betas_->FindBin(hits,eta,z);
+    int bin = findBin(hits,eta,z);
     betas_->SetBinContent(bin,value);
   }else{
     betas_->SetBinContent(hits,eta,z,value);
   }
 }
+
+int TrackletCorrections::findBin(double hits, double eta, double z){
+  return betas_->FindBin(hits,eta,z);
+}
+
 
 void TrackletCorrections::getBin(int value){
 

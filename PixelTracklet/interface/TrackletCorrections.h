@@ -42,6 +42,7 @@ class TrackletCorrections : public TNamed
 
       int size();  // Total number of divisions in 3D
 
+      int findBin(double hits, double eta, double z);
       void getBin(int value);
 
       double binEtaMax();

@@ -3,6 +3,7 @@
 #include "Geometry/TrackerGeometryBuilder/interface/PixelGeomDetUnit.h"
 #include "DataFormats/GeometryVector/interface/GlobalPoint.h"
 #include "DataFormats/SiPixelDetId/interface/PXBDetId.h"
+#include "TTree.h"
 
 using namespace edm;
 using namespace std;
@@ -136,5 +137,64 @@ std::vector<Tracklet> TrackletFinder::cleanTracklets(vector<Tracklet> input){
   return output;
 
 }
+
+void TrackletFinder::fillPixelEvent(TNtuple* nt1, TNtuple* nt2){
+
+  TrackerHitAssociator theHitAssociator(*event_);
+
+  for(unsigned int i1 = 0; i1 < layer1_.size(); ++i1){   //loops over and gets spatial information and associated simhits for each rechit
+
+    // Ids
+    int rechit1Type = 0;
+    int rechit2Type = 0;
+    int trackletType = -1;
+    int signalExistCheck = 0;
+
+    const SiPixelRecHit* recHit1 = layer1_[i1];
+
+    const PixelGeomDetUnit* pixelLayer = dynamic_cast<const PixelGeomDetUnit*> (geo_->idToDet(recHit1->geographicalId()));
+
+    GlobalPoint gpos1 = pixelLayer->toGlobal(recHit1->localPosition());
+
+    // Calculate the rechit position with respect to the vertex
+    //    math::XYZVector rechitPos(gpos1.x(),gpos1.y(),gpos1.z()-vertex_.z());
+
+    nt1->Fill(gpos1.x(),gpos1.y(),gpos1.z());
+
+    math::XYZVector rechitPos(gpos1.x(),gpos1.y(),gpos1.z());
+    double phi1 = rechitPos.phi();
+    double eta1 = rechitPos.eta();
+
+  }
+
+    // Match with second layer reconstructed hits
+    for(unsigned int i2 = 0; i2 < layer2_.size(); ++i2){
+      const SiPixelRecHit* recHit2 = layer2_[i2];
+
+      const PixelGeomDetUnit* pixelLayer = dynamic_cast<const PixelGeomDetUnit*> (geo_->idToDet(recHit2->geographicalId()));
+
+      GlobalPoint gpos2 = pixelLayer->toGlobal(recHit2->localPosition());
+
+      // Calculate the rechit position with respect to the vertex
+      //      math::XYZVector rechit2Pos(gpos2.x(),gpos2.y(),gpos2.z()-vertex_.z());
+
+      nt1->Fill(gpos2.x(),gpos2.y(),gpos2.z());
+
+      math::XYZVector rechit2Pos(gpos2.x(),gpos2.y(),gpos2.z()-vertex_.z());
+      double phi2 = rechit2Pos.phi();
+      double eta2 = rechit2Pos.eta();
+    }
+
+
+}
+
+
+
+
+
+
+
+
+
 
 

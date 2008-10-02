@@ -8,6 +8,7 @@
 #include "Geometry/TrackerGeometryBuilder/interface/TrackerGeometry.h"
 #include "MitHig/PixelTracklet/interface/TrackletCorrections.h"
 #include "MitHig/PixelTracklet/interface/Tracklet.h"
+#include "TNtuple.h"
 
 class TrackletFinder{
 public :
@@ -20,11 +21,14 @@ public :
   countMode_(count), 
   checkSecondLayer_(checkSecondLayer) 
   {;}
-  void sortLayers();
+ int getNHits(){ return layer1_.size(); }
+ void sortLayers();
   std::vector<Tracklet> makeTracklets(bool invert = false);
   std::vector<Tracklet> cleanTracklets(std::vector<Tracklet> input);
   std::vector<Tracklet> getTracklets() {return cleanTracklets(makeTracklets());}
+  void fillPixelEvent(TNtuple* nt1,TNtuple* nt2);
   void setEvent(const edm::Event & iEvent);
+  void setVertex(math::XYZVector vtx) { vertex_ = vtx; }
   //  bool compareTracklet(Tracklet a,Tracklet b);
   
 private:
