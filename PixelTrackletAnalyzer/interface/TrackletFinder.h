@@ -21,7 +21,9 @@ public :
   countMode_(count), 
   checkSecondLayer_(checkSecondLayer) 
   {;}
- int getNHits(){ return layer1_.size(); }
+ int getNHits1(){ return layer1_.size(); }
+ int getNHits2(){ return layer2_.size(); }
+
  void sortLayers();
   std::vector<Tracklet> makeTracklets(bool invert = false);
   std::vector<Tracklet> cleanTracklets(std::vector<Tracklet> input);

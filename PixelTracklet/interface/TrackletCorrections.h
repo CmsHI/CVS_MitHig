@@ -44,6 +44,7 @@ class TrackletCorrections : public TNamed
 
       int findBin(double hits, double eta, double z);
       void getBin(int value);
+      void printBin();
 
       double binEtaMax();
       double binEtaMin();
@@ -138,7 +139,7 @@ class TrackletCorrections : public TNamed
       std::string comments_;
       double comEnergy_;
 
-      ClassDef(TrackletCorrections,1)
+      ClassDef(TrackletCorrections,2)
 
 };
 

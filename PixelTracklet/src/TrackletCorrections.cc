@@ -125,7 +125,7 @@ void TrackletCorrections::setBeta(int bin, double value){
 void TrackletCorrections::setBeta(double hits, double eta, double z, double value, bool find)
 {
   if(find){
-    int bin = findBin(hits,eta,z);
+    int bin = betas_->FindBin(hits,eta,z);
     betas_->SetBinContent(bin,value);
   }else{
     betas_->SetBinContent(hits,eta,z,value);
@@ -133,9 +133,21 @@ void TrackletCorrections::setBeta(double hits, double eta, double z, double valu
 }
 
 int TrackletCorrections::findBin(double hits, double eta, double z){
-  return betas_->FindBin(hits,eta,z);
+
+  int nx = hitBins_;
+  int ny = etaBins_;
+  
+  betas_->GetBinXYZ(betas_->FindBin(hits,eta,z),binx_,biny_,binz_);
+  
+  bin_ = ((binx_-1) + nx*((biny_-1) +ny*(binz_-1)));
+
+  return bin_;
+  
 }
 
+void TrackletCorrections::printBin(){
+  std::cout<<"Global "<<bin_<<" x "<<binx_<<" y "<<biny_<<" z "<<binz_<<std::endl;
+}
 
 void TrackletCorrections::getBin(int value){
 
