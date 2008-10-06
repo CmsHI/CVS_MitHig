@@ -32,7 +32,7 @@ void create_beta(const char* infile = "/server/03a/yetkin/data/pythia_mb_900GeV_
 
   TH1::SetDefaultSumw2();
 
-  int hitbins = 10;
+  int hitbins = 1;
   int etabins = 2;
 
   TrackletCorrections* corr = new TrackletCorrections(hitbins, etabins,1);
@@ -47,7 +47,7 @@ void create_beta(const char* infile = "/server/03a/yetkin/data/pythia_mb_900GeV_
   corr->setHistMax(5);
 
   corr->setHitMax(50);
-  corr->setEtaMax(2);
+  corr->setEtaMax(3);
   corr->setZMax(20);
 
 
@@ -67,7 +67,13 @@ void create_beta(const char* infile = "/server/03a/yetkin/data/pythia_mb_900GeV_
   of->Write();
   of->Close();
 
-  corr->save("corrections.root");
+
+  TFile *of2 = new TFile("correctionfile.root","recreate");
+  corr->Write();
+  of2->Write();
+  of2->Close();
+
+  //  corr->save("corrections.root");
 
 }
 

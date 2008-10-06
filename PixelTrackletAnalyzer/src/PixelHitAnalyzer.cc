@@ -13,7 +13,7 @@
 //
 // Original Author:  Yilmaz Yetkin
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: PixelHitAnalyzer.cc,v 1.1 2008/09/30 13:56:05 yilmaz Exp $
+// $Id: PixelHitAnalyzer.cc,v 1.1 2008/10/02 00:14:59 yilmaz Exp $
 //
 //
 
@@ -22,6 +22,7 @@
 #include <memory>
 #include <iostream>
 #include <vector>
+#include <string>
 
 // user include files
 #include "FWCore/Framework/interface/Frameworkfwd.h"
@@ -33,23 +34,53 @@
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
 #include "Geometry/Records/interface/TrackerDigiGeometryRecord.h"
 
-#include "MitHig/PixelTracklet/interface/TrackletCorrections.h"
-#include "MitHig/PixelTrackletAnalyzer/interface/TrackletFinder.h"
-
 #include "FWCore/ServiceRegistry/interface/Service.h"
 #include "PhysicsTools/UtilAlgos/interface/TFileService.h"
+#include "Geometry/TrackerGeometryBuilder/interface/PixelGeomDetUnit.h"
+#include "DataFormats/TrackerRecHit2D/interface/SiPixelRecHitCollection.h"
+#include "Geometry/TrackerGeometryBuilder/interface/TrackerGeometry.h"
+#include "DataFormats/GeometryVector/interface/GlobalPoint.h"
+#include "DataFormats/SiPixelDetId/interface/PXBDetId.h"
+#include "DataFormats/VertexReco/interface/Vertex.h"
+#include "DataFormats/VertexReco/interface/VertexFwd.h"
+#include "SimDataFormats/TrackingAnalysis/interface/TrackingVertex.h"
+#include "SimDataFormats/TrackingAnalysis/interface/TrackingVertexContainer.h"
+#include "SimDataFormats/TrackingAnalysis/interface/TrackingParticle.h"
+#include "SimDataFormats/TrackingHit/interface/PSimHit.h"
+#include "SimTracker/TrackerHitAssociation/interface/TrackerHitAssociator.h"
 
-#include "TNtuple.h"
+#include "TTree.h"
 
 using namespace std;
+using namespace edm;
+using namespace reco;
 
 //
 // class decleration
 //
 
+#define MAXHITS 1000
+#define MAXVTX 10
+
 struct PixelEvent{
-  //  int nhits;
-  double z;
+   int nhits1;
+   int nhits2;
+
+   int nv;
+   float vz[MAXVTX];
+
+   float x1[MAXHITS];
+   float y1[MAXHITS];
+   float z1[MAXHITS];
+   float cs1[MAXHITS];
+   float cg1[MAXHITS];
+
+   float x2[MAXHITS];
+   float y2[MAXHITS];
+   float z2[MAXHITS];
+   float cs2[MAXHITS];
+   float cg2[MAXHITS];
+
 };
 
 
@@ -63,24 +94,27 @@ class PixelHitAnalyzer : public edm::EDAnalyzer {
       virtual void beginJob(const edm::EventSetup&) ;
       virtual void analyze(const edm::Event&, const edm::EventSetup&);
       virtual void endJob() ;
+   void fillVertices(const edm::Event& iEvent);
+   void fillHits(const edm::Event& iEvent);
+   int associateSimhitToTrackingparticle(unsigned int trid );
+   bool checkprimaryparticle(TrackingParticleRef tp);
 
       // ----------member data ---------------------------
 
-  const char* betafile;
-  TrackletFinder* finder_;
-  TrackletCorrections* corrections_;
-  const TrackerGeometry* trGeo;
+   //  const char* betafile;
+   //  TrackletFinder* finder_;
+   //  TrackletCorrections* corrections_;
+
+   bool doMC_;
+   vector<string> vertexSrc_;
+
+
+  const TrackerGeometry* geo_;
   edm::Service<TFileService> fs;           
+   edm::Handle<TrackingParticleCollection> trackingParticles;
 
   TTree* pixelTree_;
-  TBranch* branch0_;
-  TBranch* branch1_;
-  TBranch* branch2_;
-
-  TNtuple* hits1_;
-  TNtuple* hits2_;
-
-  PixelEvent evt_;
+  PixelEvent pev_;
 
 };
 
@@ -99,7 +133,8 @@ PixelHitAnalyzer::PixelHitAnalyzer(const edm::ParameterSet& iConfig)
 
 {
    //now do what ever initialization is needed
-
+   doMC_             = iConfig.getUntrackedParameter<bool>  ("doMC",true);
+   vertexSrc_ = iConfig.getParameter<vector<string> >("vertexSrc");
 }
 
 
@@ -120,23 +155,187 @@ PixelHitAnalyzer::~PixelHitAnalyzer()
 void
 PixelHitAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
-   using namespace edm;
+   pev_.nhits1 = 0;
+   pev_.nhits2 = 0;
+   pev_.nv = 0;
 
-   hits1_->Reset();
-   hits2_->Reset();
-
-   finder_->setEvent(iEvent);
-
-   //   vector<Tracklet> tracklets = finder_->getTracklets();
-
-   finder_->fillPixelEvent(hits1_,hits2_);
+   fillVertices(iEvent);
+   fillHits(iEvent);
 
    pixelTree_->Fill();
 
-   //   cout<<"Number of tracklets : "<<tracklets.size()<<endl;
+}
 
+void
+PixelHitAnalyzer::fillVertices(const edm::Event& iEvent){
+
+   if(doMC_){
+      unsigned int daughter = 0;
+      unsigned int nVertex = 0;
+      unsigned int greatestvtx = -1;
+      Handle<TrackingVertexCollection> vertices;
+      iEvent.getByLabel("mergedtruth","MergedTrackTruth", vertices);
+      nVertex = vertices->size();
+      for (unsigned int i = 0 ; i< vertices->size(); ++i){
+	 daughter = (*vertices)[i].nDaughterTracks();
+	 if( daughter > (*vertices)[greatestvtx].nDaughterTracks()) greatestvtx = i;
+      }
+      
+      if(vertices->size()>0){
+	 pev_.vz[pev_.nv] = (*vertices)[greatestvtx].position().z();
+      }else{
+	 pev_.vz[pev_.nv] =  -99; 
+      }
+      pev_.nv++;
+   }
+   
+   for(int iv = 0; iv < vertexSrc_.size(); ++iv){
+      const reco::VertexCollection * recoVertices;
+      edm::Handle<reco::VertexCollection> vertexCollection;
+      iEvent.getByLabel(vertexSrc_[iv],vertexCollection);
+      recoVertices = vertexCollection.product();
+      int daughter = 0;
+      int nVertex = 0;
+      int greatestvtx = -1;
+      
+      nVertex = recoVertices->size();
+      for (unsigned int i = 0 ; i< recoVertices->size(); ++i){
+	 daughter = (*recoVertices)[i].tracksSize();
+	 if( daughter > (*recoVertices)[greatestvtx].tracksSize()) greatestvtx = i;
+      }
+      
+      if(recoVertices->size()>0){
+	 pev_.vz[pev_.nv] = (*recoVertices)[greatestvtx].position().z();
+      }else{
+	 pev_.vz[pev_.nv] =  -99;
+      }
+      pev_.nv++;
+   }
 
 }
+
+void
+PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
+
+   TrackerHitAssociator theHitAssociator(iEvent);
+   if(doMC_)iEvent.getByLabel("mergedtruth","MergedTrackTruth",trackingParticles);
+   
+   const SiPixelRecHitCollection* rechits;
+   Handle<SiPixelRecHitCollection> rchts;
+   iEvent.getByLabel("siPixelRecHits",rchts);
+   rechits = rchts.product();
+
+   for(SiPixelRecHitCollection::id_iterator id = rechits->id_begin(); id!= rechits->id_end(); id++){
+      if((*id).subdetId() == int(PixelSubdetector::PixelBarrel)){
+	 PXBDetId pid(*id);
+	 SiPixelRecHitCollection::range range;
+	 int layer = pid.layer();
+	 if(layer == 1 || layer == 2) range = rechits->get(*id);
+	 for(SiPixelRecHitCollection::const_iterator recHit = range.first; recHit!= range.second; recHit++){
+	    
+	    const SiPixelRecHit* recHit1 = &*recHit;
+
+	    // SIM INFO
+
+	    int rechit1Type = 0;
+	    int rechit2Type = 0;
+	    int signalExistCheck = 0;
+	    int signalCheck = 0;
+	    int trid = -9999;
+
+	    if (doMC_) {
+	       vector<PSimHit> simHits1 = theHitAssociator.associateHit(*recHit1);
+	       const PSimHit * bestSimHit1 = 0;
+	       int simIdx =0;
+
+	       //gets the primary simhit and its specifications for the rechit   	     
+	       for(vector<PSimHit>::const_iterator simHit1 = simHits1.begin(); simHit1!= simHits1.end(); simHit1++){  
+		  simIdx++;
+		  unsigned int associatedTPID = associateSimhitToTrackingparticle((&(*simHit1))->trackId());
+		  if (associatedTPID == -1) continue;    // doesn't match to any Trackingparticle
+		  
+		  TrackingParticleRef associatedTP(trackingParticles, associatedTPID);
+		  int ptype = (&(*simHit1))->processType();
+		  
+		  bool isprimary = checkprimaryparticle(associatedTP);
+		  
+		  if (isprimary && bestSimHit1==0){ 
+		     bestSimHit1 = &(*simHit1);
+		     break;
+		  }
+	       } 
+	       
+	       if(bestSimHit1!=0){
+		  trid = bestSimHit1->trackId();  
+	       }
+	    }
+	    
+	    // GEOMETRY INFO
+
+
+
+	    const PixelGeomDetUnit* pixelLayer = dynamic_cast<const PixelGeomDetUnit*> (geo_->idToDet(recHit1->geographicalId()));
+	    GlobalPoint gpos = pixelLayer->toGlobal(recHit1->localPosition());
+	    
+	    if(layer == 1){ 
+	       pev_.x1[pev_.nhits1] = gpos.x();
+	       pev_.y1[pev_.nhits1] = gpos.y();
+	       pev_.z1[pev_.nhits1] = gpos.z();
+	       pev_.cs1[pev_.nhits1] = recHit1->cluster()->size(); //Cluster Size
+               pev_.cg1[pev_.nhits1] = recHit1->cluster()->charge(); //Cluster Charge
+	       pev_.nhits1++;
+	    }
+	    if(layer == 2){
+	       pev_.x2[pev_.nhits2] = gpos.x();
+	       pev_.y2[pev_.nhits2] = gpos.y();
+	       pev_.z2[pev_.nhits2] = gpos.z();
+	       pev_.cs2[pev_.nhits2] = recHit1->cluster()->size(); //Cluster Size
+               pev_.cg2[pev_.nhits2] = recHit1->cluster()->charge(); //Cluster Charge
+	       pev_.nhits2++;
+	    } 
+	    
+	 }
+      }
+   }
+
+}
+
+int PixelHitAnalyzer::associateSimhitToTrackingparticle(unsigned int trid )
+{
+   int ref=-1;
+
+   const TrackingParticleCollection TPCProd = *(trackingParticles.product());
+   for (TrackingParticleCollection::size_type i=0; i<TPCProd.size(); i++){
+      TrackingParticleRef tp(trackingParticles, i);
+      vector <PSimHit> particlesimhits = tp->trackPSimHit();
+      for(vector<PSimHit>::const_iterator simhit = particlesimhits.begin(); simhit != particlesimhits.end(); ++simhit)
+	 {
+	    //cout <<"       matching TP: "<<i<<" TPsimhitid: "<<simhit->trackId()<<" simhitId: "<<trid<<endl;
+	    if(simhit->trackId()==trid)
+	       {
+		  ref=i;
+		  break;
+	       }
+	 }
+      if (ref!=-1) break;
+   }
+
+   return ref;
+}
+   
+
+bool PixelHitAnalyzer::checkprimaryparticle(TrackingParticleRef tp)
+{
+   int primarycheck=2;
+   if(((tp->charge()==1)||(tp->charge()==-1))&&(tp->vertex().Rho()<0.2))
+      {
+	 primarycheck=1;
+      } else {
+	 primarycheck=0;
+      }
+   return primarycheck;
+}       
+
 
 
 // ------------ method called once each job just before starting event loop  ------------
@@ -146,23 +345,29 @@ PixelHitAnalyzer::beginJob(const edm::EventSetup& iSetup)
   
   //  TFile* infile = new TFile(betafile,"read");
   //  corrections_  = new TrackletCorrections(infile);
-  corrections_  = new TrackletCorrections(1,1,1);
+   //  corrections_  = new TrackletCorrections(1,1,1);
 
   edm::ESHandle<TrackerGeometry> tGeo;
   iSetup.get<TrackerDigiGeometryRecord>().get(tGeo);
-  trGeo = tGeo.product();
+  geo_ = tGeo.product();
 
-  hits1_ = new TNtuple("layer1","Layer 1 Hits","x:y:z");
-  hits2_ = new TNtuple("layer1","Layer 2 Hits","x:y:z");
-
-  finder_ = new TrackletFinder(corrections_,trGeo,true);
+  //  finder_ = new TrackletFinder(corrections_,trGeo,true);
 
   pixelTree_ = fs->make<TTree>("PixelTree","Tree of Pixel Hits");
-  branch1_ = pixelTree_->Branch("Layer1","TNtuple",&hits1_,64000,1);
-  branch1_ = pixelTree_->Branch("Layer2","TNtuple",&hits2_,64000,1);
-  //  branch0_ = pixelTree_->Branch("Event",&evt_,"nhits/I:z/F");
-  branch0_ = pixelTree_->Branch("Event",&evt_,"z/F");
-
+  pixelTree_->Branch("nhits1",&pev_.nhits1,"nhits1/I");
+  pixelTree_->Branch("nhits2",&pev_.nhits2,"nhits2/I");
+  pixelTree_->Branch("nv",&pev_.nv,"nv/I");
+  pixelTree_->Branch("vz",pev_.vz,"vz[nv]/F");
+  pixelTree_->Branch("x1",pev_.x1,"x1[nhits1]/F");
+  pixelTree_->Branch("y1",pev_.y1,"y1[nhits1]/F");
+  pixelTree_->Branch("z1",pev_.z1,"z1[nhits1]/F");
+  pixelTree_->Branch("cs1",pev_.cs1,"cs1[nhits1]/F");
+  pixelTree_->Branch("cg1",pev_.cg1,"cg1[nhits1]/F");
+  pixelTree_->Branch("x2",pev_.x2,"x2[nhits2]/F");
+  pixelTree_->Branch("y2",pev_.y2,"y2[nhits2]/F");
+  pixelTree_->Branch("z2",pev_.z2,"z2[nhits2]/F");
+  pixelTree_->Branch("cs2",pev_.cs2,"cs2[nhits2]/F");
+  pixelTree_->Branch("cg2",pev_.cg2,"cg2[nhits2]/F");
 }
 
 // ------------ method called once each job just after ending the event loop  ------------
