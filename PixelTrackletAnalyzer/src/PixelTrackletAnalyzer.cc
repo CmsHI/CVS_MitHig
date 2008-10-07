@@ -13,7 +13,7 @@
 //
 // Original Author:  Arya Tafvizi, Yen-Jie Lee
 //         Created:  Tue Jul 22 07:59:06 EDT 2008
-// $Id: PixelTrackletAnalyzer.cc,v 1.9 2008/09/30 13:56:05 yilmaz Exp $
+// $Id: PixelTrackletAnalyzer.cc,v 1.10 2008/10/07 11:43:09 yjlee Exp $
 //
 //
 
@@ -159,10 +159,10 @@ class PixelTrackletAnalyzer : public edm::EDAnalyzer {
    const PixelGeomDetUnit* pixelLayer;
    edm::Handle<TrackingParticleCollection> trackingParticles ;
    
-   float particles[48];
-   float tracklets[48];
-   float layer1Hits[48];
-   float signalTracklets[48];
+   float particles[72];
+   float tracklets[72];
+   float layer1Hits[72];
+   float signalTracklets[72];
    float layer1HitInEta1_;
 
 };
@@ -188,8 +188,8 @@ PixelTrackletAnalyzer::PixelTrackletAnalyzer(const edm::ParameterSet& iConfig)
    checkSecondLayer_ = iConfig.getUntrackedParameter<bool>  ("checkSecondLayer", true);
    verbose_          = iConfig.getUntrackedParameter<bool>  ("verbose",true);
    vertexSrc_ = iConfig.getUntrackedParameter<string>("vertexSrc","pixelVertices");
-   etaMax_ = 2.;
-   etaBins_ = 8;
+   etaMax_ = 3.;
+   etaBins_ = 12;
 
    deltaCut_ = iConfig.getUntrackedParameter<double>("deltaCut",0.2);
    eventCounter_ = 0;
@@ -241,7 +241,7 @@ PixelTrackletAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& 
   }
 
   // reset counters
-  for (int i = 0; i < 48; i++) 
+  for (int i = 0; i < 72; i++) 
   {
      particles[i]       = 0;
      tracklets[i]       = 0;
@@ -348,7 +348,7 @@ PixelTrackletAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& 
      double eta1 = rechitPos.eta();
      for(int ietat = 0 ; ietat < etaBins_; ++ietat)
      {
-	double etaBin = ietat * 0.5 - 2;
+	double etaBin = ietat * 0.5 - etaMax_;
 	if(eta1<etaBin || eta1>=etaBin+(2*etaMax_/etaBins_)) continue;
         ++layer1Hits[ietat];
      }
@@ -372,16 +372,15 @@ PixelTrackletAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& 
 
   if (verbose_) cout <<"number of reconstructed Tracklets: "<<recoTracklets.size()<<endl;
 
-  Float_t tmpvar[32];
-
+  Float_t tmpvar[48];
 
   tmpvar[0] = eventCounter_;
 
-  for (int it = 0 ; it <8; it++) 
+  for (int it = 0 ; it <12; it++) 
   {
      tmpvar[it+1] = tracklets[it];
-     tmpvar[it+9] = signalTracklets[it];
-     tmpvar[it+17] = layer1Hits[it];
+     tmpvar[it+13] = signalTracklets[it];
+     tmpvar[it+25] = layer1Hits[it];
   }
   ntevent->Fill(tmpvar);
 
@@ -399,12 +398,12 @@ PixelTrackletAnalyzer::beginJob(const edm::EventSetup& iSetup){
    iSetup.get<TrackerDigiGeometryRecord>().get(tGeo);
    trGeo = tGeo.product();
 
-   ntevent =  fs->make<TNtuple>("ntevent","","evtid:trt1:trt2:trt3:trt4:trt5:trt6:trt7:trt8:strt1:strt2:strt3:strt4:strt5:strt6:strt7:strt8:hit1:hit2:hit3:hit4:hit5:hit6:hit7:hit8");
+   ntevent =  fs->make<TNtuple>("ntevent","","evtid:trt1:trt2:trt3:trt4:trt5:trt6:trt7:trt8:trt9:trt10:trt11:trt12:strt1:strt2:strt3:strt4:strt5:strt6:strt7:strt8:strt9:strt10:strt11:strt12:hit1:hit2:hit3:hit4:hit5:hit6:hit7:hit8:hit9:hit10:hit11:hit12");
    ntmatched = fs->make<TNtuple>("ntmatched","","eta1:matchedeta:phi1:matchedphi:deta:dphi:signalCheck:tid:r1id:r2id:evtid:nhit1:sid:ptype");
    ntInvMatched = fs->make<TNtuple>("ntInvMatched","","eta1:matchedeta:phi1:matchedphi:deta:dphi:nhit1");
    ntrechits =  fs->make<TNtuple>("ntrechits","","eta1:eta2:phi1:phi2");
    ntsim = fs->make<TNtuple>("ntsim","","eta1:eta2:phi1:phi2:pabs:pt:pid:ptype:energyloss:isprimary");
-   ntgen = fs->make<TNtuple>("ntgen","","had1:had2:had3:had4:had5:had6:had7:had8:lep1:lep2:lep3:lep4:lep5:lep6:lep7:lep8");
+   ntgen = fs->make<TNtuple>("ntgen","","had1:had2:had3:had4:had5:had6:had7:had8:had9:had10:had11:had12:lep1:lep2:lep3:lep4:lep5:lep6:lep7:lep8:lep9:lep10:lep11:lep12");
    ntvertex = fs->make<TNtuple>("ntvertex","","x:y:z:n:nvtx");
 
 }
