@@ -13,6 +13,7 @@
 
 void formatHist(TH1* h, int col = 1, double norm = 1);
 void saveCanvas(TCanvas* c, int date = 20080829);
+TH1F* myDivide(TH1F* a,TH1F* b);
 
 void analyze_cut(const char* infile = "p0829.root", double etaMax = 1.){
   const char* outfile = "output.root";
@@ -40,7 +41,7 @@ void analyze_cut(const char* infile = "p0829.root", double etaMax = 1.){
   // get Ntuple from input file
   TFile *f = new TFile(infile);
   f->cd("ana;1");
-  TNtuple * ntparticle= dynamic_cast<TNtuple *>(f->Get("anasim/ntparticle"));
+  TNtuple * ntparticle= dynamic_cast<TNtuple *>(f->Get("ana/ntparticle"));
   TNtuple * ntmatched= dynamic_cast<TNtuple *>(f->Get("ana/ntmatched"));
   TNtuple * ntInvMatched= dynamic_cast<TNtuple *>(f->Get("ana/ntInvMatched"));
   TNtuple * ntgen = dynamic_cast<TNtuple *>(f->Get("ana/ntgen"));
@@ -52,7 +53,7 @@ void analyze_cut(const char* infile = "p0829.root", double etaMax = 1.){
   TFile *of = new TFile(outfile,"recreate");
 
   TNtuple * ntcorr = new TNtuple("ntcorr","","nhad:ntrt:nstrt:npass:nhit:vz:nvtx:vntrk:beta:alpha");
-  TH1F * h1 = new TH1F("h1",Form("Everything;#Delta#eta;#_{pixel pairs}/event/%.2f",2/(double)nBins),nBins,0,2); 
+  TH1F * h1 = new TH1F("h1",Form("Everything;D;#_{pixel pairs}/event/%.2f",2/(double)nBins),nBins,0,2); 
   TH1F * h2 = new TH1F("h2","Signal",nBins,0,2);
   TH1F * h3 = new TH1F("h3","Background",nBins,0,2);
   TH1F * h4 = new TH1F("h4","Normalized Reproduced Background",nBins,0,2);
@@ -67,9 +68,6 @@ void analyze_cut(const char* infile = "p0829.root", double etaMax = 1.){
   TProfile * dNdEtaLepton = new TProfile("dNdEtaLepton","",32,-2.1,2.1);
   TProfile * dNdEtaTracklet = new TProfile("dNdEtaTracklet","",32,-2.1,2.1);
 
-  // TH2D * dNdEtaHadron = new TH2D("dNdEtaHadron","",32,-2.1,2.1,50,0,5);
-  // TH2D * dNdEtaLepton = new TH2D("dNdEtaLepton","",32,-2.1,2.1,50,0,5);
-
   TH2D * corr = new TH2D("correlation","; #_{hadrons}; #_{tracklets}",100,0,50,100,0,50);
 
   Float_t matchedeta1;
@@ -77,7 +75,7 @@ void analyze_cut(const char* infile = "p0829.root", double etaMax = 1.){
   Float_t matchedinveta2;
   Float_t matchedinvphi2;
   Float_t signalcheck;
-  //  Float_t layer1hits;
+
   Float_t charge;
   Float_t ntpartlayer1hits;
   Float_t matchedphi1;
@@ -97,6 +95,7 @@ void analyze_cut(const char* infile = "p0829.root", double etaMax = 1.){
   Float_t vntrk;
   Float_t nvtx;
   Float_t evtId;
+  Float_t eventEvtId;
 
 
   ntvertex->SetBranchAddress("z",&vz);
@@ -111,7 +110,6 @@ void analyze_cut(const char* infile = "p0829.root", double etaMax = 1.){
   ntmatched->SetBranchAddress("deta",&deta);
   ntmatched->SetBranchAddress("dphi",&dphi);
   ntmatched->SetBranchAddress("evtid",&evtId);
-  //  ntmatched->SetBranchAddress("layer1hits",&layer1hits);
 
   ntInvMatched->SetBranchAddress("eta1",&inveta1);
   ntInvMatched->SetBranchAddress("phi1",&invphi1);
@@ -120,14 +118,11 @@ void analyze_cut(const char* infile = "p0829.root", double etaMax = 1.){
   ntInvMatched->SetBranchAddress("deta",&invdeta);
   ntInvMatched->SetBranchAddress("dphi",&invdphi);
 
-  ntparticle->SetBranchAddress("eta1",&eta1);
-  ntparticle->SetBranchAddress("eta2",&eta2);
-  ntparticle->SetBranchAddress("charge",&charge);
-  ntparticle->SetBranchAddress("layer1hits",&ntpartlayer1hits);
+
+  ntevent->SetBranchAddress("evtid",&eventEvtId);
 
 
   int nevents = ntgen->GetEntries();
-  int partentries = ntparticle->GetEntries();
   int matchedentries = ntmatched->GetEntries();
 
   // number of passed tracklets
@@ -137,7 +132,10 @@ void analyze_cut(const char* infile = "p0829.root", double etaMax = 1.){
   int nPassCounter=0;
   int oldEvtId=0; 
   int evts=0;
-  double dRCut = 5;
+  double dRCut = 0.05;
+
+  // Get the first eventId
+  ntevent->GetEntry(0);
 
   for(int i = 0; i<matchedentries;i++){
 
@@ -145,30 +143,22 @@ void analyze_cut(const char* infile = "p0829.root", double etaMax = 1.){
 
     float dR= sqrt(deta*deta+dphi/43.*dphi/43.);
 
-    if (oldEvtId != (int)evtId) {
-      if (oldEvtId>evtId) {
-	while (oldEvtId<100){
-	  if (i != 0) npass.push_back(nPassCounter); 
+    // Check if this is a tracklet which belong to a new event
+    if (evtId != (int)eventEvtId) {
+       while (evtId!=(int)eventEvtId){
+          // Check if the event is empty
+          npass.push_back(nPassCounter); 
 
-	  cout <<evts<<" "<<oldEvtId<<" "<<evtId<<" "<<nPassCounter<<endl;
-	  nPassCounter = 0;
-	  oldEvtId++;
-	  evts++;
-	}
-	oldEvtId=0;
-      }
-      while (oldEvtId<evtId){
-	if (i != 0) npass.push_back(nPassCounter);
-
-	//	cout <<evts<<" "<<oldEvtId<<" "<<evtId<<" "<<nPassCounter<<endl;
-	nPassCounter = 0;
-	oldEvtId++;
-	evts++;
-      }
+          cout <<evts<<" "<<eventEvtId<<" "<<evtId<<" "<<nPassCounter<<endl;
+          nPassCounter = 0;
+          oldEvtId++;
+          evts++;
+          ntevent->GetEntry(evts);
+       }
     }
 
+    // Cuts
     if(fabs(matchedeta1)>etaMax) continue;
-
     if (dR<dRCut) nPassCounter++;
 
     h1->Fill(fabs(dR));
@@ -193,19 +183,11 @@ void analyze_cut(const char* infile = "p0829.root", double etaMax = 1.){
     float dR= sqrt(invdeta*invdeta+invdphi*invdphi);
     h4->Fill(dR);
   }
-  
-  for(int i = 0; i<partentries;i++){
-    ntparticle->GetEntry(i);
-    if(fabs(eta1)>etaMax || fabs(eta2)>etaMax) continue;
-    if(charge==0) continue;
-    h5->Fill(fabs(eta1-eta2));
-  }
-
+   
   formatHist(h1,1,nevents);
   formatHist(h2,2,nevents);
   formatHist(h3,3,nevents);
   formatHist(h4,4,nevents);
-  formatHist(h5,5,nevents);
   formatHist(h6,6,nevents);
 
   //// Normalization of background
@@ -230,14 +212,11 @@ void analyze_cut(const char* infile = "p0829.root", double etaMax = 1.){
   leg1->SetBorderSize(0);
   leg1->SetTextSize(0.03);
   leg1->AddEntry(h1,"Everything","l");
-  //  leg1->AddEntry(h2,"Signal","l");
-  //  leg1->AddEntry(h3,"Background","l");
   leg1->AddEntry(h4,"Normalized Reproduced Combinatorial Background","l");
   leg1->AddEntry(h6,"Reproduced Combinatorial Background Subtracted","l");
 
   h1->Draw("e");
   h2->Draw("e same");
-  //  h3->Draw("e same");
   h4->Draw("e same");
   h6->Draw("e same");
   leg1->Draw();
@@ -277,7 +256,7 @@ void analyze_cut(const char* infile = "p0829.root", double etaMax = 1.){
   }
 
   if (npass.size()!= (unsigned int)nevents) {
-    cout <<"Different number of npasses and nevents!"<<npass.size()<<" "<<nevents<<endl;
+      cout <<"Different number of npasses and nevents!"<<npass.size()<<" "<<nevents<<endl;
   }
 
   for(int iev = 0; iev < nevents; ++iev){
@@ -299,47 +278,25 @@ void analyze_cut(const char* infile = "p0829.root", double etaMax = 1.){
       nhit += layer1hits[ieta];
     }
 
-    ////INPUT NUMBERS HERE
-    //// define alpha and beta by modeling
-    // Yenjie's number:
-    //    double beta = 0.0856915+0.000500032*nhit+7.13383e-5*nhit*nhit;
+    //// define alpha and beta by modeling, to be replaced with Yetkin's class
+    double beta = 0;//0.07111+0.006029848*(nhit)-4.319779e-4*(nhit)*(nhit)+1.265031e-5*(nhit)*(nhit)*(nhit);
 
-    double parb0 = 0.05274;
-    double parb1 = 0.002524;
-    double parb2 = 2.099e-5;
+    double xx = nhit + 0.5;
 
-    double beta = parb0+parb1*nhit+parb2*nhit*nhit;
-    double alpha = 1.046+0.001*nhit;
-    if (nhit <=5) alpha = 0.759 + 0.127 * nhit -0.01093*nhit*nhit; 
-
-    corr->Fill(nhad,npass[iev]*(1-beta)*alpha);
-    ntcorr->Fill(nhad,ntrt,nstrt,npass[iev],nhit,vz,nvtx,vntrk,beta,alpha);
+    double alpha = 1.141827      +
+                  (-5.656305e-2) * xx +
+                  (3.800675e-3 ) * xx * xx +
+		  (-1.164418e-4) * xx * xx * xx +
+		  (1.221609e-6 ) * xx * xx * xx * xx;
+		  
+    if (vz!=0) {
+       corr->Fill(nhad,npass[iev]);
+       ntcorr->Fill(nhad,ntrt,nstrt,npass[iev],nhit,vz,nvtx,vntrk,beta,alpha);
+    }
   }
 
   TCanvas* c2 = new TCanvas("Correlation","",400,400);
   corr->Draw("col");
-
-  TCanvas* c3 = new TCanvas("dNdEta","",400,400);
-
-  TLegend * leg2 = new TLegend(0.42,0.26,0.74,0.56);
-  leg2->SetFillStyle(0);
-  leg2->SetFillColor(0);
-  leg2->SetBorderSize(0);
-  leg2->SetTextSize(0.05);
-  leg2->AddEntry(dNdEtaTracklet,"Tracklets including Background","lp");
-  leg2->AddEntry(dNdEtaTracklet,"#Delta#eta < 0.02","");
-  leg2->AddEntry(dNdEtaHadron,"Hadrons","lp");
-  leg2->AddEntry(dNdEtaLepton,"Leptons","lp");
-
-  formatHist(dNdEtaTracklet,1);
-  formatHist(dNdEtaHadron,4);
-  formatHist(dNdEtaLepton,3);
-
-  dNdEtaTracklet->SetMaximum(1.8);
-  dNdEtaTracklet->Draw("");
-  dNdEtaHadron->Draw("same");
-  dNdEtaLepton->Draw("same");
-  leg2->Draw();
 
   TCanvas* c5 = new TCanvas("Profile","",400,400);
 
@@ -369,26 +326,34 @@ void analyze_cut(const char* infile = "p0829.root", double etaMax = 1.){
 
   TCanvas* c7 = new TCanvas("nhadron over npass","",400,400);
 
-  TProfile* p3 = new TProfile("p3","",80,0,80);
+  TProfile* p30 = new TProfile("p30","",60,0,60);
 
-  p3->SetMarkerSize(0.7);
-  ntcorr->Draw("nhad/npass/(1-beta):nhit>>p3","","prof");
-  
+  p30->SetMarkerSize(0.7);
+
+  TProfile* p31 = new TProfile("p31","",60,0,60);
+
+  p31->SetMarkerSize(0.7);
+
+  ntcorr->Draw("nhad:nhit>>p30","","prof");
+  ntcorr->Draw("npass*(1-beta):nhit>>p31","","prof");
+   
+  TH1F *p3 = myDivide((TH1F*)p30,(TH1F*)p31);
+    
   p3->SetXTitle("Number of Hits in the first layer (|#eta|<1)");
   p3->SetYTitle("N_{Hadron} / (N_{Tracklet}#times(1-#beta)) ");
-  p3->Fit("pol1","","",5,50);
+  p3->Fit("pol4","","",1,40);
 
   TCanvas* c8 = new TCanvas("nmeasured over npass","",400,400);
 
-  TProfile* p4 = new TProfile("p4","",20,0,40);
+  TProfile* p4 = new TProfile("p4","",40,0,40);
 
   p4->SetMarkerSize(0.7);
-  ntcorr->Draw("npass*(1-beta)*alpha/nhad:nhit>>p4","nhad>0&&nhit>0","prof");
+  ntcorr->Draw("npass*(1-beta)*alpha/nhad:nhit>>p4","","prof");
   
   p4->SetXTitle("Number of Hits in the first layer (|#eta|<1)");
   p4->SetYTitle("n^{Obs}_{Hadron} / N_{Hadron} ");
-  p4->Fit("pol1","","",5,50);
-
+  p4->Fit("pol1","","",1,40);
+  
 
   saveCanvas(c1);
   saveCanvas(c2);
@@ -422,4 +387,28 @@ void saveCanvas(TCanvas* c, int date){
   */
 }
 
+TH1F* myDivide(TH1F* a,TH1F* b)
+{
+   TH1F *h = new TH1F("h","",a->GetNbinsX(),a->GetXaxis()->GetXmin(),a->GetXaxis()->GetXmax());
 
+   for(int i=0;i<h->GetNbinsX();i++) 
+   {
+      Double_t X = a->GetBinContent(i);
+      Double_t Xerr = a->GetBinError(i);
+      Double_t Y = b->GetBinContent(i);
+      Double_t Yerr = b->GetBinError(i);
+      if (Xerr==0) Xerr=X;
+      if (Yerr==0) Yerr=Y;
+      
+      Double_t R = X/Y;
+      Double_t Rerr = R*sqrt((Xerr/X)*(Xerr/X)+(Yerr/Y)*(Yerr/Y));   
+      if (X==0||Y==0) {
+         R=0;
+         Rerr=0;
+      }
+      cout <<i<<" "<<R<<" "<<Rerr<<" "<<X<<" "<<Y<<endl;
+      h->SetBinContent(i,R);
+      h->SetBinError(i,Rerr);
+   }
+   return h;
+}
