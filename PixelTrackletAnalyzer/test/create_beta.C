@@ -32,24 +32,24 @@ void create_beta(const char* infile = "/server/03a/yetkin/data/pythia_mb_900GeV_
 
   TH1::SetDefaultSumw2();
 
-  int hitbins = 1;
-  int etabins = 2;
+  int hitbins = 15;
+  int etabins = 12;
+  int zbins = 5;
 
   TrackletCorrections* corr = new TrackletCorrections(hitbins, etabins,1);
 
-  corr->setMidEtaCut(0); // 0.1
+  corr->setMidEtaCut(0.1); // 0.1
   corr->setDeltaRCut(0.25);
   corr->setCPhi(1/43);
-  corr->setNormDRMin(1);
-  corr->setNormDRMax(2);
+  corr->setNormDRMin(0.75);
+  corr->setNormDRMax(2.75);
 
   corr->setHistBins(40);
   corr->setHistMax(5);
 
-  corr->setHitMax(50);
+  corr->setHitMax(15);
   corr->setEtaMax(3);
-  corr->setZMax(20);
-
+  corr->setZMax(10);
 
   corr->start();
 
@@ -67,13 +67,7 @@ void create_beta(const char* infile = "/server/03a/yetkin/data/pythia_mb_900GeV_
   of->Write();
   of->Close();
 
-
-  TFile *of2 = new TFile("correctionfile.root","recreate");
-  corr->Write();
-  of2->Write();
-  of2->Close();
-
-  //  corr->save("corrections.root");
+  corr->save("corrections20081007.root");
 
 }
 
@@ -121,8 +115,6 @@ double TrackletData::getBeta(int bin,bool saveplots)
   double normMin = corr->getNormDRMin();
   double normMax = corr->getNormDRMax();
 
-
-
   TH1F * h1 = new TH1F(Form("h1_%d",counter),Form("Everything;D;#_{pixel pairs}/event/%.2f",1/(double)nBins),nBins,0,max);
   TH1F * h2 = new TH1F(Form("h2_%d",counter),"Signal",nBins,0,max);
   TH1F * h3 = new TH1F(Form("h3_%d",counter),"Background",nBins,0,max);
@@ -153,15 +145,14 @@ double TrackletData::getBeta(int bin,bool saveplots)
     ntmatched->GetEntry(i);
 
     if(matchedeta1>=etaMax) continue;
-    if(matchedeta2>etaMax) continue;
+    if(matchedeta2>=etaMax) continue;
     if(matchedeta1<etaMin) continue;
-    if(matchedeta2<=etaMin) continue;
+    if(matchedeta2<etaMin) continue;
 
-    //    if(fabs(matchedeta1)>=etaMax) continue;
-    //    if(fabs(matchedeta2)>etaMax) continue;
-
-    if(layer1hits>MaxHit) continue;
+    if(layer1hits>=MaxHit && layer1hits<corr->getHitMax()) continue;
     if(layer1hits<MinHit) continue;    
+
+    if(fabs(matchedeta1)<midEtaCut) continue;
 
     //    float dR= sqrt(deta*deta+dphi*dphi/43./43.);
     // This is not the standard delta R - It is with the phi normalized with corr->getCPhi();
@@ -181,8 +172,15 @@ double TrackletData::getBeta(int bin,bool saveplots)
 
   for(int i = 0; i<invmatchedentries;i++){
     ntInvMatched->GetEntry(i);
-    if(inveta1>etaMax) continue;
-    if(inveta1<=etaMin) continue;
+
+    if(inveta2>=etaMax) continue;
+    if(inveta2<etaMin) continue;
+
+    if(inveta1>=etaMax) continue;
+    if(inveta1<etaMin) continue;
+
+    if(layer1InvHits>=MaxHit && layer1InvHits<corr->getHitMax()) continue;
+    if(layer1InvHits<MinHit) continue;
 
     if(fabs(inveta1)<midEtaCut) continue;
     
