@@ -13,7 +13,7 @@
 //
 // Original Author:  Arya Tafvizi, Yen-Jie Lee
 //         Created:  Tue Jul 22 07:59:06 EDT 2008
-// $Id: PixelTrackletAnalyzer.cc,v 1.8 2008/09/22 13:25:24 yilmaz Exp $
+// $Id: PixelTrackletAnalyzer.cc,v 1.9 2008/09/30 13:56:05 yilmaz Exp $
 //
 //
 
@@ -217,7 +217,7 @@ PixelTrackletAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& 
   using namespace std;
   using namespace reco;
   
-  math::XYZVector vertex(0,0,2);
+  math::XYZVector vertex(0,0,0);
   int greatestvtx = 0;
 
   vector<const SiPixelRecHit*> layer1;
@@ -373,11 +373,15 @@ PixelTrackletAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& 
   if (verbose_) cout <<"number of reconstructed Tracklets: "<<recoTracklets.size()<<endl;
 
   Float_t tmpvar[32];
+
+
+  tmpvar[0] = eventCounter_;
+
   for (int it = 0 ; it <8; it++) 
   {
-     tmpvar[it] = tracklets[it];
-     tmpvar[it+8] = signalTracklets[it];
-     tmpvar[it+16] = layer1Hits[it];
+     tmpvar[it+1] = tracklets[it];
+     tmpvar[it+9] = signalTracklets[it];
+     tmpvar[it+17] = layer1Hits[it];
   }
   ntevent->Fill(tmpvar);
 
@@ -395,7 +399,7 @@ PixelTrackletAnalyzer::beginJob(const edm::EventSetup& iSetup){
    iSetup.get<TrackerDigiGeometryRecord>().get(tGeo);
    trGeo = tGeo.product();
 
-   ntevent =  fs->make<TNtuple>("ntevent","","trt1:trt2:trt3:trt4:trt5:trt6:trt7:trt8:strt1:strt2:strt3:strt4:strt5:strt6:strt7:strt8:hit1:hit2:hit3:hit4:hit5:hit6:hit7:hit8");
+   ntevent =  fs->make<TNtuple>("ntevent","","evtid:trt1:trt2:trt3:trt4:trt5:trt6:trt7:trt8:strt1:strt2:strt3:strt4:strt5:strt6:strt7:strt8:hit1:hit2:hit3:hit4:hit5:hit6:hit7:hit8");
    ntmatched = fs->make<TNtuple>("ntmatched","","eta1:matchedeta:phi1:matchedphi:deta:dphi:signalCheck:tid:r1id:r2id:evtid:nhit1:sid:ptype");
    ntInvMatched = fs->make<TNtuple>("ntInvMatched","","eta1:matchedeta:phi1:matchedphi:deta:dphi:nhit1");
    ntrechits =  fs->make<TNtuple>("ntrechits","","eta1:eta2:phi1:phi2");
@@ -479,9 +483,7 @@ vector<Tracklet> PixelTrackletAnalyzer::makeTracklets(const edm::Event& iEvent,v
    	   { 
 	     bestSimHit1 = &(*simHit1);
              break;
-	   }
-
-           
+	   }           
         } 
 
         if(bestSimHit1!=0)
@@ -688,7 +690,6 @@ void PixelTrackletAnalyzer::analyzeTracklets(vector<Tracklet> input, vector<Trac
      var[11]=layer1HitInEta1_;
      var[12]=input[i].getSId();
      var[13]=input[i].getType();
-
      ntmatched->Fill(var);
     
      if(input[i].deta() < deltaCut_)
