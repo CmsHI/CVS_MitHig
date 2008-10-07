@@ -357,7 +357,6 @@ void analyze_cut(const char* infile = "p0829.root", double etaMax = 1.){
 
   saveCanvas(c1);
   saveCanvas(c2);
-  saveCanvas(c3);
   saveCanvas(c5);
   saveCanvas(c6);
   saveCanvas(c7);
