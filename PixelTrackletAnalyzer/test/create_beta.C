@@ -11,14 +11,16 @@
 #include <iostream>
 #include <TLine.h>
 #include "TrackletData.h"
-#include "../../PixelTracklet/interface/TrackletCorrections.h"
+#include "TrackletCorrections.h"
 
 using namespace std;
 
 void formatHist(TH1* h, int col = 1, double norm = 1);
 void saveCanvas(TCanvas* c, int date = 20080829);
 
-void create_beta(const char* infile = "/server/03a/yetkin/data/pythia_mb_900GeV_vtxFlat_d20081001.hist.root", const char* outfile = "histograms.root"){
+void create_beta(const char* infile = //"/server/03a/yetkin/data/tracklet-vtxFlat-20081006.root",
+		 "/server/03a/yetkin/data/pythia_mb_900GeV_vtxFlat_d20081001.hist.root", 
+		 const char* outfile = "histograms.root"){
 
   gROOT->Reset();
   gROOT->ProcessLine(".x rootlogon.C");
@@ -32,11 +34,11 @@ void create_beta(const char* infile = "/server/03a/yetkin/data/pythia_mb_900GeV_
 
   TH1::SetDefaultSumw2();
 
-  int hitbins = 15;
-  int etabins = 12;
-  int zbins = 5;
+  int hitbins = 1;
+  int etabins = 1;
+  int zbins = 10;
 
-  TrackletCorrections* corr = new TrackletCorrections(hitbins, etabins,1);
+  TrackletCorrections* corr = new TrackletCorrections(hitbins, etabins,zbins);
 
   corr->setMidEtaCut(0.1); // 0.1
   corr->setDeltaRCut(0.25);
@@ -49,7 +51,7 @@ void create_beta(const char* infile = "/server/03a/yetkin/data/pythia_mb_900GeV_
 
   corr->setHitMax(15);
   corr->setEtaMax(3);
-  corr->setZMax(10);
+  corr->setZMax(20);
 
   corr->start();
 
@@ -67,7 +69,7 @@ void create_beta(const char* infile = "/server/03a/yetkin/data/pythia_mb_900GeV_
   of->Write();
   of->Close();
 
-  corr->save("corrections20081007.root");
+  corr->save("corrections20081007_z.root");
 
 }
 
@@ -93,7 +95,6 @@ double TrackletData::getBeta(int bin,bool saveplots)
   
   cout<<"Bin : "<<bin<<endl;
   cout<<"      "<<endl;
-
 
   cout<<"Hit Min = "<<MinHit<<endl;
   cout<<"Hit Max = "<<MaxHit<<endl;
@@ -138,16 +139,45 @@ double TrackletData::getBeta(int bin,bool saveplots)
   counter++;
 
   int nevents = ntgen->GetEntries();
-  int partentries = ntparticle->GetEntries();
+  //  int partentries = ntparticle->GetEntries();
   int matchedentries = ntmatched->GetEntries();
+
+  ntevent->GetEntry(0);
+  ntvertex->GetEntry(0);
+
+  int nPassCounter=0;
+  int oldEvtId=0;
+  int evts=0;
+
+  double layer1hits = 0;
+  for(int ig =0; ig < 12; ++ig) layer1hits += hits[ig];
 
   for(int i = 0; i<matchedentries;i++){
     ntmatched->GetEntry(i);
+
+    if (evtId != (int)eventEvtId) {
+      while (evtId!=(int)eventEvtId && evts < ntevent->GetEntries()){
+        // Check if the event is empty
+
+	//	cout <<evts<<" "<<eventEvtId<<" "<<evtId<<" "<<nPassCounter<<endl;
+        nPassCounter = 0;
+        oldEvtId++;
+        evts++;
+        ntevent->GetEntry(evts);
+        ntvertex->GetEntry(evts);
+
+	layer1hits = 0;
+	for(int ig =0; ig < 8; ++ig) layer1hits += hits[ig];
+      }
+    }
 
     if(matchedeta1>=etaMax) continue;
     if(matchedeta2>=etaMax) continue;
     if(matchedeta1<etaMin) continue;
     if(matchedeta2<etaMin) continue;
+
+    if(z>=MaxZ) continue;
+    if(z<MinZ) continue;
 
     if(layer1hits>=MaxHit && layer1hits<corr->getHitMax()) continue;
     if(layer1hits<MinHit) continue;    
@@ -168,19 +198,46 @@ double TrackletData::getBeta(int bin,bool saveplots)
     } 
   }
 
-  int invmatchedentries = ntInvMatched->GetEntries();
 
+  ntevent->GetEntry(0);
+  ntvertex->GetEntry(0);
+  int nInvPassCounter=0;
+  int oldInvEvtId=0;
+  evts=0;
+  double layer1InvHits = 0;
+  for(int ig =0; ig < 8; ++ig) layer1InvHits += hits[ig];
+
+  int invmatchedentries = ntInvMatched->GetEntries();
   for(int i = 0; i<invmatchedentries;i++){
     ntInvMatched->GetEntry(i);
 
+    if (evtInvId != (int)eventEvtId) {
+      while (evtInvId!=(int)eventEvtId && evts < ntevent->GetEntries()){
+        // Check if the event is empty
+
+	//cout <<evts<<" "<<eventEvtId<<" "<<evtInvId<<" "<<nInvPassCounter<<endl;
+        nInvPassCounter = 0;
+        oldInvEvtId++;
+        evts++;
+        ntevent->GetEntry(evts);
+        ntvertex->GetEntry(evts);
+
+        layer1InvHits = 0;
+        for(int ig =0; ig < 8; ++ig) layer1InvHits += hits[ig];
+      }
+    }
+
+
+    if(z>=MaxZ) continue;
+    if(z<MinZ) continue;
+
     if(inveta2>=etaMax) continue;
     if(inveta2<etaMin) continue;
-
     if(inveta1>=etaMax) continue;
     if(inveta1<etaMin) continue;
 
-    if(layer1InvHits>=MaxHit && layer1InvHits<corr->getHitMax()) continue;
-    if(layer1InvHits<MinHit) continue;
+    //    if(layer1InvHits>=MaxHit && layer1InvHits<corr->getHitMax()) continue;
+    //    if(layer1InvHits<MinHit) continue;
 
     if(fabs(inveta1)<midEtaCut) continue;
     
@@ -193,7 +250,8 @@ double TrackletData::getBeta(int bin,bool saveplots)
     //    h4->Fill(fabs(invdeta));
 
   }
-  
+
+  /*  
   for(int i = 0; i<partentries;i++){
     ntparticle->GetEntry(i);
     if(eta1>etaMax || eta2>etaMax) continue;
@@ -202,6 +260,7 @@ double TrackletData::getBeta(int bin,bool saveplots)
     if(charge==0) continue;
     h7->Fill(fabs(eta1-eta2));
   }
+  */
 
 
   if(saveplots){

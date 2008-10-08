@@ -139,11 +139,13 @@ class PixelTrackletAnalyzer : public edm::EDAnalyzer {
    int etaBins_;
    int eventCounter_;
 
+   bool trySecondVtx_;
    bool doMC_;
    bool checkSecondLayer_;
    bool verbose_;
    bool useRecoVertex_;
    string vertexSrc_;
+   string vertexSrc2_;
 
    TNtuple* ntevent;
    TNtuple* ntgen;
@@ -188,6 +190,9 @@ PixelTrackletAnalyzer::PixelTrackletAnalyzer(const edm::ParameterSet& iConfig)
    checkSecondLayer_ = iConfig.getUntrackedParameter<bool>  ("checkSecondLayer", true);
    verbose_          = iConfig.getUntrackedParameter<bool>  ("verbose",true);
    vertexSrc_ = iConfig.getUntrackedParameter<string>("vertexSrc","pixelVertices");
+   trySecondVtx_ = iConfig.getUntrackedParameter<bool>  ("trySecondVertex", false);
+   vertexSrc2_ = iConfig.getUntrackedParameter<string>("vertexSrc2","pixelVertexFromClusters");
+
    etaMax_ = 3.;
    etaBins_ = 12;
 
@@ -217,8 +222,14 @@ PixelTrackletAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& 
   using namespace std;
   using namespace reco;
   
+  math::XYZVector vertex1(-99,-99,-99);
+  math::XYZVector vertex2(-99,-99,-99);
+  math::XYZVector vertexsim(-99,-99,-99);
   math::XYZVector vertex(0,0,0);
+
   int greatestvtx = 0;
+  int greatestvtx2 = 0;
+  int greatestvtxsim = 0;
 
   vector<const SiPixelRecHit*> layer1;
   vector<const SiPixelRecHit*> layer2;
@@ -230,6 +241,15 @@ PixelTrackletAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& 
   edm::Handle<reco::VertexCollection> vertexCollection;
   iEvent.getByLabel(vertexSrc_,vertexCollection);
   recoVertices = vertexCollection.product();
+
+  const reco::VertexCollection * recoVertices2;
+  edm::Handle<reco::VertexCollection> vertexCollection2;
+
+  if(trySecondVtx_){
+     iEvent.getByLabel(vertexSrc_,vertexCollection2);
+     recoVertices2 = vertexCollection2.product();
+  }
+
 
   //Get MonteCarlo information
   Handle<TrackingVertexCollection> vertices;
@@ -259,27 +279,31 @@ PixelTrackletAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& 
 
   if (doMC_) fillGeneratorInfo(iEvent, iSetup);
 
-
   // Prepare the primary vertex coordinates
 
   unsigned int daughter = 0;
   unsigned int nVertex = 0;
- 
+  unsigned int daughter2 = 0;
+  unsigned int nVertex2 = 0;
+  unsigned int daughtersim = 0;
+  unsigned int nVertexsim = 0;
+
+
   if (doMC_ && !useRecoVertex_) {
-     nVertex = vertices->size();
+     nVertexsim = vertices->size();
 
      for (unsigned int i = 0 ; i< vertices->size(); ++i)
      {
-        daughter = (*vertices)[i].nDaughterTracks();
-        if( daughter > (*vertices)[greatestvtx].nDaughterTracks())
+        daughtersim = (*vertices)[i].nDaughterTracks();
+        if( daughtersim > (*vertices)[greatestvtxsim].nDaughterTracks())
         {
-           greatestvtx = i;
+           greatestvtxsim = i;
         }
      }
 
-     if(vertices->size()>0)
+     if(nVertexsim>0)
      {
-        vertex = math::XYZVector((*vertices)[greatestvtx].position().x(),
+        vertexsim = math::XYZVector((*vertices)[greatestvtx].position().x(),
                                  (*vertices)[greatestvtx].position().y(),
                                  (*vertices)[greatestvtx].position().z());
      }
@@ -287,28 +311,49 @@ PixelTrackletAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& 
 
   if (useRecoVertex_) {
      nVertex = recoVertices->size();
-
      for (unsigned int i = 0 ; i< recoVertices->size(); ++i)
-     {
+	{
         daughter = (*recoVertices)[i].tracksSize();
         if( daughter > (*recoVertices)[greatestvtx].tracksSize())
-        {
-           greatestvtx = i;
-        }
+	   {
+	      greatestvtx = i;
+	   }
+	}
+     
+     if(trySecondVtx_){
+	nVertex2 = recoVertices2->size();
+	for (unsigned int i = 0 ; i< nVertex2; ++i)
+	   {
+	      daughter2 = (*recoVertices2)[i].tracksSize();
+	      if( daughter2 > (*recoVertices2)[greatestvtx2].tracksSize())
+		 {
+		    greatestvtx2 = i;
+		 }
+	   }
      }
-
-     if(recoVertices->size()>0)
-     {
-        vertex = math::XYZVector((*recoVertices)[greatestvtx].position().x(),
-                                 (*recoVertices)[greatestvtx].position().y(),
+     if(nVertex>0)
+	{
+	   vertex1 = math::XYZVector((*recoVertices)[greatestvtx].position().x(),
+				    (*recoVertices)[greatestvtx].position().y(),
                                  (*recoVertices)[greatestvtx].position().z());
-     }
-
+	}else{
+	   if(trySecondVtx_ && nVertex2>0){
+	      vertex = math::XYZVector((*recoVertices)[greatestvtx].position().x(),
+				    (*recoVertices)[greatestvtx].position().y(),
+				       (*recoVertices)[greatestvtx].position().z());
+	   }
+	}
   }
-
+  
   if (verbose_) cout <<"vertex: "<<vertex<<endl;
-
-  ntvertex->Fill(vertex.x(),vertex.y(),vertex.z(),daughter,nVertex);
+  
+  ntvertex->Fill(vertex1.x(),vertex1.y(),vertex1.z(),vertex2.z(),vertexsim.z(),daughter,daughter2,daughtersim,nVertex,nVertex2,nVertexsim);
+  
+  if(doMC_) vertex = vertexsim;
+  if(useRecoVertex_){
+     if(trySecondVtx_ && nVertex2>0) vertex = vertex2;
+     if(nVertex>0) vertex = vertex1;
+  }  
   
   // Prepare the reconstructed hits
   for(SiPixelRecHitCollection::id_iterator id = rechits->id_begin(); id!= rechits->id_end(); id++)
@@ -400,11 +445,11 @@ PixelTrackletAnalyzer::beginJob(const edm::EventSetup& iSetup){
 
    ntevent =  fs->make<TNtuple>("ntevent","","evtid:trt1:trt2:trt3:trt4:trt5:trt6:trt7:trt8:trt9:trt10:trt11:trt12:strt1:strt2:strt3:strt4:strt5:strt6:strt7:strt8:strt9:strt10:strt11:strt12:hit1:hit2:hit3:hit4:hit5:hit6:hit7:hit8:hit9:hit10:hit11:hit12");
    ntmatched = fs->make<TNtuple>("ntmatched","","eta1:matchedeta:phi1:matchedphi:deta:dphi:signalCheck:tid:r1id:r2id:evtid:nhit1:sid:ptype");
-   ntInvMatched = fs->make<TNtuple>("ntInvMatched","","eta1:matchedeta:phi1:matchedphi:deta:dphi:nhit1");
+   ntInvMatched = fs->make<TNtuple>("ntInvMatched","","eta1:matchedeta:phi1:matchedphi:deta:dphi:evtid:nhit1");
    ntrechits =  fs->make<TNtuple>("ntrechits","","eta1:eta2:phi1:phi2");
    ntsim = fs->make<TNtuple>("ntsim","","eta1:eta2:phi1:phi2:pabs:pt:pid:ptype:energyloss:isprimary");
    ntgen = fs->make<TNtuple>("ntgen","","had1:had2:had3:had4:had5:had6:had7:had8:had9:had10:had11:had12:lep1:lep2:lep3:lep4:lep5:lep6:lep7:lep8:lep9:lep10:lep11:lep12");
-   ntvertex = fs->make<TNtuple>("ntvertex","","x:y:z:n:nvtx");
+   ntvertex = fs->make<TNtuple>("ntvertex","","x:y:z1:z2:zsim:ntrk1:ntrk2:ntrk3:nvtx1:nvtx2:nvtxsim");
 
 }
 
@@ -412,10 +457,6 @@ PixelTrackletAnalyzer::beginJob(const edm::EventSetup& iSetup){
 
 void
 PixelTrackletAnalyzer::endJob() {
-
-  int nbins = 1;
-  TrackletCorrections* corr = new TrackletCorrections(nbins,nbins,nbins);
-  corr->save("trackletcorrections.root");
 
 }
 
@@ -713,7 +754,8 @@ void PixelTrackletAnalyzer::analyzeTracklets(vector<Tracklet> input, vector<Trac
      var[3]=invertedInput[i].phi2();
      var[4]=invertedInput[i].deta();
      var[5]=invertedInput[i].dphi();
-     var[6]=layer1HitInEta1_;
+     var[6]=eventCounter_;
+     var[7]=layer1HitInEta1_;
 
      ntInvMatched->Fill(var);
   }
