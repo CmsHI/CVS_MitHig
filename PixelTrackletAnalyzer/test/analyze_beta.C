@@ -7,38 +7,42 @@
 #include <TFile.h>
 #include <TCanvas.h>
 #include <TNtuple.h>
-#include <iostream>
+#include <iostream.h>
 #include <TLine.h>
+#include <math.h>
 
 void formatHist(TH1* h, int col = 1, double norm = 1);
 void saveCanvas(TCanvas* c, int date = 20080829);
 
-double getBeta(const char* infile, double etaMax, int MinHit, int MaxHit);
+double* getBeta(const char* infile, double etaMax, int MinHit, int MaxHit);
 
 void analyze_beta(const char* infile = "p0829.root", double etaMax = 1.){
 
-  int di=4;
-  TH1F *beta = new TH1F("beta","",40/di,0,40);
+   int di=4;
+   TH1F *beta = new TH1F("beta","",48/di,0,48);
 
-  for (int i=0;i<40;i+=di) {
-    beta->SetBinContent(i/di+1,getBeta(infile,etaMax,i,i+di));
-  }
+   for (int i=0;i<48;i+=di) {
+      double* myBeta = getBeta(infile,etaMax,i,i+di);
+      cout <<myBeta[0]<<" "<<myBeta[1]<<endl;
+      beta->SetBinContent(i/di+1,myBeta[0]);
+      beta->SetBinError(i/di+1,myBeta[1]);
+   }
 
-  TCanvas *c = new TCanvas ("c","",400,400);
-  beta->Fit("pol2","m");
-  beta->SetXTitle("N_{Hits}");
-  beta->SetYTitle("#beta");
-  beta->SetAxisRange(0,0.3,"Y");
-  beta->Draw("p");
+   TCanvas *c = new TCanvas ("c","",400,400);
+   beta->Fit("pol6","m");
+   beta->SetXTitle("N_{Hits}");
+   beta->SetYTitle("#beta");
+   beta->SetAxisRange(0,0.3,"Y");
+   beta->Draw("p");
 }
 
-double getBeta(const char* infile, double etaMax, int MinHit, int MaxHit)
+double* getBeta(const char* infile, double etaMax, int MinHit, int MaxHit)
 {
   /// Parameters
-  double normRange = 0.6;
-  double deltaCut = 0.1;
+  double normRange = 0.5;
+  int nBins = 40;
+  double deltaCut = 0.5 / (double)nBins * 2;
   int etaBins = 8;
-  int nBins = 20;
 
   gROOT->Reset();
   gROOT->ProcessLine(".x rootlogon.C");
@@ -54,7 +58,6 @@ double getBeta(const char* infile, double etaMax, int MinHit, int MaxHit)
 
   TFile *f = new TFile(infile);
   f->cd("ana;1");
-  TNtuple * ntparticle= dynamic_cast<TNtuple *>(f->Get("anasim/ntparticle"));
   TNtuple * ntmatched= dynamic_cast<TNtuple *>(f->Get("ana/ntmatched"));
   TNtuple * ntInvMatched= dynamic_cast<TNtuple *>(f->Get("ana/ntInvMatched"));
   TNtuple * ntgen = dynamic_cast<TNtuple *>(f->Get("ana/ntgen"));
@@ -68,10 +71,7 @@ double getBeta(const char* infile, double etaMax, int MinHit, int MaxHit)
   TH1F * h4 = new TH1F("h4","Normalized Reproduced Background",nBins,0,2);
   TH1F * h5 = new TH1F("h5","",nBins,0,2);
   TH1F * h6 = new TH1F("h6","Reproduced Background Subtracted",nBins,0,2);
-  TH1F * h7 = new TH1F("h7","",nBins,0,2);
-  TH1F * h8 = new TH1F("h8","",nBins,0,2);
-  TH1F * h9 = new TH1F("h9","",nBins,0,2);
-  TH1F * h10 = new TH1F("h10","",nBins,0,2);
+
 
   TProfile * dNdEtaHadron = new TProfile("dNdEtaHadron","",32,-2.1,2.1);
   TProfile * dNdEtaLepton = new TProfile("dNdEtaLepton","",32,-2.1,2.1);
@@ -88,6 +88,7 @@ double getBeta(const char* infile, double etaMax, int MinHit, int MaxHit)
   Float_t matchedinvphi2;
   Float_t signalcheck;
   Float_t layer1hits;
+  Float_t invlayer1hits;
   Float_t charge;
   Float_t ntpartlayer1hits;
   Float_t matchedphi1;
@@ -116,8 +117,7 @@ double getBeta(const char* infile, double etaMax, int MinHit, int MaxHit)
   ntmatched->SetBranchAddress("phi1",&matchedphi1);
   ntmatched->SetBranchAddress("matchedeta",&matchedeta2);
   ntmatched->SetBranchAddress("matchedphi",&matchedphi2);
-  //  ntmatched->SetBranchAddress("signalCheck",&signalcheck);
-  ntmatched->SetBranchAddress("sid",&signalcheck);
+  ntmatched->SetBranchAddress("signalCheck",&signalcheck);
   ntmatched->SetBranchAddress("deta",&deta);
   ntmatched->SetBranchAddress("dphi",&dphi);
   ntmatched->SetBranchAddress("nhit1",&layer1hits);
@@ -128,15 +128,9 @@ double getBeta(const char* infile, double etaMax, int MinHit, int MaxHit)
   ntInvMatched->SetBranchAddress("matchedphi",&invphi2);
   ntInvMatched->SetBranchAddress("deta",&invdeta);
   ntInvMatched->SetBranchAddress("dphi",&invdphi);
-
-  ntparticle->SetBranchAddress("eta1",&eta1);
-  ntparticle->SetBranchAddress("eta2",&eta2);
-  ntparticle->SetBranchAddress("charge",&charge);
-  ntparticle->SetBranchAddress("layer1hits",&ntpartlayer1hits);
-
-
+  ntInvMatched->SetBranchAddress("nhit1",&invlayer1hits);
+  
   int nevents = ntgen->GetEntries();
-  int partentries = ntparticle->GetEntries();
   int matchedentries = ntmatched->GetEntries();
 
 
@@ -144,6 +138,7 @@ double getBeta(const char* infile, double etaMax, int MinHit, int MaxHit)
     ntmatched->GetEntry(i);
     if(fabs(matchedeta1)>=etaMax) continue;
     if(fabs(matchedeta2)>etaMax) continue;
+    if(fabs(matchedeta1)<0.1) continue;
     if(layer1hits>MaxHit) continue;
     if(layer1hits<MinHit) continue;    
     float dR= sqrt(deta*deta+dphi*dphi/43./43.);
@@ -164,66 +159,62 @@ double getBeta(const char* infile, double etaMax, int MinHit, int MaxHit)
   for(int i = 0; i<invmatchedentries;i++){
     ntInvMatched->GetEntry(i);
     if(fabs(inveta1)>etaMax) continue;
-    //    if(fabs(inveta2)>etaMax) continue;
     if(fabs(inveta1)<0.1) continue;
+    if(invlayer1hits>MaxHit) continue;
+    if(invlayer1hits<MinHit) continue;    
     
 
-    float dR= sqrt(invdeta*invdeta+invdphi*invdphi);
+    float dR= sqrt(invdeta*invdeta+invdphi/43.*invdphi/43.);
     h4->Fill(dR);
-
-    //    h4->Fill(fabs(invdeta));
-
-  }
-  
-  for(int i = 0; i<partentries;i++){
-    ntparticle->GetEntry(i);
-    if(fabs(eta1)>etaMax || fabs(eta2)>etaMax) continue;
-    if(charge==0) continue;
-    h5->Fill(fabs(eta1-eta2));
   }
 
-  formatHist(h1,1,nevents);
-  formatHist(h2,2,nevents);
-  formatHist(h3,3,nevents);
-  formatHist(h4,4,nevents);
-  formatHist(h5,5,nevents);
-  formatHist(h6,6,nevents);
+
+  formatHist(h1,1,1);
+  formatHist(h2,2,1);
+  formatHist(h3,3,1);
+  formatHist(h4,4,1);
+  formatHist(h6,6,1);
 
   //// Normalization of background
 
-  Float_t sc = ((h1->Integral((int)(normRange*nBins),nBins,"width"))/(h4->Integral((int)(normRange*nBins),nBins,"width")));
+  Float_t nSideBand = h1->Integral((int)(normRange*nBins),nBins,"width");
+  Float_t nSBErr = sqrt(nSideBand);
+  Float_t nReproducedSideBand = (h4->Integral((int)(normRange*nBins),nBins,"width"));
+  Float_t nRSBErr = sqrt(nReproducedSideBand);
+  Float_t sc = (nSideBand/nReproducedSideBand);
+  Float_t scerr = sc * sqrt((nRSBErr/nReproducedSideBand)*(nRSBErr/nReproducedSideBand)
+                           +(nSBErr/nSideBand)*(nSBErr /nSideBand));
+
+  cout<<"nSideBand: "<<nSideBand<<" +- "<<nSBErr<<endl;
+  cout<<"nReproducedSideBand: "<<nReproducedSideBand<<" +- "<<nRSBErr<<endl;
 
   cout<<"background normalization: "<<sc<<endl;
   h4->Scale(sc);
   h6->Add(h4,-1);
-
+  
   //// Determination of correction factor beta
-  double beta = 1-((h2->Integral(0,(int)(deltaCut*nBins),"width"))/(h6->Integral(0,(int)(deltaCut*nBins),"width")));
-  cout<<"beta: "<<beta<<endl;
+  double beta,betaErr=0 ;
+  
+  
+  if ((h6->Integral(0,(int)(deltaCut*nBins),"width"))==0) {
+     beta=0;
+     betaErr=0;
+  } else {
+     Float_t nBck = (h4->Integral(0,(int)(deltaCut*nBins),"width"))/sc;
+     Float_t nTotal = (h1->Integral(0,(int)(deltaCut*nBins),"width"));
+     Float_t nBckErr = sqrt(1/nBck+(scerr/sc)*(scerr/sc))*nBck*sc;
+     Float_t nTErr = sqrt(nTotal);
+     beta=(nBck*sc)/(nTotal);
+     betaErr=sqrt((nBckErr/nBck/sc)*(nBckErr/nBck/sc)+(nTErr/nTotal)*(nTErr/nTotal))*beta;
+  }
+  cout<<"sc: "<<sc<<" +- "<<scerr<<endl;
 
-  /*  
-  TCanvas* c1 = new TCanvas("c1","",700,700);
-  c1->SetLogy();
+  cout<<"beta: "<<beta<<" +- "<<betaErr<<endl;
 
-  TLegend * leg1 = new TLegend(0.25,0.66,0.56,0.84);
-  leg1->SetFillStyle(0);
-  leg1->SetFillColor(0);
-  leg1->SetBorderSize(0);
-  leg1->SetTextSize(0.03);
-  leg1->AddEntry(h1,"Everything","l");
-//  leg1->AddEntry(h2,"Signal","l");
-//  leg1->AddEntry(h3,"Background","l");
-  leg1->AddEntry(h4,"Normalized Reproduced Background","l");
-  leg1->AddEntry(h6,"Reproduced Background Subtracted","l");
-
-  h1->Draw("e");
-//  h2->Draw("e same");
-//  h3->Draw("e same");
-  h4->Draw("e same");
-  h6->Draw("e same");
-  leg1->Draw();
-  */
-  return beta;
+  double* val = new double[2];
+  val[0]=beta;
+  val[1]=betaErr;
+  return val;
 }
 
 void formatHist(TH1* h, int col, double norm){
@@ -240,10 +231,4 @@ void formatHist(TH1* h, int col, double norm){
 void saveCanvas(TCanvas* c, int date){
   c->Write();
   c->Draw();
-  c->Print(Form("./figures/%s_d%d.gif",c->GetName(),date));
-  c->Print(Form("./figures/%s_d%d.eps",c->GetName(),date));
-  c->Print(Form("./figures/%s_d%d.C",c->GetName(),date));
 }
-
-
-
