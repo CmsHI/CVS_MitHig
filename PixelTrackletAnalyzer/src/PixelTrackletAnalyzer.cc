@@ -248,7 +248,7 @@ PixelTrackletAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& 
   edm::Handle<reco::VertexCollection> vertexCollection2;
 
   if(trySecondVtx_){
-     iEvent.getByLabel(vertexSrc_,vertexCollection2);
+     iEvent.getByLabel(vertexSrc2_,vertexCollection2);
      recoVertices2 = vertexCollection2.product();
   }
 
@@ -305,9 +305,9 @@ PixelTrackletAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& 
 
      if(nVertexsim>0)
      {
-        vertexsim = math::XYZVector((*vertices)[greatestvtx].position().x(),
-                                 (*vertices)[greatestvtx].position().y(),
-                                 (*vertices)[greatestvtx].position().z());
+        vertexsim = math::XYZVector((*vertices)[greatestvtxsim].position().x(),
+                                 (*vertices)[greatestvtxsim].position().y(),
+                                 (*vertices)[greatestvtxsim].position().z());
      }
   }
 
@@ -336,15 +336,16 @@ PixelTrackletAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& 
      if(nVertex>0)
 	{
 	   vertex1 = math::XYZVector((*recoVertices)[greatestvtx].position().x(),
-				    (*recoVertices)[greatestvtx].position().y(),
-                                 (*recoVertices)[greatestvtx].position().z());
-	}else{
-	   if(trySecondVtx_ && nVertex2>0){
-	      vertex2 = math::XYZVector((*recoVertices)[greatestvtx].position().x(),
-				    (*recoVertices)[greatestvtx].position().y(),
-				       (*recoVertices)[greatestvtx].position().z());
-	   }
+				     (*recoVertices)[greatestvtx].position().y(),
+				     (*recoVertices)[greatestvtx].position().z());
 	}
+     
+     if(trySecondVtx_ && nVertex2>0){
+	vertex2 = math::XYZVector((*recoVertices2)[greatestvtx2].position().x(),
+				  (*recoVertices2)[greatestvtx2].position().y(),
+				  (*recoVertices2)[greatestvtx2].position().z());
+     }
+     
   }
   
   ntvertex->Fill(vertex1.x(),vertex1.y(),vertex1.z(),vertex2.z(),vertexsim.z(),daughter,daughter2,daughtersim,nVertex,nVertex2,nVertexsim);
@@ -450,7 +451,7 @@ PixelTrackletAnalyzer::beginJob(const edm::EventSetup& iSetup){
    ntrechits =  fs->make<TNtuple>("ntrechits","","eta1:eta2:phi1:phi2");
    ntsim = fs->make<TNtuple>("ntsim","","eta1:eta2:phi1:phi2:pabs:pt:pid:ptype:energyloss:isprimary");
    ntgen = fs->make<TNtuple>("ntgen","","had1:had2:had3:had4:had5:had6:had7:had8:had9:had10:had11:had12:lep1:lep2:lep3:lep4:lep5:lep6:lep7:lep8:lep9:lep10:lep11:lep12");
-   ntvertex = fs->make<TNtuple>("ntvertex","","x:y:z1:z2:zsim:ntrk1:ntrk2:ntrk3:nvtx1:nvtx2:nvtxsim");
+   ntvertex = fs->make<TNtuple>("ntvertex","","x:y:z1:z2:zsim:ntrk1:ntrk2:ntrksim:nvtx1:nvtx2:nvtxsim");
 
 }
 
