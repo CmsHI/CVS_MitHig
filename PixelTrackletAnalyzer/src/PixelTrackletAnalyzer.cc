@@ -146,6 +146,7 @@ class PixelTrackletAnalyzer : public edm::EDAnalyzer {
    bool useRecoVertex_;
    string vertexSrc_;
    string vertexSrc2_;
+   edm::ParameterSet pSet_;
 
    TNtuple* ntevent;
    TNtuple* ntgen;
@@ -192,6 +193,7 @@ PixelTrackletAnalyzer::PixelTrackletAnalyzer(const edm::ParameterSet& iConfig)
    vertexSrc_ = iConfig.getUntrackedParameter<string>("vertexSrc","pixelVertices");
    trySecondVtx_ = iConfig.getUntrackedParameter<bool>  ("trySecondVertex", false);
    vertexSrc2_ = iConfig.getUntrackedParameter<string>("vertexSrc2","pixelVertexFromClusters");
+   pSet_ = iConfig.getParameter<edm::ParameterSet>("AssociatorParameters");
 
    etaMax_ = 3.;
    etaBins_ = 12;
@@ -289,7 +291,7 @@ PixelTrackletAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& 
   unsigned int nVertexsim = 0;
 
 
-  if (doMC_ && !useRecoVertex_) {
+  if (doMC_) {
      nVertexsim = vertices->size();
 
      for (unsigned int i = 0 ; i< vertices->size(); ++i)
@@ -338,23 +340,22 @@ PixelTrackletAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& 
                                  (*recoVertices)[greatestvtx].position().z());
 	}else{
 	   if(trySecondVtx_ && nVertex2>0){
-	      vertex = math::XYZVector((*recoVertices)[greatestvtx].position().x(),
+	      vertex2 = math::XYZVector((*recoVertices)[greatestvtx].position().x(),
 				    (*recoVertices)[greatestvtx].position().y(),
 				       (*recoVertices)[greatestvtx].position().z());
 	   }
 	}
   }
   
-  if (verbose_) cout <<"vertex: "<<vertex<<endl;
-  
   ntvertex->Fill(vertex1.x(),vertex1.y(),vertex1.z(),vertex2.z(),vertexsim.z(),daughter,daughter2,daughtersim,nVertex,nVertex2,nVertexsim);
   
-  if(doMC_) vertex = vertexsim;
+  if(!useRecoVertex_ && doMC_ && nVertexsim > 0) vertex = vertexsim;
   if(useRecoVertex_){
      if(trySecondVtx_ && nVertex2>0) vertex = vertex2;
      if(nVertex>0) vertex = vertex1;
   }  
-  
+  if (verbose_) cout <<"vertex: "<<vertex<<endl;
+ 
   // Prepare the reconstructed hits
   for(SiPixelRecHitCollection::id_iterator id = rechits->id_begin(); id!= rechits->id_end(); id++)
   {
@@ -393,7 +394,7 @@ PixelTrackletAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& 
      double eta1 = rechitPos.eta();
      for(int ietat = 0 ; ietat < etaBins_; ++ietat)
      {
-	double etaBin = ietat * 0.5 - etaMax_;
+	double etaBin = ietat * (2.*etaMax_/etaBins_) - etaMax_;
 	if(eta1<etaBin || eta1>=etaBin+(2*etaMax_/etaBins_)) continue;
         ++layer1Hits[ietat];
      }
@@ -464,8 +465,8 @@ PixelTrackletAnalyzer::endJob() {
 vector<Tracklet> PixelTrackletAnalyzer::makeTracklets(const edm::Event& iEvent,vector<const SiPixelRecHit*> layer1, vector<const SiPixelRecHit*> layer2, math::XYZVector vertex, bool invert)
 {
   vector<Tracklet> recoTracklets;
-  TrackerHitAssociator theHitAssociator(iEvent);
-
+  TrackerHitAssociator theHitAssociator(iEvent,pSet_);
+  
   for(unsigned int i1 = 0; i1 < layer1.size(); ++i1)          //loops over and gets spatial information and associated simhits for each rechit
   {
      // Ids
@@ -736,8 +737,9 @@ void PixelTrackletAnalyzer::analyzeTracklets(vector<Tracklet> input, vector<Trac
      {
         for(int ietat = 0 ; ietat < etaBins_; ++ietat)
         {
-	   double etaBin = ietat * 0.5 - 2;
-	   if(input[i].eta1()<etaBin || input[i].eta1()>=etaBin+0.5) continue;
+	   double etaBin = ietat * (2.*etaMax_/etaBins_) - etaMax_;
+	   if(input[i].eta1()<etaBin || input[i].eta1()>=etaBin+(2*etaMax_/etaBins_)) continue;
+
 	   ++tracklets[ietat];
 	   if (signalCheck) ++signalTracklets[ietat];
         }
@@ -842,8 +844,9 @@ void PixelTrackletAnalyzer::fillGeneratorInfo(const edm::Event& iEvent, const ed
   
      for(int ieta = 0 ; ieta < etaBins_; ++ieta)
      {
-        double etaBin = ieta * 0.5 - 2;
-        if(eta<etaBin || eta>=etaBin+0.5) continue;
+	double etaBin = ieta * (2.*etaMax_/etaBins_) - etaMax_;
+	if(eta<etaBin || eta>=etaBin+(2*etaMax_/etaBins_)) continue;
+
         if(abs( partid ) == 211 ||
 	   abs( partid ) == 321 ||
 	   abs( partid ) == 2212 ||
