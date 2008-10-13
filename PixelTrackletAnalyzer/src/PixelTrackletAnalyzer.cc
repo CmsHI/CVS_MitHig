@@ -107,7 +107,8 @@ using namespace edm;
 //
 
 namespace {
-  bool compareTracklet(Tracklet a,Tracklet b) {    return fabs(a.dR2())<fabs(b.dR2()); }
+   bool compareDeltaR(Tracklet a,Tracklet b) { return fabs(a.dR2())<fabs(b.dR2());}
+   bool compareDeltaEta(Tracklet a,Tracklet b) {return fabs(a.deta())<fabs(b.deta());}
 }
 
 class PixelTrackletAnalyzer : public edm::EDAnalyzer {
@@ -123,11 +124,10 @@ class PixelTrackletAnalyzer : public edm::EDAnalyzer {
  
       void fillGeneratorInfo(const edm::Event& iEvent, const edm::EventSetup& iSetup);
       vector<Tracklet> makeTracklets(const edm::Event& iEvent, vector<const SiPixelRecHit*> layer1, vector<const SiPixelRecHit*> layer2,math::XYZVector vertex, bool invert);
-      vector<Tracklet> cleanTracklets(vector<Tracklet> input);
-      void analyzeTracklets(vector<Tracklet> input, vector<Tracklet> invertedInput);
+      vector<Tracklet> cleanTracklets(vector<Tracklet> input,int matchNumber = 0);
+      void analyzeTracklets(vector<Tracklet> input, vector<Tracklet> invertedInput, vector<Tracklet> misMatchedInput);
       int associateSimhitToTrackingparticle(unsigned int trid );
       bool checkprimaryparticle(TrackingParticleRef tp);
-
 
    // ----------member data -------------------------------------------------------------
 
@@ -139,11 +139,13 @@ class PixelTrackletAnalyzer : public edm::EDAnalyzer {
    int etaBins_;
    int eventCounter_;
 
+   int skipBest_;
    bool trySecondVtx_;
    bool doMC_;
    bool checkSecondLayer_;
    bool verbose_;
    bool useRecoVertex_;
+   bool useDeltaPhi_;
    string vertexSrc_;
    string vertexSrc2_;
    edm::ParameterSet pSet_;
@@ -153,6 +155,7 @@ class PixelTrackletAnalyzer : public edm::EDAnalyzer {
    TNtuple* ntrechits;
    TNtuple* ntmatched;
    TNtuple* ntInvMatched;
+   TNtuple* ntMisMatched;
    TNtuple* ntsim;
    TNtuple* ntvertex;
 
@@ -194,6 +197,8 @@ PixelTrackletAnalyzer::PixelTrackletAnalyzer(const edm::ParameterSet& iConfig)
    trySecondVtx_ = iConfig.getUntrackedParameter<bool>  ("trySecondVertex", false);
    vertexSrc2_ = iConfig.getUntrackedParameter<string>("vertexSrc2","pixelVertexFromClusters");
    pSet_ = iConfig.getParameter<edm::ParameterSet>("AssociatorParameters");
+   skipBest_             = iConfig.getUntrackedParameter<int>("skipBestMatch",1);
+   useDeltaPhi_ = iConfig.getUntrackedParameter<bool>  ("useDeltaPhi", true);
 
    etaMax_ = 3.;
    etaBins_ = 12;
@@ -409,13 +414,17 @@ PixelTrackletAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& 
   vector<Tracklet> protoInvertedTracklets;
   vector<Tracklet> recoInvertedTracklets;
 
+  vector<Tracklet> recoMisMatchedTracklets;
+
   protoTracklets = makeTracklets(iEvent,layer1,layer2,vertex,0);
-  recoTracklets  = cleanTracklets(protoTracklets);
+  recoTracklets  = cleanTracklets(protoTracklets,0);
 
   protoInvertedTracklets = makeTracklets(iEvent,layer1,layer2,vertex,1);
   recoInvertedTracklets  = cleanTracklets(protoInvertedTracklets);
 
-  analyzeTracklets(recoTracklets,recoInvertedTracklets);
+  recoMisMatchedTracklets  = cleanTracklets(protoTracklets,skipBest_);
+
+  analyzeTracklets(recoTracklets,recoInvertedTracklets,recoMisMatchedTracklets);
 
   if (verbose_) cout <<"number of reconstructed Tracklets: "<<recoTracklets.size()<<endl;
 
@@ -448,6 +457,7 @@ PixelTrackletAnalyzer::beginJob(const edm::EventSetup& iSetup){
    ntevent =  fs->make<TNtuple>("ntevent","","evtid:trt1:trt2:trt3:trt4:trt5:trt6:trt7:trt8:trt9:trt10:trt11:trt12:strt1:strt2:strt3:strt4:strt5:strt6:strt7:strt8:strt9:strt10:strt11:strt12:hit1:hit2:hit3:hit4:hit5:hit6:hit7:hit8:hit9:hit10:hit11:hit12");
    ntmatched = fs->make<TNtuple>("ntmatched","","eta1:matchedeta:phi1:matchedphi:deta:dphi:signalCheck:tid:r1id:r2id:evtid:nhit1:sid:ptype");
    ntInvMatched = fs->make<TNtuple>("ntInvMatched","","eta1:matchedeta:phi1:matchedphi:deta:dphi:evtid:nhit1");
+   ntMisMatched = fs->make<TNtuple>("ntMisMatched","","eta1:matchedeta:phi1:matchedphi:deta:dphi:signalCheck:tid:r1id:r2id:evtid:nhit1:sid:ptype");
    ntrechits =  fs->make<TNtuple>("ntrechits","","eta1:eta2:phi1:phi2");
    ntsim = fs->make<TNtuple>("ntsim","","eta1:eta2:phi1:phi2:pabs:pt:pid:ptype:energyloss:isprimary");
    ntgen = fs->make<TNtuple>("ntgen","","had1:had2:had3:had4:had5:had6:had7:had8:had9:had10:had11:had12:lep1:lep2:lep3:lep4:lep5:lep6:lep7:lep8:lep9:lep10:lep11:lep12");
@@ -664,10 +674,14 @@ vector<Tracklet> PixelTrackletAnalyzer::makeTracklets(const edm::Event& iEvent,v
 
 
 // Clean the Tracklet with multiple use
-vector<Tracklet> PixelTrackletAnalyzer::cleanTracklets(vector<Tracklet> input)
+vector<Tracklet> PixelTrackletAnalyzer::cleanTracklets(vector<Tracklet> input, int matchNumber)
 {
    vector<Tracklet> output;
-   sort( input.begin() , input.end() , compareTracklet);
+
+   if(useDeltaPhi_)
+      sort( input.begin() , input.end() , compareDeltaR);
+   else
+      sort( input.begin() , input.end() , compareDeltaEta);
 
    if (verbose_) {
       for (unsigned int i = 0; i < input.size(); i++)
@@ -684,21 +698,31 @@ vector<Tracklet> PixelTrackletAnalyzer::cleanTracklets(vector<Tracklet> input)
       used2[i]=0;
    } 
 
-   for (unsigned int i = 0; i < input.size(); i++)
-   {
+   cout<<"Printing Hits"<<endl;
+   
+   for (unsigned int i = 0; i < input.size(); i++){
+      
+
+      if(useDeltaPhi_)
+	 cout<<"Eta 1 : "<<input[i].eta1()<<"  ; Eta 2 : "<<input[i].eta2()<<" ;  Delta R : "<<input[i].dR()<<endl;
+      else
+	 cout<<"Eta 1 : "<<input[i].eta1()<<"  ; Eta 2 : "<<input[i].eta2()<<" ;  Delta Eta : "<<input[i].deta()<<endl; 
+      
       int i1=input[i].getIt1();
       int i2=input[i].getIt2();
-      if (used1[i1]==0&&used2[i2]==0) {
-         Tracklet tmp = input[i];
-         output.push_back(tmp);
-         used1[i1]=1;
-         if (checkSecondLayer_) used2[i2]=1;
+      
+      if (used1[i1]==0&&used2[i2]==matchNumber) {
+	 Tracklet tmp = input[i];
+	 output.push_back(tmp);
+	 used1[i1]++;
+	 if (checkSecondLayer_) used2[i2]++;
+      }
+      if (used1[i1]==0&&used2[i2]<matchNumber) {
+	 if (checkSecondLayer_) used2[i2]++;
       }
    }
-
    if (verbose_) {
       cout <<"Output:"<<endl;
-
       for (unsigned int i = 0; i < output.size(); i++)
       {
          cout <<output[i].deta()<<" "<<output[i].getIt1()<<" "<<output[i].getIt2()<<endl;
@@ -709,7 +733,7 @@ vector<Tracklet> PixelTrackletAnalyzer::cleanTracklets(vector<Tracklet> input)
 }
 
 // Make Ntuple
-void PixelTrackletAnalyzer::analyzeTracklets(vector<Tracklet> input, vector<Tracklet> invertedInput)
+void PixelTrackletAnalyzer::analyzeTracklets(vector<Tracklet> input, vector<Tracklet> invertedInput, vector<Tracklet> mismatchedInput)
 {
 
   for (unsigned int i = 0; i < input.size(); i++) 
@@ -733,6 +757,8 @@ void PixelTrackletAnalyzer::analyzeTracklets(vector<Tracklet> input, vector<Trac
      var[12]=input[i].getSId();
      var[13]=input[i].getType();
      ntmatched->Fill(var);
+
+	cout<<"Correctly matched Entries :: "<<"Eta 1 : "<<var[0]<<" ; Eta 2 :  "<<var[1]<<" DeltaR : "<<sqrt(var[4]*var[4]+var[5]*var[5])<<endl;
     
      if(input[i].deta() < deltaCut_)
      {
@@ -762,6 +788,37 @@ void PixelTrackletAnalyzer::analyzeTracklets(vector<Tracklet> input, vector<Trac
 
      ntInvMatched->Fill(var);
   }
+
+  for (unsigned int i = 0; i < mismatchedInput.size(); i++)
+     {
+	float var[100];
+	int signalCheck=0;
+	if (input[i].getId()==1) signalCheck=1;
+	var[0]=mismatchedInput[i].eta1();
+	var[1]=mismatchedInput[i].eta2();
+	var[2]=mismatchedInput[i].phi1();
+	var[3]=mismatchedInput[i].phi2();
+	var[4]=mismatchedInput[i].deta();
+	var[5]=mismatchedInput[i].dphi();
+	var[6]=signalCheck;
+	var[7]=mismatchedInput[i].getId();
+	var[8]=mismatchedInput[i].getId1();
+	var[9]=mismatchedInput[i].getId2();
+	var[10]=eventCounter_;
+	var[11]=layer1HitInEta1_;
+	var[12]=mismatchedInput[i].getSId();
+	var[13]=mismatchedInput[i].getType();
+	ntMisMatched->Fill(var);
+
+	if(useDeltaPhi_)
+	   cout<<"MisMatched Entries :: "<<"Eta 1 : "<<var[0]<<" ; Eta 2 :  "<<var[1]<<" DeltaR : "<<sqrt(var[4]*var[4]+var[5]*var[5])<<endl;
+	else
+	   cout<<"MisMatched Entries :: "<<"Eta 1 : "<<var[0]<<" ; Eta 2 :  "<<var[1]<<" DeltaEta : "<<fabs(var[4])<<endl;
+
+     }
+
+     cout<<"MisMatched Entries Size :: "<<mismatchedInput.size()<<"Coorect Entries ::  "<<input.size()<<endl;
+
 }
 
 int PixelTrackletAnalyzer::associateSimhitToTrackingparticle(unsigned int trid )
