@@ -1,0 +1,38 @@
+<use name="root"/>
+<use name="FWCore/Framework"/>
+<use name="FWCore/ParameterSet"/>
+<use name="SimDataFormats/TrackingAnalysis"/>
+<use name="DataFormats/TrackReco"/>
+<use name="SimTracker/Records"/>
+<use name="SimTracker/TrackAssociation"/>
+<use name="FWCore/Utilities"/>
+<use name="Geometry/Records"/>
+<use name="Geometry/TrackerGeometryBuilder"/>
+<use name="Geometry/CommonDetUnit"/>
+<use name="DataFormats/SiStripDetId"/>
+<use name="DataFormats/VertexReco"/>
+<use name="TrackingTools/TransientTrack"/>
+<use name="TrackingTools/Records"/>
+<use name="edwenger/MatchedTrack"/>
+<use name="RecoVertex/KalmanVertexFit"/>
+
+<export>
+	<lib name="edwengerHighPtTrackAnalyzer"/>
+	<use name="FWCore/Framework"/>
+	<use name="FWCore/ParameterSet"/>
+	<use name="SimDataFormats/TrackingAnalysis"/>
+	<use name="DataFormats/TrackReco"/>
+	<use name="SimTracker/Records"/>
+	<use name="SimTracker/TrackAssociation"/>
+	<use name="FWCore/Utilities"/>
+	<use name="Geometry/Records"/>
+	<use name="Geometry/TrackerGeometryBuilder"/>
+	<use name="Geometry/CommonDetUnit"/>
+	<use name="DataFormats/SiStripDetId"/>
+	<use name="DataFormats/VertexReco"/>
+	<use name="TrackingTools/TransientTrack"/>
+	<use name="TrackingTools/Records"/>
+	<use name="edwenger/MatchedTrack"/>
+	<use name="RecoVertex/KalmanVertexFit"/>
+	<use name="root"/>
+</export>
