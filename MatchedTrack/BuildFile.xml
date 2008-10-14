@@ -1,0 +1,10 @@
+<use name="root"/>
+<use name="FWCore/Framework"/>
+<use name="FWCore/ParameterSet"/>
+<flags EdmPlugin="1"/>
+<export>
+   <lib name="edwengerMatchedTrack"/>
+   <use name="FWCore/Framework"/>
+   <use name="FWCore/ParameterSet"/>
+   <use name="root"/>
+</export>
