@@ -72,7 +72,6 @@ double* getBeta(const char* infile, double etaMax, int MinHit, int MaxHit)
   TH1F * h5 = new TH1F("h5","",nBins,0,2);
   TH1F * h6 = new TH1F("h6","Reproduced Background Subtracted",nBins,0,2);
 
-
   TProfile * dNdEtaHadron = new TProfile("dNdEtaHadron","",32,-2.1,2.1);
   TProfile * dNdEtaLepton = new TProfile("dNdEtaLepton","",32,-2.1,2.1);
   TProfile * dNdEtaTracklet = new TProfile("dNdEtaTracklet","",32,-2.1,2.1);
