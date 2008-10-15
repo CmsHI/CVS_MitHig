@@ -20,6 +20,8 @@ void analyze_tree(){
   }
   
   TH1D* h1 = new TH1D("h1","dNdEta Hits Layer 1",100,-3,3);
+  TH1D* h2 = new TH1D("h2","dNdEta Hits Layer 2",100,-3,3);
+
   TH1D* hm1 = new TH1D("hm1","Number of Hits Layer 1",50,0,50);
 
   float eta1[1000],phi1[1000],r1[1000],eta2[1000],phi2[1000],r2[1000],vz[100];
@@ -48,6 +50,12 @@ void analyze_tree(){
       std::cout<<"Hit Eta : "<<eta1[ihit]<<endl;
       h1->Fill(eta1[ihit]);
     }
+
+    for(int ihit2 = 0; ihit2 < nhits2; ++ihit2){
+      std::cout<<"Hit Eta : "<<eta1[ihit2]<<endl;
+      h2->Fill(eta2[ihit2]);
+    }
+
   }
   h1->Draw();
   hm1->Draw();
