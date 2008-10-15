@@ -66,18 +66,21 @@ struct PixelEvent{
    int nhits1;
    int nhits2;
 
+   int mult;
+   //   int mult2;
+
    int nv;
    float vz[MAXVTX];
 
-   float x1[MAXHITS];
-   float y1[MAXHITS];
-   float z1[MAXHITS];
+   float eta1[MAXHITS];
+   float phi1[MAXHITS];
+   float r1[MAXHITS];
    float cs1[MAXHITS];
    float cg1[MAXHITS];
 
-   float x2[MAXHITS];
-   float y2[MAXHITS];
-   float z2[MAXHITS];
+   float eta2[MAXHITS];
+   float phi2[MAXHITS];
+   float r2[MAXHITS];
    float cs2[MAXHITS];
    float cg2[MAXHITS];
 
@@ -107,7 +110,7 @@ class PixelHitAnalyzer : public edm::EDAnalyzer {
 
    bool doMC_;
    vector<string> vertexSrc_;
-
+   double etaMult_;
 
   const TrackerGeometry* geo_;
   edm::Service<TFileService> fs;           
@@ -135,6 +138,8 @@ PixelHitAnalyzer::PixelHitAnalyzer(const edm::ParameterSet& iConfig)
    //now do what ever initialization is needed
    doMC_             = iConfig.getUntrackedParameter<bool>  ("doMC",true);
    vertexSrc_ = iConfig.getParameter<vector<string> >("vertexSrc");
+   etaMult_ = iConfig.getUntrackedParameter<double>  ("nHitsRegion",1.);
+
 }
 
 
@@ -157,6 +162,8 @@ PixelHitAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
 {
    pev_.nhits1 = 0;
    pev_.nhits2 = 0;
+   pev_.mult = 0;
+
    pev_.nv = 0;
 
    fillVertices(iEvent);
@@ -271,24 +278,22 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
 	    }
 	    
 	    // GEOMETRY INFO
-
-
-
 	    const PixelGeomDetUnit* pixelLayer = dynamic_cast<const PixelGeomDetUnit*> (geo_->idToDet(recHit1->geographicalId()));
 	    GlobalPoint gpos = pixelLayer->toGlobal(recHit1->localPosition());
 	    
 	    if(layer == 1){ 
-	       pev_.x1[pev_.nhits1] = gpos.x();
-	       pev_.y1[pev_.nhits1] = gpos.y();
-	       pev_.z1[pev_.nhits1] = gpos.z();
+	       pev_.eta1[pev_.nhits1] = gpos.eta();
+	       pev_.phi1[pev_.nhits1] = gpos.phi();
+	       pev_.r1[pev_.nhits1] = gpos.perp();
 	       pev_.cs1[pev_.nhits1] = recHit1->cluster()->size(); //Cluster Size
                pev_.cg1[pev_.nhits1] = recHit1->cluster()->charge(); //Cluster Charge
 	       pev_.nhits1++;
+	       if(fabs(gpos.eta()) < etaMult_ ) pev_.mult++;
 	    }
 	    if(layer == 2){
-	       pev_.x2[pev_.nhits2] = gpos.x();
-	       pev_.y2[pev_.nhits2] = gpos.y();
-	       pev_.z2[pev_.nhits2] = gpos.z();
+	       pev_.eta2[pev_.nhits2] = gpos.eta();
+	       pev_.phi2[pev_.nhits2] = gpos.phi();
+	       pev_.r2[pev_.nhits2] = gpos.perp();
 	       pev_.cs2[pev_.nhits2] = recHit1->cluster()->size(); //Cluster Size
                pev_.cg2[pev_.nhits2] = recHit1->cluster()->charge(); //Cluster Charge
 	       pev_.nhits2++;
@@ -356,16 +361,18 @@ PixelHitAnalyzer::beginJob(const edm::EventSetup& iSetup)
   pixelTree_ = fs->make<TTree>("PixelTree","Tree of Pixel Hits");
   pixelTree_->Branch("nhits1",&pev_.nhits1,"nhits1/I");
   pixelTree_->Branch("nhits2",&pev_.nhits2,"nhits2/I");
+  pixelTree_->Branch("mult",&pev_.mult,"mult/I");
+  //  pixelTree_->Branch("mult2",&pev_.mult2,"mult2/I");
   pixelTree_->Branch("nv",&pev_.nv,"nv/I");
   pixelTree_->Branch("vz",pev_.vz,"vz[nv]/F");
-  pixelTree_->Branch("x1",pev_.x1,"x1[nhits1]/F");
-  pixelTree_->Branch("y1",pev_.y1,"y1[nhits1]/F");
-  pixelTree_->Branch("z1",pev_.z1,"z1[nhits1]/F");
+  pixelTree_->Branch("eta1",pev_.eta1,"eta1[nhits1]/F");
+  pixelTree_->Branch("phi1",pev_.phi1,"phi1[nhits1]/F");
+  pixelTree_->Branch("r1",pev_.r1,"r1[nhits1]/F");
   pixelTree_->Branch("cs1",pev_.cs1,"cs1[nhits1]/F");
   pixelTree_->Branch("cg1",pev_.cg1,"cg1[nhits1]/F");
-  pixelTree_->Branch("x2",pev_.x2,"x2[nhits2]/F");
-  pixelTree_->Branch("y2",pev_.y2,"y2[nhits2]/F");
-  pixelTree_->Branch("z2",pev_.z2,"z2[nhits2]/F");
+  pixelTree_->Branch("eta2",pev_.eta2,"eta2[nhits2]/F");
+  pixelTree_->Branch("phi2",pev_.phi2,"phi2[nhits2]/F");
+  pixelTree_->Branch("r2",pev_.r2,"r2[nhits2]/F");
   pixelTree_->Branch("cs2",pev_.cs2,"cs2[nhits2]/F");
   pixelTree_->Branch("cg2",pev_.cg2,"cg2[nhits2]/F");
 }
