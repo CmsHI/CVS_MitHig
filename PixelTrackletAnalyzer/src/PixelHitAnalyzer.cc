@@ -75,12 +75,14 @@ struct PixelEvent{
    float eta1[MAXHITS];
    float phi1[MAXHITS];
    float r1[MAXHITS];
+   int id1[MAXHITS];
    float cs1[MAXHITS];
    float cg1[MAXHITS];
 
    float eta2[MAXHITS];
    float phi2[MAXHITS];
    float r2[MAXHITS];
+   int id2[MAXHITS];
    float cs2[MAXHITS];
    float cg2[MAXHITS];
 
@@ -243,11 +245,6 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
 	    const SiPixelRecHit* recHit1 = &*recHit;
 
 	    // SIM INFO
-
-	    int rechit1Type = 0;
-	    int rechit2Type = 0;
-	    int signalExistCheck = 0;
-	    int signalCheck = 0;
 	    int trid = -9999;
 
 	    if (doMC_) {
@@ -285,6 +282,7 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
 	       pev_.eta1[pev_.nhits1] = gpos.eta();
 	       pev_.phi1[pev_.nhits1] = gpos.phi();
 	       pev_.r1[pev_.nhits1] = gpos.perp();
+	       pev_.id1[pev_.nhits1] = trid;
 	       pev_.cs1[pev_.nhits1] = recHit1->cluster()->size(); //Cluster Size
                pev_.cg1[pev_.nhits1] = recHit1->cluster()->charge(); //Cluster Charge
 	       pev_.nhits1++;
@@ -294,6 +292,7 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
 	       pev_.eta2[pev_.nhits2] = gpos.eta();
 	       pev_.phi2[pev_.nhits2] = gpos.phi();
 	       pev_.r2[pev_.nhits2] = gpos.perp();
+               pev_.id2[pev_.nhits2] = trid;
 	       pev_.cs2[pev_.nhits2] = recHit1->cluster()->size(); //Cluster Size
                pev_.cg2[pev_.nhits2] = recHit1->cluster()->charge(); //Cluster Charge
 	       pev_.nhits2++;
@@ -368,11 +367,13 @@ PixelHitAnalyzer::beginJob(const edm::EventSetup& iSetup)
   pixelTree_->Branch("eta1",pev_.eta1,"eta1[nhits1]/F");
   pixelTree_->Branch("phi1",pev_.phi1,"phi1[nhits1]/F");
   pixelTree_->Branch("r1",pev_.r1,"r1[nhits1]/F");
+  pixelTree_->Branch("id1",pev_.id1,"id1[nhits1]/I");
   pixelTree_->Branch("cs1",pev_.cs1,"cs1[nhits1]/F");
   pixelTree_->Branch("cg1",pev_.cg1,"cg1[nhits1]/F");
   pixelTree_->Branch("eta2",pev_.eta2,"eta2[nhits2]/F");
   pixelTree_->Branch("phi2",pev_.phi2,"phi2[nhits2]/F");
   pixelTree_->Branch("r2",pev_.r2,"r2[nhits2]/F");
+  pixelTree_->Branch("id2",pev_.id2,"id2[nhits2]/I");
   pixelTree_->Branch("cs2",pev_.cs2,"cs2[nhits2]/F");
   pixelTree_->Branch("cg2",pev_.cg2,"cg2[nhits2]/F");
 }
