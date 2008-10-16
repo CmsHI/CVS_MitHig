@@ -12,7 +12,7 @@
 #include "DataFormats/TrackReco/interface/TrackFwd.h"
 #include "DataFormats/TrackReco/interface/Track.h"
 
-#include "edwenger/MatchedTrack/interface/MatchedTrack.h"
+#include "MigHig/MatchedTrack/interface/MatchedTrack.h"
 
 #include "SimTracker/Records/interface/TrackAssociatorRecord.h"
 #include "SimTracker/TrackAssociation/interface/TrackAssociatorByHits.h"

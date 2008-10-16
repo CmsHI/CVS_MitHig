@@ -13,10 +13,10 @@
 <use name="DataFormats/VertexReco"/>
 <use name="TrackingTools/TransientTrack"/>
 <use name="TrackingTools/Records"/>
-<use name="edwenger/MatchedTrack"/>
+<use name="MitHig/MatchedTrack"/>
 <use name="RecoVertex/KalmanVertexFit"/>
 
 <library file="HighPtTrackAnalyzer.cc" name="HighPtTrackAnalyzer">
-	<lib name="edwengerMatchedTrack"/>
+	<lib name="MitHigMatchedTrack"/>
 	<flags EdmPlugin="1"/>
 </library>

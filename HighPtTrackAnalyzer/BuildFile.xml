@@ -13,11 +13,11 @@
 <use name="DataFormats/VertexReco"/>
 <use name="TrackingTools/TransientTrack"/>
 <use name="TrackingTools/Records"/>
-<use name="edwenger/MatchedTrack"/>
+<use name="MitHig/MatchedTrack"/>
 <use name="RecoVertex/KalmanVertexFit"/>
 
 <export>
-	<lib name="edwengerHighPtTrackAnalyzer"/>
+	<lib name="MitHigHighPtTrackAnalyzer"/>
 	<use name="FWCore/Framework"/>
 	<use name="FWCore/ParameterSet"/>
 	<use name="SimDataFormats/TrackingAnalysis"/>
