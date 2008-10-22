@@ -23,6 +23,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <map>
 
 // user include files
 #include "FWCore/Framework/interface/Frameworkfwd.h"
@@ -48,6 +49,7 @@
 #include "SimDataFormats/TrackingAnalysis/interface/TrackingParticle.h"
 #include "SimDataFormats/TrackingHit/interface/PSimHit.h"
 #include "SimTracker/TrackerHitAssociation/interface/TrackerHitAssociator.h"
+#include "SimGeneral/HepPDTRecord/interface/ParticleDataTable.h"
 
 #include "TTree.h"
 
@@ -59,6 +61,7 @@ using namespace reco;
 // class decleration
 //
 
+#define MAXPARTICLES 1000
 #define MAXHITS 1000
 #define MAXVTX 10
 
@@ -68,6 +71,7 @@ struct PixelEvent{
 
    int mult;
    //   int mult2;
+   int npart;
 
    int nv;
    float vz[MAXVTX];
@@ -77,14 +81,22 @@ struct PixelEvent{
    float r1[MAXHITS];
    int id1[MAXHITS];
    float cs1[MAXHITS];
-   float cg1[MAXHITS];
+   float ch1[MAXHITS];
+   float gp1[MAXHITS];
 
    float eta2[MAXHITS];
    float phi2[MAXHITS];
    float r2[MAXHITS];
    int id2[MAXHITS];
    float cs2[MAXHITS];
-   float cg2[MAXHITS];
+   float ch2[MAXHITS];
+   float gp2[MAXHITS];
+
+   float pt[MAXPARTICLES];
+   float eta[MAXPARTICLES];
+   float phi[MAXPARTICLES];
+   int pdg[MAXPARTICLES];
+   int chg[MAXPARTICLES];
 
 };
 
@@ -94,13 +106,14 @@ class PixelHitAnalyzer : public edm::EDAnalyzer {
       explicit PixelHitAnalyzer(const edm::ParameterSet&);
       ~PixelHitAnalyzer();
 
-
    private:
       virtual void beginJob(const edm::EventSetup&) ;
       virtual void analyze(const edm::Event&, const edm::EventSetup&);
       virtual void endJob() ;
    void fillVertices(const edm::Event& iEvent);
    void fillHits(const edm::Event& iEvent);
+   void fillParticles(const edm::Event& iEvent);
+
    int associateSimhitToTrackingparticle(unsigned int trid );
    bool checkprimaryparticle(TrackingParticleRef tp);
 
@@ -116,7 +129,10 @@ class PixelHitAnalyzer : public edm::EDAnalyzer {
 
   const TrackerGeometry* geo_;
   edm::Service<TFileService> fs;           
+   edm::ESHandle < ParticleDataTable > pdt;
    edm::Handle<TrackingParticleCollection> trackingParticles;
+
+  map<int,int> tpmap_;
 
   TTree* pixelTree_;
   PixelEvent pev_;
@@ -141,7 +157,6 @@ PixelHitAnalyzer::PixelHitAnalyzer(const edm::ParameterSet& iConfig)
    doMC_             = iConfig.getUntrackedParameter<bool>  ("doMC",true);
    vertexSrc_ = iConfig.getParameter<vector<string> >("vertexSrc");
    etaMult_ = iConfig.getUntrackedParameter<double>  ("nHitsRegion",1.);
-
 }
 
 
@@ -162,12 +177,16 @@ PixelHitAnalyzer::~PixelHitAnalyzer()
 void
 PixelHitAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
+
+   tpmap_.clear();
    pev_.nhits1 = 0;
    pev_.nhits2 = 0;
    pev_.mult = 0;
+   pev_.npart = 0;
 
    pev_.nv = 0;
 
+   fillParticles(iEvent);
    fillVertices(iEvent);
    fillHits(iEvent);
 
@@ -179,9 +198,9 @@ void
 PixelHitAnalyzer::fillVertices(const edm::Event& iEvent){
 
    if(doMC_){
-      unsigned int daughter = 0;
-      unsigned int nVertex = 0;
-      unsigned int greatestvtx = -1;
+      int daughter = 0;
+      int nVertex = 0;
+      int greatestvtx = -1;
       Handle<TrackingVertexCollection> vertices;
       iEvent.getByLabel("mergedtruth","MergedTrackTruth", vertices);
       nVertex = vertices->size();
@@ -245,8 +264,8 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
 	    const SiPixelRecHit* recHit1 = &*recHit;
 
 	    // SIM INFO
+	    int gpid = -9999;
 	    int trid = -9999;
-
 	    if (doMC_) {
 	       vector<PSimHit> simHits1 = theHitAssociator.associateHit(*recHit1);
 	       const PSimHit * bestSimHit1 = 0;
@@ -262,7 +281,13 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
 		  int ptype = (&(*simHit1))->processType();
 		  
 		  bool isprimary = checkprimaryparticle(associatedTP);
-		  
+
+		  TrackingParticle::genp_iterator itb = associatedTP->genParticle_begin();
+		  TrackingParticle::genp_iterator itend = associatedTP->genParticle_end();
+		  for(TrackingParticle::genp_iterator itp = itb; itp != itend; ++itp){
+		     gpid = tpmap_[(*itp)->barcode()];
+		  }
+
 		  if (isprimary && bestSimHit1==0){ 
 		     bestSimHit1 = &(*simHit1);
 		     break;
@@ -277,31 +302,65 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
 	    // GEOMETRY INFO
 	    const PixelGeomDetUnit* pixelLayer = dynamic_cast<const PixelGeomDetUnit*> (geo_->idToDet(recHit1->geographicalId()));
 	    GlobalPoint gpos = pixelLayer->toGlobal(recHit1->localPosition());
+
+	    double vertex = 0;
+	    if(pev_.vz[(int)(!doMC_)] != -99) vertex = pev_.vz[(int)(!doMC_)];
 	    
+	    math::XYZVector rechitPos(gpos.x(),gpos.y(),gpos.z()-vertex);
+	    
+	    double eta = rechitPos.eta();
+            double phi = rechitPos.phi();
+            double r = rechitPos.rho();
+
 	    if(layer == 1){ 
-	       pev_.eta1[pev_.nhits1] = gpos.eta();
-	       pev_.phi1[pev_.nhits1] = gpos.phi();
-	       pev_.r1[pev_.nhits1] = gpos.perp();
+	       pev_.eta1[pev_.nhits1] = eta;
+	       pev_.phi1[pev_.nhits1] = phi;
+	       pev_.r1[pev_.nhits1] = r;
 	       pev_.id1[pev_.nhits1] = trid;
 	       pev_.cs1[pev_.nhits1] = recHit1->cluster()->size(); //Cluster Size
-               pev_.cg1[pev_.nhits1] = recHit1->cluster()->charge(); //Cluster Charge
+               pev_.ch1[pev_.nhits1] = recHit1->cluster()->charge(); //Cluster Charge
+	       pev_.gp1[pev_.nhits1] = gpid;
 	       pev_.nhits1++;
 	       if(fabs(gpos.eta()) < etaMult_ ) pev_.mult++;
 	    }
 	    if(layer == 2){
-	       pev_.eta2[pev_.nhits2] = gpos.eta();
-	       pev_.phi2[pev_.nhits2] = gpos.phi();
-	       pev_.r2[pev_.nhits2] = gpos.perp();
+	       pev_.eta2[pev_.nhits2] = eta;
+	       pev_.phi2[pev_.nhits2] = phi;
+	       pev_.r2[pev_.nhits2] = r;
                pev_.id2[pev_.nhits2] = trid;
 	       pev_.cs2[pev_.nhits2] = recHit1->cluster()->size(); //Cluster Size
-               pev_.cg2[pev_.nhits2] = recHit1->cluster()->charge(); //Cluster Charge
+               pev_.ch2[pev_.nhits2] = recHit1->cluster()->charge(); //Cluster Charge
+	       pev_.gp2[pev_.nhits2] = gpid;
 	       pev_.nhits2++;
 	    } 
 	    
 	 }
       }
    }
+}
 
+void
+PixelHitAnalyzer::fillParticles(const edm::Event& iEvent){
+
+   Handle<HepMCProduct> mc;
+   iEvent.getByLabel("source",mc);
+   const HepMC::GenEvent* evt = mc->GetEvent();
+
+   int all = evt->particles_size();
+   HepMC::GenEvent::particle_const_iterator begin = evt->particles_begin();
+   HepMC::GenEvent::particle_const_iterator end = evt->particles_end();
+   for(HepMC::GenEvent::particle_const_iterator it = begin; it != end; ++it){
+      if((*it)->status() == 1){
+	 tpmap_[(*it)->barcode()] = pev_.npart;
+	 pev_.pdg[pev_.npart] = (*it)->pdg_id();
+	 pev_.eta[pev_.npart] = (*it)->momentum().eta();
+	 pev_.pt[pev_.npart] = (*it)->momentum().perp();
+	 const ParticleData * part = pdt->particle(pev_.pdg[pev_.npart]);
+	 pev_.chg[pev_.npart] = part->charge();
+	 pev_.npart++;
+
+      }
+   }
 }
 
 int PixelHitAnalyzer::associateSimhitToTrackingparticle(unsigned int trid )
@@ -354,6 +413,7 @@ PixelHitAnalyzer::beginJob(const edm::EventSetup& iSetup)
   edm::ESHandle<TrackerGeometry> tGeo;
   iSetup.get<TrackerDigiGeometryRecord>().get(tGeo);
   geo_ = tGeo.product();
+  iSetup.getData(pdt);
 
   //  finder_ = new TrackletFinder(corrections_,trGeo,true);
 
@@ -369,13 +429,24 @@ PixelHitAnalyzer::beginJob(const edm::EventSetup& iSetup)
   pixelTree_->Branch("r1",pev_.r1,"r1[nhits1]/F");
   pixelTree_->Branch("id1",pev_.id1,"id1[nhits1]/I");
   pixelTree_->Branch("cs1",pev_.cs1,"cs1[nhits1]/F");
-  pixelTree_->Branch("cg1",pev_.cg1,"cg1[nhits1]/F");
+  pixelTree_->Branch("ch1",pev_.ch1,"ch1[nhits1]/F");
+  pixelTree_->Branch("gp1",pev_.gp1,"gp1[nhits1]/I");
+
   pixelTree_->Branch("eta2",pev_.eta2,"eta2[nhits2]/F");
   pixelTree_->Branch("phi2",pev_.phi2,"phi2[nhits2]/F");
   pixelTree_->Branch("r2",pev_.r2,"r2[nhits2]/F");
   pixelTree_->Branch("id2",pev_.id2,"id2[nhits2]/I");
   pixelTree_->Branch("cs2",pev_.cs2,"cs2[nhits2]/F");
-  pixelTree_->Branch("cg2",pev_.cg2,"cg2[nhits2]/F");
+  pixelTree_->Branch("ch2",pev_.ch2,"ch2[nhits2]/F");
+  pixelTree_->Branch("gp2",pev_.gp2,"gp2[nhits2]/I");
+
+  pixelTree_->Branch("npart",&pev_.npart,"npart/I");
+  pixelTree_->Branch("pt",pev_.pt,"pt[npart]/F");
+  pixelTree_->Branch("eta",pev_.eta,"eta[npart]/F");
+  pixelTree_->Branch("phi",pev_.phi,"phi[npart]/F");
+  pixelTree_->Branch("pdg",pev_.pdg,"pdg[npart]/I");
+  pixelTree_->Branch("chg",pev_.chg,"chg[npart]/I");
+
 }
 
 // ------------ method called once each job just after ending the event loop  ------------
