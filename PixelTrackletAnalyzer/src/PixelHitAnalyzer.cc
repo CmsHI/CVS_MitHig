@@ -13,7 +13,7 @@
 //
 // Original Author:  Yilmaz Yetkin
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: PixelHitAnalyzer.cc,v 1.1 2008/10/02 00:14:59 yilmaz Exp $
+// $Id: PixelHitAnalyzer.cc,v 1.6 2008/10/22 08:24:11 yilmaz Exp $
 //
 //
 
@@ -200,7 +200,7 @@ PixelHitAnalyzer::fillVertices(const edm::Event& iEvent){
    if(doMC_){
       int daughter = 0;
       int nVertex = 0;
-      int greatestvtx = -1;
+      int greatestvtx = 0;
       Handle<TrackingVertexCollection> vertices;
       iEvent.getByLabel("mergedtruth","MergedTrackTruth", vertices);
       nVertex = vertices->size();
@@ -215,6 +215,10 @@ PixelHitAnalyzer::fillVertices(const edm::Event& iEvent){
 	 pev_.vz[pev_.nv] =  -99; 
       }
       pev_.nv++;
+   } else {
+      // Fill a dummy MC information
+      pev_.vz[pev_.nv] = -99;
+      pev_.nv++;
    }
    
    for(int iv = 0; iv < vertexSrc_.size(); ++iv){
@@ -224,12 +228,13 @@ PixelHitAnalyzer::fillVertices(const edm::Event& iEvent){
       recoVertices = vertexCollection.product();
       int daughter = 0;
       int nVertex = 0;
-      int greatestvtx = -1;
+      int greatestvtx = 0;
       
       nVertex = recoVertices->size();
       for (unsigned int i = 0 ; i< recoVertices->size(); ++i){
 	 daughter = (*recoVertices)[i].tracksSize();
 	 if( daughter > (*recoVertices)[greatestvtx].tracksSize()) greatestvtx = i;
+         cout <<"Vertex: "<< (*recoVertices)[i].position().z()<<" "<<daughter<<endl;
       }
       
       if(recoVertices->size()>0){
@@ -237,6 +242,7 @@ PixelHitAnalyzer::fillVertices(const edm::Event& iEvent){
       }else{
 	 pev_.vz[pev_.nv] =  -99;
       }
+      cout <<"==>Primary Vertex: "<<pev_.vz[pev_.nv]<<" "<<greatestvtx<<" "<<endl;
       pev_.nv++;
    }
 
@@ -303,10 +309,13 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
 	    const PixelGeomDetUnit* pixelLayer = dynamic_cast<const PixelGeomDetUnit*> (geo_->idToDet(recHit1->geographicalId()));
 	    GlobalPoint gpos = pixelLayer->toGlobal(recHit1->localPosition());
 
-	    double vertex = 0;
-	    if(pev_.vz[(int)(!doMC_)] != -99) vertex = pev_.vz[(int)(!doMC_)];
-	    
-	    math::XYZVector rechitPos(gpos.x(),gpos.y(),gpos.z()-vertex);
+
+            //Removed by Yen-Jie, we do the calculation in root level.
+	    //double vertex = 0;      
+	    //if(pev_.vz[(int)(!doMC_)] != -99) vertex = pev_.vz[(int)(!doMC_);
+	    //math::XYZVector rechitPos(gpos.x(),gpos.y(),gpos.z()-vertex);
+
+	    math::XYZVector rechitPos(gpos.x(),gpos.y(),gpos.z());
 	    
 	    double eta = rechitPos.eta();
             double phi = rechitPos.phi();
