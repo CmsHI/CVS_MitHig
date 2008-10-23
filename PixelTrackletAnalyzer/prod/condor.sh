@@ -2,10 +2,13 @@
 
 #data=pion
 data=pp900GeV
-tag=0917
+#cfg=count_cfg.py
+#cfg=count_from_reco_cfg.py
+cfg=$2
+tag=1001
 dir=`pwd`
-ldir=$dir/$data$tag
-outfile=$1-output-`date +"%s"`
+ldir=$dir/joblogs
+outfile=$2-output-`date +"%s"`
 
 subfile=subfile_$outfile
 
@@ -26,11 +29,11 @@ GetEnv       = True
 
 Initialdir   = $dir
 Input        = /dev/null
-Output       = $ldir/$outfile.out
-Error        = $ldir/$outfile.err
+Output       = /tmp/yetkin/$outfile.out
+Error        = /tmp/yetkin/$outfile.err
 Log          = /tmp/yetkin/$outfile.log
 
-transfer_input_files = $dir/tracklet_cfg.py
+transfer_input_files = $dir/$cfg
 should_transfer_files   = YES
 when_to_transfer_output = ON_EXIT
 
@@ -40,8 +43,8 @@ EOF
 sleep 0
 cat $subfile
 
-echo Executable   = $dir/$1
-echo Arguments    = $2 $3 $4 $5 $6 $7 $8 $9
+echo Executable   = $dir/$2
+echo Arguments    = $3 $4 $5 $6 $7 $8 $9
 
 
 condor_submit $subfile

@@ -1,8 +1,8 @@
 #!/bin/sh
 
-for run in `seq $1 $2`
+for run in `seq $2 $3`
 do
-./condor.sh run $run
+./condor.sh run $1 $run
 done
 
 
