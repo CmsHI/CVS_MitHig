@@ -12,6 +12,7 @@
 #include <TLine.h>
 #include <vector>
 #include <TF1.h>
+#include <TRandom.h>
 
 #include "tracklet.h"
 
@@ -24,7 +25,7 @@ void genLayer1(int nhit1,vector<double> &hits1);
 void genLayer2(int nhit2,vector<double> &hits2);
 
 bool verbose_=false;
-bool useDeltaPhi_=true;
+bool useDeltaPhi_=false;
 bool checkSecondLayer_=true;
 bool compareDeltaR(Tracklet a,Tracklet b) { return fabs(a.dR2())<fabs(b.dR2());}
 bool compareDeltaEta(Tracklet a,Tracklet b) {return fabs(a.deta())<fabs(b.deta());}
@@ -39,19 +40,18 @@ void toyMCs(int start,int end)
 }
 void toyMC(int run,int nevt)
 {
-    f = new TFile("pdf.root");
+    f = new TFile("output.root");
 
-    /*    
-    for (int i=1; i<100; i++) {
-       test(i);
-    }
-    */
-    srand ( time(NULL) );
+    // Random Seed
+    gRandom->SetSeed( run );
 
     TH3F *nhits = (TH3F*) f->FindObjectAny("nhits");
 
     TFile *outf = new TFile (Form("exp-%05d.root",run),"recreate");
     TNtuple *ntmatched = new TNtuple("ntmatched","","eta1:matchedeta:phi1:matchedphi:deta:dphi:signalCheck:tid:r1id:r2id:evtid:nhit1:sid:ptype");
+    TNtuple *ntHit1 = new TNtuple("ntHit1","","eta1:phi1:nhit1");
+    TNtuple *ntHit2 = new TNtuple("ntHit2","","eta2:phi2:nhit1");
+
     for (int i=0;i<nevt;i++) {
        vector<double> hits1;
        vector<double> hits2;
@@ -61,13 +61,16 @@ void toyMC(int run,int nevt)
        nhits->GetRandom3(mult,nhit1,nhit2);
        hits1.clear();
        hits2.clear();
+       if (i% 1000 == 000 ) cout <<"Run: "<<run<<" Event "<<i<<" "<<(int)mult<<" "<<(int)nhit1<<" "<<hits1.size()<<" "<<(int)nhit2<<" "<<hits2.size()<<endl;
        genLayer1((int)nhit1,hits1);
        genLayer2((int)nhit2,hits2);
-       if (i% 1000 == 0 ) cout <<"Run: "<<run<<" Event "<<i<<" "<<(int)nhit1<<" "<<hits1.size()<<" "<<(int)nhit2<<" "<<hits2.size()<<endl;
+       
        for (int j=0;j<(int) hits1.size();j+=2)
        {
+          ntHit1->Fill(hits1[j],hits1[j+1],mult);
           for (int k=0;k<(int)hits2.size();k+=2)
 	  {
+             ntHit2->Fill(hits2[k],hits2[k+1],mult);
 	     Tracklet mytracklet(hits1[j],hits2[k],hits1[j+1],hits2[k+1]);
 	     mytracklet.setIt1(j/2);
 	     mytracklet.setIt2(k/2);
@@ -93,11 +96,12 @@ void toyMC(int run,int nevt)
 	   var[12] = recoTracklets[j].getSId();
 	   var[13] = recoTracklets[j].getType();
 	   ntmatched->Fill(var);
-	   ntmatched->Fill(var);
        }
     }
 
     ntmatched->Write();
+    ntHit1->Write();
+    ntHit2->Write();
     outf->Close();
 }
 
