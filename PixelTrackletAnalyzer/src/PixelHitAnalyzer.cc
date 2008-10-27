@@ -13,7 +13,7 @@
 //
 // Original Author:  Yilmaz Yetkin
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: PixelHitAnalyzer.cc,v 1.6 2008/10/22 08:24:11 yilmaz Exp $
+// $Id: PixelHitAnalyzer.cc,v 1.7 2008/10/23 16:36:03 yjlee Exp $
 //
 //
 
@@ -82,7 +82,7 @@ struct PixelEvent{
    int id1[MAXHITS];
    float cs1[MAXHITS];
    float ch1[MAXHITS];
-   float gp1[MAXHITS];
+   int gp1[MAXHITS];
 
    float eta2[MAXHITS];
    float phi2[MAXHITS];
@@ -90,7 +90,7 @@ struct PixelEvent{
    int id2[MAXHITS];
    float cs2[MAXHITS];
    float ch2[MAXHITS];
-   float gp2[MAXHITS];
+   int gp2[MAXHITS];
 
    float pt[MAXPARTICLES];
    float eta[MAXPARTICLES];
@@ -363,9 +363,13 @@ PixelHitAnalyzer::fillParticles(const edm::Event& iEvent){
 	 tpmap_[(*it)->barcode()] = pev_.npart;
 	 pev_.pdg[pev_.npart] = (*it)->pdg_id();
 	 pev_.eta[pev_.npart] = (*it)->momentum().eta();
+         pev_.phi[pev_.npart] = (*it)->momentum().phi();
 	 pev_.pt[pev_.npart] = (*it)->momentum().perp();
 	 const ParticleData * part = pdt->particle(pev_.pdg[pev_.npart]);
 	 pev_.chg[pev_.npart] = part->charge();
+
+	 cout<<" Particle "<<pev_.npart<<" eta : "<<pev_.eta[pev_.npart]<<" phi : "<<pev_.phi[pev_.npart]<<" pt : "<<pev_.pt[pev_.npart]<<endl; 
+
 	 pev_.npart++;
 
       }
