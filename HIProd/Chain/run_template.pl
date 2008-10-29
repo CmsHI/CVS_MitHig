@@ -28,7 +28,9 @@ for($num = 0; $num < scalar @ARGV; $num++){
 	while($done == 0 && $try < $maxtry){
 	    $input=`ls $outdir/$dir[${step}]/${tag}/${tag}_r${runnum}.root`;
 	    $nextstep = $step+1;
-	    if($step == 2) $input=`ls $outdir/$dir[${nextstep}]/${tag}/${tag}_r${runnum}.root`;
+	    if($step == 2){
+		$input=`ls $outdir/$dir[${nextstep}]/${tag}/${tag}_r${runnum}.root`;
+	    }
 	    chomp $input;
 	    if($input eq "$outdir/$dir[${step}]/${tag}/${tag}_r${runnum}.root"){
 		print "File for this run already exists. Retrieving from dcache... \n";
