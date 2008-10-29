@@ -1,0 +1,12 @@
+#!/bin/sh
+
+new=$1
+dir=/pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin
+
+mkdir $1
+mkdir $dir/sim/$new
+mkdir $dir/digi/$new
+mkdir $dir/reco/$new
+mkdir $dir/reco/$new/merged
+
+

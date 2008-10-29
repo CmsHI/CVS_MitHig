@@ -16,12 +16,19 @@ $first_event = $ARGV[1];
 
 @joblist = ();
 
+###########################################
+# PARAMETERS : Edit for desired values
+
 $run = 13;
 $event_per_run = 5;
 $run_per_job = 10;
 $do_edm = 1;
 
 $tag="hydjet_x2_mb_oldPL_d20081021";
+
+###########################################
+
+`./makeProdDir ${tag}`;
 
 $last_event = $first_event + $number_of_events - 1;
 
