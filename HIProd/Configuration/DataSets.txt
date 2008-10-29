@@ -1,0 +1,14 @@
+
+| hydjet_x2_mb_oldPL_d20081021 |HLT|SIM+DIGI+RAW+DIGI+RECO|2_1_9|50|Hydjet|QGSP_EMV|-20&lt;z&lt;20|0&lt;b&lt;30|/pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/reco/hydjet_x2_mb_oldPL_d20081021/merged|  
+| hydjet_x2_mb_oldPL_d20081021 |HLT|SIM+DIGI+RAW+DIGI|2_1_9|5|Hydjet|QGSP_EMV|-20&lt;z&lt;20|0&lt;b&lt;30|/pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/digi/hydjet_x2_mb_oldPL_d20081021| 
+| hydjet_x2_mb_oldPL_d20081021 |HLT|SIM|2_1_9|5|Hydjet|QGSP_EMV|-20&lt;z&lt;20|0&lt;b&lt;30|/pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/sim/hydjet_x2_mb_oldPL_d20081021|
+| hydjet_x2_b6_oldPL_d20081024 | Simulation | SIM+DIGI+RAW+DIGI+RECO | 2_1_9 | 50 | Hydjet | QGSP_EMV | z=2 | b=6 | /pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/reco/hydjet_x2_b6_oldPL_d20081024/merged| 
+| hydjet_x2_b6_oldPL_d20081024 | Simulation | SIM+DIGI+RAW+DIGI | 2_1_9 | 5 | Hydjet | QGSP_EMV | z=2 | b=6 | /pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/digi/hydjet_x2_b6_oldPL_d20081024| 
+| hydjet_x2_b6_oldPL_d20081024 | Simulation | SIM | 2_1_9 | 5 | Hydjet | QGSP_EMV | z=2 | b=6 |/pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/sim/hydjet_x2_b6_oldPL_d20081024| 
+| hydjet_x2_b6_d20081024       | Simulation | SIM+DIGI+RAW+DIGI+RECO | 2_1_9 | 50 | Hydjet | NEW | z=2 | b=6 | /pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/reco/hydjet_x2_b6_d20081024/merged| 
+| hydjet_x2_b6_d20081024       | Simulation | SIM+DIGI+RAW+DIGI | 2_1_9 | 5 | Hydjet | NEW | z=2 | b=6 | /pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/digi/hydjet_x2_b6_d20081024| 
+| hydjet_x2_b6_d20081024       | Simulation | SIM | 2_1_9 | 5 | Hydjet | NEW | z=2 | b=6 | /pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/sim/hydjet_x2_b6_d20081024| 
+| hydjet_sim_x2_mb_d20080819 | Simulation | SIM | 2_1_4 | 5 | Hydjet | QGSP_EMV | z=2 | 0&lt;b&lt;30 | /pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/sim/hydjet_sim_x2_mb_d20080819| 
+| hydjet_sim_x2_mb_d20080619 | Simulation | SIM | 2_1_0_pre5 | 5 | Hydjet | QGSP_EMV | z=2 | 0&lt;b&lt;30 | /pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/sim/hydjet_sim_x2_mb_d20080619| 
+
+
