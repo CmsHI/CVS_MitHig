@@ -20,13 +20,27 @@ $first_event = $ARGV[1];
 # PARAMETERS : Edit for desired values
 
 $run = 13;
-$event_per_run = 5;
-$run_per_job = 10;
-$do_edm = 1;
+$event_per_run = 100;
+$run_per_job = 1;
 
-$tag="hydjet_x2_mb_oldPL_d20081021";
+$tag="pythia_mb_10TeV_vtxFlat_d20080823";
 
 ###########################################
+# DATASET INFO
+
+$analysis="Multiplicity";
+$version="2_1_7";
+$generator="Pythia";
+#$sim="QGSP_EMV";
+$sim="NEW";
+$vertex="-20&lt;z&lt;20";
+#$vertex="z=2";
+#$impact_parameter="0&lt;b&lt;30";
+$impact_parameter="none";
+$energy="10 TeV";
+
+###########################################
+
 
 `./makeProdDir ${tag}`;
 
@@ -142,4 +156,33 @@ for($index = 0; $index < scalar @joblist; $index = $index + $run_per_job)
     `echo >> condor`;
 
 }
+
+$event_per_file = $event_per_run*$run_per_job;
+
+$cvsdir="UserCode/MitHig/HIProd/Configuration/";
+$datasets=$cvsdir . "DataSets.txt";
+$cvscfg=$cvsdir . $tag . "_cfg.py";
+$cvsweb="http://cmssw.cvs.cern.ch/cgi-bin/cmssw.cgi/";
+$link=$cvsweb . $cvscfg;
+
+`cvs co $datasets`;
+`cat cfg1.py >> $cvscfg`;
+
+if($tag =~ /hydjet/){
+
+    `echo "| [[$link][$tag]] | $analysis | SIM+DIGI+RAW+DIGI+RECO | $version | $event_per_file | $generator | $sim | $vertex | $impact_parameter | /pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/reco/$tag/merged|" >> $datasets`;
+    `echo "| [[$link][$tag]] | $analysis | SIM+DIGI+RAW+DIGI | $version | $event_per_run | $generator | $sim | $vertex | $impact_parameter | /pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/digi/$tag|" >> $datasets`;
+    `echo "| [[$link][$tag]] | $analysis | SIM | $version | $event_per_run | $generator | $sim | $vertex | $impact_parameter | /pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/sim/$tag|" >>$datasets`;
+
+}else{
+
+    `echo "| [[$link][$tag]] | $analysis | SIM+DIGI+RAW+DIGI+RECO | $version | $event_per_file | $generator | $sim | $vertex | $impact_parameter | $energy | /pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/reco/$tag/merged|" >> $datasets`;
+    `echo "| [[$link][$tag]] | $analysis | SIM+DIGI+RAW+DIGI | $version | $event_per_run | $generator | $sim | $vertex | $impact_parameter | $energy | /pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/digi/$tag|" >> $datasets`;
+    `echo "| [[$link][$tag]] | $analysis | SIM | $version | $event_per_run | $generator | $sim | $vertex | $impact_parameter | $energy | /pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/sim/$tag|" >> $datasets`;
+
+
+}
+
+
+
 
