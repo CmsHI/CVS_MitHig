@@ -23,21 +23,21 @@ $run = 13;
 $event_per_run = 100;
 $run_per_job = 1;
 
-$tag="pythia_mb_900GeV_vtxFlat_d20080823";
+$tag="pythia_z2muons_d200800919";
 
 ###########################################
 # DATASET INFO
 
-$analysis="Multiplicity";
+$analysis="Algorithms";
 $version="2_1_7";
 $generator="Pythia";
 #$sim="QGSP_EMV";
 $sim="NEW";
-$vertex="-20&lt;z&lt;20";
-#$vertex="z=2";
+#$vertex="-20&lt;z&lt;20";
+$vertex="z=2";
 #$impact_parameter="0&lt;b&lt;30";
-$impact_parameter="none";
-$energy="900 GeV";
+#$impact_parameter="none";
+$energy="14 TeV";
 
 ###########################################
 
@@ -176,9 +176,9 @@ if($tag =~ /hydjet/){
 
 }else{
 
-    `echo "| [[$link][$tag]] | $analysis | SIM+DIGI+RAW+DIGI+RECO | $version | $event_per_file | $generator | $sim | $vertex | $impact_parameter | $energy | /pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/reco/$tag/merged|" >> $datasets`;
-    `echo "| [[$link][$tag]] | $analysis | SIM+DIGI+RAW+DIGI | $version | $event_per_run | $generator | $sim | $vertex | $impact_parameter | $energy | /pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/digi/$tag|" >> $datasets`;
-    `echo "| [[$link][$tag]] | $analysis | SIM | $version | $event_per_run | $generator | $sim | $vertex | $impact_parameter | $energy | /pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/sim/$tag|" >> $datasets`;
+    `echo "| [[$link][$tag]] | $analysis | SIM+DIGI+RAW+DIGI+RECO | $version | $event_per_file | $generator | $sim | $vertex | $energy | /pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/reco/$tag/merged|" >> $datasets`;
+    `echo "| [[$link][$tag]] | $analysis | SIM+DIGI+RAW+DIGI | $version | $event_per_run | $generator | $sim | $vertex | $energy | /pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/digi/$tag|" >> $datasets`;
+    `echo "| [[$link][$tag]] | $analysis | SIM | $version | $event_per_run | $generator | $sim | $vertex | $energy | /pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/sim/$tag|" >> $datasets`;
 
 
 }
