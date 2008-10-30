@@ -23,7 +23,7 @@ $run = 13;
 $event_per_run = 100;
 $run_per_job = 1;
 
-$tag="pythia_mb_10TeV_vtxFlat_d20080823";
+$tag="pythia_mb_900GeV_vtxFlat_d20080823";
 
 ###########################################
 # DATASET INFO
@@ -37,7 +37,7 @@ $vertex="-20&lt;z&lt;20";
 #$vertex="z=2";
 #$impact_parameter="0&lt;b&lt;30";
 $impact_parameter="none";
-$energy="10 TeV";
+$energy="900 GeV";
 
 ###########################################
 
@@ -163,7 +163,7 @@ $cvsdir="UserCode/MitHig/HIProd/Configuration/";
 $datasets=$cvsdir . "DataSets.txt";
 $cvscfg=$cvsdir . $tag . "_cfg.py";
 $cvsweb="http://cmssw.cvs.cern.ch/cgi-bin/cmssw.cgi/";
-$link=$cvsweb . $cvscfg;
+$link=$cvsweb . $cvscfg . "?view=markup";
 
 `cvs co $datasets`;
 `cat cfg1.py >> $cvscfg`;
