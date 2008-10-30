@@ -62,7 +62,7 @@ while($event <= $last_event){
     $grandrunnum = `printf "%06d" $event`;
     $random = int(rand(999999));
     
-    `cat cfg1.py |sed "s/__MAXEVENTS__/$event_per_run/g" | sed "s/__SKIP__/$skip/g" | sed "s/__OUTPUT__/${grandrunnum}_1.root/g" | sed "s/__RANDOM__/$random/g" | sed "s/__MIX__/$backgroundlist[$background]/g" | sed "s/__INPUT__/$signalfile/g" | sed "s/__LIST__/$grandrunnum/g" | sed "s/__FIRSTEVENT__/$first_event/g" | sed "s/__RUN__/$run/g" >> ${grandrunnum}_cfg1.py`;
+    `cat cfg1.py |sed "s/__MAXEVENTS__/$event_per_run/g" | sed "s/__SKIP__/$skip/g" | sed "s/__OUTPUT__/${grandrunnum}_1.root/g" | sed "s/__RANDOM__/$random/g" | sed "s/__MIX__/$backgroundlist[$background]/g" | sed "s/__INPUT__/$signalfile/g" | sed "s/__LIST__/$grandrunnum/g" | sed "s/__FIRSTEVENT__/$event/g" | sed "s/__RUN__/$run/g" >> ${grandrunnum}_cfg1.py`;
     `cat cfg2.py | sed "s/__OUTPUT__/${grandrunnum}_2.root/g" | sed "s/__RANDOM__/$random/g" | sed "s/__MIX__/$backgroundlist[$background]/g" | sed "s/__INPUT__/${grandrunnum}_1.root/g" >> ${grandrunnum}_cfg2.py`;
     `cat cfg3.py | sed "s/__OUTPUT__/${grandrunnum}_3.root/g" | sed "s/__RANDOM__/$random/g" | sed "s/__MIX__/$backgroundlist[$background]/g" | sed "s/__INPUT__/${grandrunnum}_2.root/g" >> ${grandrunnum}_cfg3.py`;
     `cat cfg4.py | sed "s/__OUTPUT__/${grandrunnum}_4.root/g" | sed "s/__RANDOM__/$random/g" | sed "s/__MIX__/$backgroundlist[$background]/g" | sed "s/__INPUT__/${grandrunnum}_3.root/g" >> ${grandrunnum}_cfg4.py`;
