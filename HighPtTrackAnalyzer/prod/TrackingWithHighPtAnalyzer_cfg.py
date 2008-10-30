@@ -12,13 +12,13 @@ process.load("Configuration.StandardSequences.Digi_cff")
 process.load("SimGeneral.TrackingAnalysis.trackingParticles_cfi")
 process.load("SimTracker.TrackAssociation.TrackAssociatorByHits_cfi")
 
-process.load("RecoLocalTracker.Configuration.RecoLocalTracker_SimData_cff")
-#process.load("RecoLocalTracker.Configuration.RecoLocalTracker_cff")
-
 process.load("RecoVertex.BeamSpotProducer.BeamSpot_cfi")
 process.load("RecoVertex.BeamSpotProducer.BeamSpotFakeConditionsEarlyCollision_cff")
 #process.load("HeavyIonsAnalysis.Configuration.HeavyIonTracking_cff")
 process.load("HeavyIonsAnalysis.Configuration.HighPtTracking_PbPb_cff")
+
+process.load("MitHig.Configuration.RecoLocalTracker_SimData_cff")
+#process.load("RecoLocalTracker.Configuration.RecoLocalTracker_cff")
 
 ###############################################################################
 # Message logger
