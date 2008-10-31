@@ -8,6 +8,8 @@ $tag="__TAG__";
 @dir=("gen","sim","mix","digi","reco","time");
 
 $maxtry=2;
+$maybe_merge="";
+#$maybe_merge="/merged";
 
 chomp @ARGV;
 $localdir=`pwd`;
@@ -26,10 +28,10 @@ for($num = 0; $num < scalar @ARGV; $num++){
 	$done = 0;
 	$try = 0;
 	while($done == 0 && $try < $maxtry){
-	    $input=`ls $outdir/$dir[${step}]/${tag}/${tag}_r${runnum}.root`;
+	    $input=`ls $outdir/$dir[${step}]/${tag}/${maybe_merge}${tag}_r${runnum}.root`;
 	    $nextstep = $step+1;
 	    if($step == 2){
-		$input=`ls $outdir/$dir[${nextstep}]/${tag}/${tag}_r${runnum}.root`;
+		$input=`ls $outdir/$dir[${nextstep}]/${tag}/${maybe_merge}${tag}_r${runnum}.root`;
 	    }
 	    chomp $input;
 	    if($input eq "$outdir/$dir[${step}]/${tag}/${tag}_r${runnum}.root"){
