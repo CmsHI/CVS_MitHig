@@ -9,7 +9,7 @@ $tag="__TAG__";
 
 $maxtry=2;
 $maybe_merge="";
-#$maybe_merge="/merged";
+#$maybe_merge="merged/"; #should be uncommented if the input itself is from the merged directory
 
 chomp @ARGV;
 $localdir=`pwd`;
@@ -27,6 +27,9 @@ for($num = 0; $num < scalar @ARGV; $num++){
     for($step = 1; $step <= 5; $step++){ 
 	$done = 0;
 	$try = 0;
+	if($step == 5){
+	    $input=`ls $outdir/$dir[${nextstep}]/${tag}/${maybe_merge}${tag}_r${runnum}.root`;
+	}
 	while($done == 0 && $try < $maxtry){
 	    $input=`ls $outdir/$dir[${step}]/${tag}/${maybe_merge}${tag}_r${runnum}.root`;
 	    $nextstep = $step+1;
@@ -80,7 +83,7 @@ sub assert
 	`mv $edm $edm.bad`;
 
          # was this file retrieved form dcache? clean it
-	if($input eq "$outdir/$dir[${step}]/${tag}/${tag}_r${runnum}.root"){
+	if($input eq "$outdir/$dir[${step}]/${tag}/${maybe_merge}${tag}_r${runnum}.root"){
 	    print "File for this run exists in dcache but corrupted. Deleting... \n";
 	    print "rm $input \n";	
 	    `rm $input`;

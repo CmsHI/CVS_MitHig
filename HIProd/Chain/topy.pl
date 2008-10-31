@@ -157,6 +157,9 @@ for($index = 0; $index < scalar @joblist; $index = $index + $run_per_job)
 
 }
 
+`cp condor ${work_dest}`;
+
+
 $event_per_file = $event_per_run*$run_per_job;
 
 $cvsdir="UserCode/MitHig/HIProd/Configuration/";

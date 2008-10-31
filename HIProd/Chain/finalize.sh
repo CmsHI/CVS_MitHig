@@ -2,7 +2,8 @@
 
 tag=$1
 run=$2
-output_dest="/pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/reco/$tag/merged"
+tier=reco
+output_dest="/pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/$tier/$tag/merged"
 
 cmsRun merge_cfg.py 1> merge.out 2>merge.err
 

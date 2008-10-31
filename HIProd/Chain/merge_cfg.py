@@ -31,9 +31,21 @@ process.SimpleMemoryCheck = cms.Service("SimpleMemoryCheck",
     ignoreTotal = cms.untracked.int32(0)
 )
 
+myOutputCommands = cms.untracked.vstring('keep *',
+                                         'drop *Digi*_*_*_*',
+                                         'keep *_*sim*Digi*_*_*',
+                                         'drop *CrossingFrame*_*_*_*',
+                                         'drop *Raw*_*_*_*',
+                                         'drop *_*_*_RECO'
+                                         )
+
+
 process.output = cms.OutputModule("PoolOutputModule",
-    fileName = cms.untracked.string('__OUTPUT__')
-)
+                                  outputCommands = cms.untracked.vstring(),
+                                  fileName = cms.untracked.string('__OUTPUT__')
+                                  )
+
+process.output.outputCommands = myOutputCommands
 
 process.outpath = cms.EndPath(process.output)
 
