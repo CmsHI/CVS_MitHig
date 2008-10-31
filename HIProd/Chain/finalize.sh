@@ -11,8 +11,8 @@ if test -e $output; then
     edmEventSize $output
     check_file=$?
     if [ $check_file = "0" ]; then
-	echo /opt/dcap/bin/dccp $output $output_dest/${tag}_$run.root
-	/opt/dcap/bin/dccp $output $output_dest/${tag}_$run.root
+	echo /opt/dcap/bin/dccp $output $output_dest/${tag}_r$run.root
+	/opt/dcap/bin/dccp $output $output_dest/${tag}_r$run.root
 	echo "File copied to Output Directory : $output" >&2
     else
 	echo "Bad File : $output" >&2
