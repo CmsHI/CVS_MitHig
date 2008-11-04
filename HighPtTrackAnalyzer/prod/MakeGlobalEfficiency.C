@@ -31,7 +31,7 @@ Float_t fb=0;
 
 Bool_t dBug=kFALSE;
 
-MakeGlobalEfficiecny(Float_t fPtLowCutOffT=1.0,Float_t fEtaCutOffT=0.5,Float_t fHitMatchCutT=0.80,Float_t fbT=0,Float_t fHitsCutOffT=8,Float_t fPxlLayersCutOffT=3){
+MakeGlobalEfficiency(Float_t fPtLowCutOffT=1.0,Float_t fEtaCutOffT=0.5,Float_t fHitMatchCutT=0.80,Float_t fbT=0,Float_t fHitsCutOffT=8,Float_t fPxlLayersCutOffT=3){
 
 
   gSystem->Load("$CMSSW_BASE/lib/$SCRAM_ARCH/libMitHigMatchedTrack.so");
