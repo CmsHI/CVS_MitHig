@@ -58,8 +58,7 @@ $event = $first_event;
 
 while($event <= $last_event){
 
-#   $grandrunnum = `printf "%03d_%06d" $folder $event`;
-    $grandrunnum = `printf "%06d" $event`;
+    $grandrunnum = `printf "%06d" $folder`;
     $random = int(rand(999999));
     
     `cat cfg1.py |sed "s/__MAXEVENTS__/$event_per_run/g" | sed "s/__SKIP__/$skip/g" | sed "s/__OUTPUT__/${grandrunnum}_1.root/g" | sed "s/__RANDOM__/$random/g" | sed "s/__MIX__/$backgroundlist[$background]/g" | sed "s/__INPUT__/$signalfile/g" | sed "s/__LIST__/$grandrunnum/g" | sed "s/__FIRSTEVENT__/$event/g" | sed "s/__RUN__/$run/g" >> ${grandrunnum}_cfg1.py`;
@@ -68,15 +67,9 @@ while($event <= $last_event){
     `cat cfg4.py | sed "s/__OUTPUT__/${grandrunnum}_4.root/g" | sed "s/__RANDOM__/$random/g" | sed "s/__MIX__/$backgroundlist[$background]/g" | sed "s/__INPUT__/${grandrunnum}_3.root/g" >> ${grandrunnum}_cfg4.py`;
     `cat cfg5.py | sed "s/__OUTPUT__/${grandrunnum}_5.root/g" | sed "s/__RANDOM__/$random/g" | sed "s/__MIX__/$backgroundlist[$background]/g" | sed "s/__INPUT__/${grandrunnum}_4.root/g" >> ${grandrunnum}_cfg5.py`;
 
-    $dummy++;
     push @joblist, $grandrunnum;
     
-    if($dummy == $run_per_job)
-    {
-	$dummy = 0;
-	$folder++;
-    }
-
+    $folder++;
     $event = $event + $event_per_run;
 }
 
