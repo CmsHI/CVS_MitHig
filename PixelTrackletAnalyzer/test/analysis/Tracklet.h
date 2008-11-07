@@ -37,6 +37,10 @@ class Tracklet
       int    getId1() { return id1_; }
       int    getId2() { return id2_; }
 
+      int genid;
+      float pt;
+      float eta;
+      float phi;
 
    private:
 
@@ -67,6 +71,13 @@ Tracklet::Tracklet(double eta1, double eta2, double phi1, double phi2) {
 
    phi2_ = phi2;
    while (phi2_>2*PI) phi2_-=2*PI;
+
+   genid = -9999;
+   pt = -9999;
+   eta = -9999;
+   phi = -9999;
+   
+
 }
 
 double Tracklet::dphi() 
@@ -115,6 +126,20 @@ vector<Tracklet> recoProtoTracklets(vector<RecoHit> hits1, vector<RecoHit> hits2
 	  Tracklet mytracklet(hits1[i].eta,hits2[j].eta,hits1[i].phi,hits2[j].phi);
 	  mytracklet.setIt1(i);
 	  mytracklet.setIt2(j);
+
+	  mytracklet.genid = -9999;
+
+	  //	  cout<<"GenIds : "<<hits1[i].genid<<"     "<<hits2[j].genid<<endl;
+          if(hits1[i].genid == hits2[j].genid && hits1[i].genid != -9999){
+
+	    //	    cout<<"Filling"<<endl;
+
+            mytracklet.genid = hits1[i].genid;
+            mytracklet.eta = hits1[i].geneta;
+            mytracklet.phi = hits1[i].genphi;
+            mytracklet.pt = hits1[i].genpt;
+          }
+
 	  protoTracklets.push_back(mytracklet);
 	}
     }
@@ -134,7 +159,7 @@ vector<Tracklet> cleanTracklets(vector<Tracklet> input, int matchNumber,Selectio
   if (cuts.verbose_) {
     for (unsigned int i = 0; i < input.size(); i++)
       {
-	cout <<input[i].deta()<<" "<<input[i].getIt1()<<" "<<input[i].getIt2()<<endl;
+	//	cout <<input[i].deta()<<" "<<input[i].getIt1()<<" "<<input[i].getIt2()<<endl;
       }
   }
 
@@ -145,10 +170,9 @@ vector<Tracklet> cleanTracklets(vector<Tracklet> input, int matchNumber,Selectio
     used1[i]=0;
     used2[i]=0;
   }
-  if (cuts.verbose_) cout<<"Printing Hits"<<endl;
+  //  if (cuts.verbose_) cout<<"Printing Hits"<<endl;
 
   for (unsigned int i = 0; i < input.size(); i++){
-
 
     if(cuts.useDeltaPhi_)
       if (cuts.verbose_) cout<<"Eta 1 : "<<input[i].eta1()<<"  ; Eta 2 : "<<input[i].eta2()<<" ;  Delta R : "<<input[i].dR()<<endl;
