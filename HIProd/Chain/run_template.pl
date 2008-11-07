@@ -65,7 +65,7 @@ sub assert
     if($? == 0){
         foreach $line2 (@edmsizes)
         {
-            if($line2 =~ /edmHepMCProduct/)
+            if($line2 =~ /Events __EVENTS__/)
             {
                 $foundedm = 1;
                 last;

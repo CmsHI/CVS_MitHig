@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 
-# parameter: 1. event list directory.  The files has to named in numbers
-#            2. background files
+# parameter: 1. Number of events
+#            2. Number of first event 
 #
 # for template configuration files, assume template_cfg.py
 
@@ -11,7 +11,6 @@ chomp $ARGV[2];
 # @filelist = `ls $ARGV[0]`;
 
 $number_of_events = $ARGV[0];
-
 $first_event = $ARGV[1];
 
 @joblist = ();
@@ -25,20 +24,7 @@ $run_per_job = 1;
 
 $tag="pythia_z2muons_d200800919";
 
-###########################################
-# DATASET INFO
-
-$analysis="Algorithms";
-$version="2_1_7";
-$generator="Pythia";
-#$sim="QGSP_EMV";
-$sim="NEW";
-#$vertex="-20&lt;z&lt;20";
-$vertex="z=2";
-#$impact_parameter="0&lt;b&lt;30";
-#$impact_parameter="none";
-$energy="14 TeV";
-
+$rerun=0;
 ###########################################
 
 
@@ -59,18 +45,20 @@ $event = $first_event;
 while($event <= $last_event){
 
     $grandrunnum = `printf "%06d" $folder`;
-    $random = int(rand(999999));
-    
-    `cat cfg1.py |sed "s/__MAXEVENTS__/$event_per_run/g" | sed "s/__SKIP__/$skip/g" | sed "s/__OUTPUT__/${grandrunnum}_1.root/g" | sed "s/__RANDOM__/$random/g" | sed "s/__MIX__/$backgroundlist[$background]/g" | sed "s/__INPUT__/$signalfile/g" | sed "s/__LIST__/$grandrunnum/g" | sed "s/__FIRSTEVENT__/$event/g" | sed "s/__RUN__/$run/g" >> ${grandrunnum}_cfg1.py`;
-    `cat cfg2.py | sed "s/__OUTPUT__/${grandrunnum}_2.root/g" | sed "s/__RANDOM__/$random/g" | sed "s/__MIX__/$backgroundlist[$background]/g" | sed "s/__INPUT__/${grandrunnum}_1.root/g" >> ${grandrunnum}_cfg2.py`;
-    `cat cfg3.py | sed "s/__OUTPUT__/${grandrunnum}_3.root/g" | sed "s/__RANDOM__/$random/g" | sed "s/__MIX__/$backgroundlist[$background]/g" | sed "s/__INPUT__/${grandrunnum}_2.root/g" >> ${grandrunnum}_cfg3.py`;
-    `cat cfg4.py | sed "s/__OUTPUT__/${grandrunnum}_4.root/g" | sed "s/__RANDOM__/$random/g" | sed "s/__MIX__/$backgroundlist[$background]/g" | sed "s/__INPUT__/${grandrunnum}_3.root/g" >> ${grandrunnum}_cfg4.py`;
-    `cat cfg5.py | sed "s/__OUTPUT__/${grandrunnum}_5.root/g" | sed "s/__RANDOM__/$random/g" | sed "s/__MIX__/$backgroundlist[$background]/g" | sed "s/__INPUT__/${grandrunnum}_4.root/g" >> ${grandrunnum}_cfg5.py`;
 
-    push @joblist, $grandrunnum;
+    if($rerun==1){
+	$random = int(rand(999999));
+	
+	`cat cfg1.py |sed "s/__MAXEVENTS__/$event_per_run/g" | sed "s/__SKIP__/$skip/g" | sed "s/__OUTPUT__/${grandrunnum}_1.root/g" | sed "s/__RANDOM__/$random/g" | sed "s/__MIX__/$backgroundlist[$background]/g" | sed "s/__INPUT__/$signalfile/g" | sed "s/__LIST__/$grandrunnum/g" | sed "s/__FIRSTEVENT__/$event/g" | sed "s/__RUN__/$run/g" >> ${grandrunnum}_cfg1.py`;
+	`cat cfg2.py | sed "s/__OUTPUT__/${grandrunnum}_2.root/g" | sed "s/__RANDOM__/$random/g" | sed "s/__MIX__/$backgroundlist[$background]/g" | sed "s/__INPUT__/${grandrunnum}_1.root/g" >> ${grandrunnum}_cfg2.py`;
+	`cat cfg3.py | sed "s/__OUTPUT__/${grandrunnum}_3.root/g" | sed "s/__RANDOM__/$random/g" | sed "s/__MIX__/$backgroundlist[$background]/g" | sed "s/__INPUT__/${grandrunnum}_2.root/g" >> ${grandrunnum}_cfg3.py`;
+	`cat cfg4.py | sed "s/__OUTPUT__/${grandrunnum}_4.root/g" | sed "s/__RANDOM__/$random/g" | sed "s/__MIX__/$backgroundlist[$background]/g" | sed "s/__INPUT__/${grandrunnum}_3.root/g" >> ${grandrunnum}_cfg4.py`;
+	`cat cfg5.py | sed "s/__OUTPUT__/${grandrunnum}_5.root/g" | sed "s/__RANDOM__/$random/g" | sed "s/__MIX__/$backgroundlist[$background]/g" | sed "s/__INPUT__/${grandrunnum}_4.root/g" >> ${grandrunnum}_cfg5.py`;
+	$event = $event + $event_per_run;
+    }
     
+    push @joblist, $grandrunnum;
     $folder++;
-    $event = $event + $event_per_run;
 }
 
 `cp condor_backup condor`;
@@ -80,11 +68,13 @@ $index = 0;
 for($index = 0; $index < scalar @joblist; $index = $index + $run_per_job)
 {
     
-    `mkdir $work_dest/$joblist[$index]`;
-    `cat run_template.pl | sed "s/__TAG__/${tag}/g" > $work_dest/$joblist[$index]/run_$joblist[$index].pl`;
-    `cp check.pl $work_dest/$joblist[$index]/`;
-    `cp finalize.sh $work_dest/$joblist[$index]/`;
-
+    if(rerun==1){
+	`mkdir $work_dest/$joblist[$index]`;
+	`cat run_template.pl | sed "s/__TAG__/${tag}/g" > $work_dest/$joblist[$index]/run_$joblist[$index].pl`;
+	`cp check.pl $work_dest/$joblist[$index]/`;
+	`cp finalize.sh $work_dest/$joblist[$index]/`;
+    }
+	
     @inputfilelist = ();
     
     $filelist = "";
@@ -93,12 +83,13 @@ for($index = 0; $index < scalar @joblist; $index = $index + $run_per_job)
     {
 	if($index2 + $index < scalar @joblist)
 	{
-	    `mv $joblist[$index2+$index]_cfg1.py $work_dest/$joblist[$index]`;
-	    `mv $joblist[$index2+$index]_cfg2.py $work_dest/$joblist[$index]`;
-            `mv $joblist[$index2+$index]_cfg3.py $work_dest/$joblist[$index]`;
-            `mv $joblist[$index2+$index]_cfg4.py $work_dest/$joblist[$index]`;
-            `mv $joblist[$index2+$index]_cfg5.py $work_dest/$joblist[$index]`;
-	    
+	    if(rerun==1){
+		`mv $joblist[$index2+$index]_cfg1.py $work_dest/$joblist[$index]`;
+		`mv $joblist[$index2+$index]_cfg2.py $work_dest/$joblist[$index]`;
+		`mv $joblist[$index2+$index]_cfg3.py $work_dest/$joblist[$index]`;
+		`mv $joblist[$index2+$index]_cfg4.py $work_dest/$joblist[$index]`;
+		`mv $joblist[$index2+$index]_cfg5.py $work_dest/$joblist[$index]`;
+	    }	    
 	    push @inputfilelist, $joblist[$index+$index2];
 	    
 	    if($index2 > 0)
@@ -110,7 +101,6 @@ for($index = 0; $index < scalar @joblist; $index = $index + $run_per_job)
 	}
     }
         
-#    $merged_output = $tag . "_r" . $grandrunnum . ".root";
     $merged_output="merged.root";
     `cat merge_cfg.py | sed "s/__OUTPUT__/$merged_output/g" | sed "s/__INPUT__/$filelist/g" > $work_dest/$joblist[$index]/merge_cfg.py`;
     
@@ -136,7 +126,6 @@ for($index = 0; $index < scalar @joblist; $index = $index + $run_per_job)
     `echo "perl run_$joblist[$index].pl $filestring" >> $work_dest/$joblist[$index]/run_$joblist[$index].sh`;
 
     `echo "./finalize.sh $tag $joblist[$index]" >> $work_dest/$joblist[$index]/run_$joblist[$index].sh`;
-#    `echo "cmsRun merge_cfg.py 1> merge.out 2>merge.err" >> $work_dest/$joblist[$index]/run_$joblist[$index].sh`;
 
     `echo "edm=$do_edm" >>$work_dest/$joblist[$index]/run_$joblist[$index].sh`;
     `echo "hidout=hid_$joblist[$index].root" >> $work_dest/$joblist[$index]/run_$joblist[$index].sh`;
@@ -151,31 +140,6 @@ for($index = 0; $index < scalar @joblist; $index = $index + $run_per_job)
 }
 
 `cp condor ${work_dest}`;
-
-
-$event_per_file = $event_per_run*$run_per_job;
-
-$cvsdir="UserCode/MitHig/HIProd/Configuration/";
-$datasets=$cvsdir . "DataSets.txt";
-$cvscfg=$cvsdir . $tag . "_cfg.py";
-$cvsweb="http://cmssw.cvs.cern.ch/cgi-bin/cmssw.cgi/";
-$link=$cvsweb . $cvscfg . "?view=markup";
-
-`cvs co $datasets`;
-`cat cfg1.py >> $cvscfg`;
-
-if($tag =~ /hydjet/){
-
-    `echo "| [[$link][$tag]] | $analysis | SIM+DIGI+RAW+DIGI+RECO | $version | $event_per_file | $generator | $sim | $vertex | $impact_parameter | /pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/reco/$tag/merged|" >> $datasets`;
-    `echo "| [[$link][$tag]] | $analysis | SIM+DIGI+RAW+DIGI | $version | $event_per_run | $generator | $sim | $vertex | $impact_parameter | /pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/digi/$tag|" >> $datasets`;
-    `echo "| [[$link][$tag]] | $analysis | SIM | $version | $event_per_run | $generator | $sim | $vertex | $impact_parameter | /pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/sim/$tag|" >>$datasets`;
-
-}else{
-
-    `echo "| [[$link][$tag]] | $analysis | SIM+DIGI+RAW+DIGI+RECO | $version | $event_per_file | $generator | $sim | $vertex | $energy | /pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/reco/$tag/merged|" >> $datasets`;
-    `echo "| [[$link][$tag]] | $analysis | SIM+DIGI+RAW+DIGI | $version | $event_per_run | $generator | $sim | $vertex | $energy | /pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/digi/$tag|" >> $datasets`;
-    `echo "| [[$link][$tag]] | $analysis | SIM | $version | $event_per_run | $generator | $sim | $vertex | $energy | /pnfs/cmsaf.mit.edu/hibat/cms/users/yetkin/sim/$tag|" >> $datasets`;
-
 
 }
 
