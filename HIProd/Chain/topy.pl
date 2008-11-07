@@ -46,7 +46,7 @@ while($event <= $last_event){
 
     $grandrunnum = `printf "%06d" $folder`;
 
-    if($rerun==1){
+    if($rerun==0){
 	$random = int(rand(999999));
 	
 	`cat cfg1.py |sed "s/__MAXEVENTS__/$event_per_run/g" | sed "s/__SKIP__/$skip/g" | sed "s/__OUTPUT__/${grandrunnum}_1.root/g" | sed "s/__RANDOM__/$random/g" | sed "s/__MIX__/$backgroundlist[$background]/g" | sed "s/__INPUT__/$signalfile/g" | sed "s/__LIST__/$grandrunnum/g" | sed "s/__FIRSTEVENT__/$event/g" | sed "s/__RUN__/$run/g" >> ${grandrunnum}_cfg1.py`;
@@ -68,11 +68,17 @@ $index = 0;
 for($index = 0; $index < scalar @joblist; $index = $index + $run_per_job)
 {
     
-    if(rerun==1){
+    if(rerun==0){
 	`mkdir $work_dest/$joblist[$index]`;
 	`cat run_template.pl | sed "s/__TAG__/${tag}/g" > $work_dest/$joblist[$index]/run_$joblist[$index].pl`;
 	`cp check.pl $work_dest/$joblist[$index]/`;
 	`cp finalize.sh $work_dest/$joblist[$index]/`;
+    }else{
+	`rm $work_dest/$joblist[$index]/*.*.*`;
+        `rm $work_dest/$joblist[$index]/*.hist`;
+        `rm $work_dest/$joblist[$index]/*.err`;
+        `rm $work_dest/$joblist[$index]/*.out`;
+        `rm $work_dest/$joblist[$index]/*.root`;
     }
 	
     @inputfilelist = ();
@@ -83,7 +89,7 @@ for($index = 0; $index < scalar @joblist; $index = $index + $run_per_job)
     {
 	if($index2 + $index < scalar @joblist)
 	{
-	    if(rerun==1){
+	    if(rerun==0){
 		`mv $joblist[$index2+$index]_cfg1.py $work_dest/$joblist[$index]`;
 		`mv $joblist[$index2+$index]_cfg2.py $work_dest/$joblist[$index]`;
 		`mv $joblist[$index2+$index]_cfg3.py $work_dest/$joblist[$index]`;
