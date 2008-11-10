@@ -39,8 +39,9 @@ $work_dest = "DataFrom" . $first_event . "To" . $last_event;
 `mkdir $work_dest`;
 
 $dummy = 0;
-$folder = 1;
+
 $event = $first_event;
+$folder = $event;
 
 while($event <= $last_event){
 
@@ -54,9 +55,8 @@ while($event <= $last_event){
 	`cat cfg3.py | sed "s/__OUTPUT__/${grandrunnum}_3.root/g" | sed "s/__RANDOM__/$random/g" | sed "s/__MIX__/$backgroundlist[$background]/g" | sed "s/__INPUT__/${grandrunnum}_2.root/g" >> ${grandrunnum}_cfg3.py`;
 	`cat cfg4.py | sed "s/__OUTPUT__/${grandrunnum}_4.root/g" | sed "s/__RANDOM__/$random/g" | sed "s/__MIX__/$backgroundlist[$background]/g" | sed "s/__INPUT__/${grandrunnum}_3.root/g" >> ${grandrunnum}_cfg4.py`;
 	`cat cfg5.py | sed "s/__OUTPUT__/${grandrunnum}_5.root/g" | sed "s/__RANDOM__/$random/g" | sed "s/__MIX__/$backgroundlist[$background]/g" | sed "s/__INPUT__/${grandrunnum}_4.root/g" >> ${grandrunnum}_cfg5.py`;
-	$event = $event + $event_per_run;
     }
-    
+    $event = $event + $event_per_run;
     push @joblist, $grandrunnum;
     $folder++;
 }
@@ -68,7 +68,7 @@ $index = 0;
 for($index = 0; $index < scalar @joblist; $index = $index + $run_per_job)
 {
     
-    if(rerun==0){
+    if($rerun==0){
 	`mkdir $work_dest/$joblist[$index]`;
 	`cat run_template.pl | sed "s/__TAG__/${tag}/g" > $work_dest/$joblist[$index]/run_$joblist[$index].pl`;
 	`cp check.pl $work_dest/$joblist[$index]/`;
@@ -89,7 +89,7 @@ for($index = 0; $index < scalar @joblist; $index = $index + $run_per_job)
     {
 	if($index2 + $index < scalar @joblist)
 	{
-	    if(rerun==0){
+	    if($rerun==0){
 		`mv $joblist[$index2+$index]_cfg1.py $work_dest/$joblist[$index]`;
 		`mv $joblist[$index2+$index]_cfg2.py $work_dest/$joblist[$index]`;
 		`mv $joblist[$index2+$index]_cfg3.py $work_dest/$joblist[$index]`;
@@ -147,7 +147,7 @@ for($index = 0; $index < scalar @joblist; $index = $index + $run_per_job)
 
 `cp condor ${work_dest}`;
 
-}
+
 
 
 
