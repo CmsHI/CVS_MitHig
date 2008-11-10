@@ -9,7 +9,7 @@ cmsRun merge_cfg.py 1> merge.out 2>merge.err
 
 output=merged.root
 if test -e $output; then
-    edmEventSize $output
+    edmEventSize -v $output
     check_file=$?
     if [ $check_file = "0" ]; then
 	echo /opt/dcap/bin/dccp $output $output_dest/${tag}_r$run.root
@@ -25,6 +25,7 @@ else
 fi
 
 rm *.root
+tar cvfz output.tgz *.* 
 
 
 
