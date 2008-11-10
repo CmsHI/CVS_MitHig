@@ -41,7 +41,7 @@ $work_dest = "DataFrom" . $first_event . "To" . $last_event;
 $dummy = 0;
 
 $event = $first_event;
-$folder = $event;
+$folder = (($first_event - 1) / $event_per_run) + 1;
 
 while($event <= $last_event){
 
