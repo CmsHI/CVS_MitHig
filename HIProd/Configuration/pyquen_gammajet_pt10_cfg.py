@@ -81,7 +81,7 @@ process.source = cms.Source("PyquenSource",
             'MSUB(115)=1'),
         parameterSets = cms.vstring('pythiaDefault', 
             'csa08Settings', 
-            'pythiaJets', 
+#            'pythiaJets', # Only Photons!
             'pythiaPromptPhotons', 
             'kinematics', 
             'multipleScatter'),
@@ -89,7 +89,7 @@ process.source = cms.Source("PyquenSource",
             'CKIN(4)=9999', 
             'CKIN(7)=-4.', 
             'CKIN(8)=4.'),
-        multipleScatter = cms.vstring('MSTP(81)=0')
+        multipleScatter = cms.vstring('MSTP(81)=0') # MPI Off
     ),
     qgpProperTimeFormation = cms.double(0.1),
     comEnergy = cms.double(5500),
@@ -116,30 +116,7 @@ process.output = cms.OutputModule("PoolOutputModule",
 # Additional output definition
 
 # Other statements
-process.GlobalTag.globaltag = 'STARTUP_V5::All'
-process.ecaltrig = cms.EDFilter("MCSingleParticleFilter",
-    Status = cms.untracked.vint32(1, 1, 1, 1, 1, 
-        1, 1, 1, 1, 1, 
-        1, 1, 1, 1, 1, 
-        1),
-    MaxEta = cms.untracked.vdouble(3, 3, 3, 3, 3, 
-        3, 3, 3, 3, 3, 
-        3, 3, 3, 3, 3, 
-        3),
-    MinEta = cms.untracked.vdouble(-3, -3, -3, -3, -3, 
-        -3, -3, -3, -3, -3, 
-        -3, -3, -3, -3, -3, 
-        -3),
-    MinPt = cms.untracked.vdouble(10, 10, 10, 10, 10, 
-        10, 10, 10, 10, 10, 
-        10, 10, 10, 10, 10, 
-        10),
-    ParticleID = cms.untracked.vint32(221, -221, 331, -331, 223, 
-        -223, 221, -221, 331, -331, 
-        11, -11, 311, -311, 22, 
-        -22)
-)
-process.ProductionFilterSequence = cms.Sequence(process.ecaltrig)
+process.GlobalTag.globaltag = 'IDEAL_V9::All'
 
 process.VtxSmeared.MinX = 0.0001
 process.VtxSmeared.MaxX = 0.0001
@@ -148,11 +125,12 @@ process.VtxSmeared.MaxY = 0.0002
 process.VtxSmeared.MinZ = 2.
 process.VtxSmeared.MaxZ = 2.
 
+# pgen re-defined to exclude all genJets
 process.pgenhi = cms.Sequence(cms.SequencePlaceholder("randomEngineStateProducer")+process.VertexSmearing+process.GeneInfo)
 
 # Path and EndPath definitions
-process.generation_step = cms.Path(process.ProductionFilterSequence*process.pgenhi)
-process.simulation_step = cms.Path(process.ProductionFilterSequence*process.psim)
+process.generation_step = cms.Path(process.pgenhi)
+process.simulation_step = cms.Path(process.psim)
 process.out_step = cms.EndPath(process.output)
 
 # Schedule definition

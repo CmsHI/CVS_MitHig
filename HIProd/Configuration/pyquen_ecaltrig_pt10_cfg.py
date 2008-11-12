@@ -116,7 +116,7 @@ process.output = cms.OutputModule("PoolOutputModule",
 # Additional output definition
 
 # Other statements
-process.GlobalTag.globaltag = 'STARTUP_V5::All'
+process.GlobalTag.globaltag = 'IDEAL_V9::All'
 process.ecaltrig = cms.EDFilter("MCSingleParticleFilter",
     Status = cms.untracked.vint32(1, 1, 1, 1, 1, 
         1, 1, 1, 1, 1, 
