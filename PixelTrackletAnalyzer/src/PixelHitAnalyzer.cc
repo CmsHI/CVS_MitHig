@@ -62,9 +62,11 @@ using namespace reco;
 // class decleration
 //
 
-#define MAXPARTICLES 1000
-#define MAXHITS 1000
-#define MAXVTX 10
+#define PI 3.14159265358979
+
+#define MAXPARTICLES 500000
+#define MAXHITS 50000
+#define MAXVTX 100
 
 struct PixelEvent{
    int nhits1;
@@ -197,9 +199,12 @@ PixelHitAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
 
    map<int,int>::iterator begin = tpmap_.begin();
    map<int,int>::iterator end = tpmap_.end();
+
+   /*
    for(map<int,int>::iterator it = begin; it != end; ++it){
       cout<<"Barcode : "<<(*it).first<<" Particle : "<<(*it).second<<endl;
    } 
+   */
 
    pixelTree_->Fill();
 
@@ -245,7 +250,7 @@ PixelHitAnalyzer::fillVertices(const edm::Event& iEvent){
       for (unsigned int i = 0 ; i< recoVertices->size(); ++i){
 	 daughter = (*recoVertices)[i].tracksSize();
 	 if( daughter > (*recoVertices)[greatestvtx].tracksSize()) greatestvtx = i;
-         cout <<"Vertex: "<< (*recoVertices)[i].position().z()<<" "<<daughter<<endl;
+	 //         cout <<"Vertex: "<< (*recoVertices)[i].position().z()<<" "<<daughter<<endl;
       }
       
       if(recoVertices->size()>0){
@@ -253,7 +258,7 @@ PixelHitAnalyzer::fillVertices(const edm::Event& iEvent){
       }else{
 	 pev_.vz[pev_.nv] =  -99;
       }
-      cout <<"==>Primary Vertex: "<<pev_.vz[pev_.nv]<<" "<<greatestvtx<<" "<<endl;
+      //      cout <<"==>Primary Vertex: "<<pev_.vz[pev_.nv]<<" "<<greatestvtx<<" "<<endl;
       pev_.nv++;
    }
 
@@ -261,6 +266,9 @@ PixelHitAnalyzer::fillVertices(const edm::Event& iEvent){
 
 void
 PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
+
+   double matchEtaMax = 0.005;
+   double matchPhiMax = 0.01;
 
    TrackerHitAssociator theHitAssociator(iEvent);
    if(doMC_)iEvent.getByLabel("mergedtruth","MergedTrackTruth",trackingParticles);
@@ -285,7 +293,7 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
 
 	    const SiPixelRecHit* recHit1 = &*recHit;
 
-	    cout<<"For the same hit : -------------------"<<endl;
+	    //	    cout<<"For the same hit : -------------------"<<endl;
 
             // GEOMETRY INFO                        
 
@@ -313,11 +321,20 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
 	       //gets the primary simhit and its specifications for the rechit   	     
 	       for(vector<PSimHit>::const_iterator simHit1 = simHits1.begin(); simHit1!= simHits1.end(); simHit1++){  
 		  simIdx++;
+
+		  GlobalPoint simpos = pixelLayer->toGlobal((*simHit1).localPosition());
+		  math::XYZVector simhitPos(simpos.x(),simpos.y(),simpos.z());
+
+		  double simrecdeltaphi = fabs(simhitPos.phi()-phi)>matchPhiMax;
+		  if(simrecdeltaphi > 2*PI) simrecdeltaphi -= 2*PI;
+		  if(simrecdeltaphi > PI) simrecdeltaphi = PI -simrecdeltaphi;
+                  if(fabs(simhitPos.eta()-eta)>matchEtaMax) continue;
+                  if(simrecdeltaphi>matchPhiMax) continue;
+
+                  nt2->Fill(eta,phi,simpos.eta(),simpos.phi(),ptype);
+
 		  unsigned int associatedTPID = associateSimhitToTrackingparticle((*simHit1).trackId());
 		  ptype = (&(*simHit1))->processType();
-
-                  GlobalPoint simpos = pixelLayer->toGlobal((*simHit1).localPosition());
-                  nt2->Fill(eta,phi,simpos.eta(),simpos.phi(),ptype);
 
 		  if (associatedTPID == -1){
 		     isbackground = true;
@@ -333,14 +350,14 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
                   issecondary = itb == itend;
 
 		  if(itb == itend){
-		     cout<<"This is a secondary particle"<<endl;
+		     //		     cout<<"This is a secondary particle"<<endl;
 		  }
 
-		  cout<<"TP eta : "<<associatedTP->eta()<<" phi : "<<associatedTP->phi()<<endl;
+		  //		  cout<<"TP eta : "<<associatedTP->eta()<<" phi : "<<associatedTP->phi()<<endl;
 
 		  for(TrackingParticle::genp_iterator itp = itb; itp != itend; ++itp){
 		     gpid = tpmap_[(*itp)->barcode()];
-		     cout<<" Particle : "<<gpid<<endl;
+		     //		     cout<<" Particle : "<<gpid<<endl;
 		  }
 		  
 		  if (isprimary && bestSimHit1==0){ 
@@ -355,7 +372,7 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
                   GlobalPoint simpos = pixelLayer->toGlobal((*bestSimHit1).localPosition());
 		  nt->Fill(eta,phi,simpos.eta(),simpos.phi(),0);
 
-		  cout<<" trid : "<<trid<<endl;
+		  //		  cout<<" trid : "<<trid<<endl;
 
 	       }
 	    }
@@ -366,8 +383,8 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
 	    if(ptype != 2) type = 2;
             if(issecondary) type = 3;
 
-	    cout<<"Hit eta : "<<eta<<" phi : "<<phi<<endl;
-            cout<<"Particle eta : "<<pev_.eta[gpid]<<" phi : "<<pev_.phi[gpid]<<endl;
+	    //	    cout<<"Hit eta : "<<eta<<" phi : "<<phi<<endl;
+	    //            cout<<"Particle eta : "<<pev_.eta[gpid]<<" phi : "<<pev_.phi[gpid]<<endl;
 
 	    if(layer == 1){ 
 	       pev_.eta1[pev_.nhits1] = eta;
@@ -418,7 +435,7 @@ PixelHitAnalyzer::fillParticles(const edm::Event& iEvent){
 	 const ParticleData * part = pdt->particle(pev_.pdg[pev_.npart]);
 	 pev_.chg[pev_.npart] = part->charge();
 
-	 cout<<" Particle "<<pev_.npart<<" eta : "<<pev_.eta[pev_.npart]<<" phi : "<<pev_.phi[pev_.npart]<<" pt : "<<pev_.pt[pev_.npart]<<endl; 
+	 //	 cout<<" Particle "<<pev_.npart<<" eta : "<<pev_.eta[pev_.npart]<<" phi : "<<pev_.phi[pev_.npart]<<" pt : "<<pev_.pt[pev_.npart]<<endl; 
 
 	 pev_.npart++;
 
