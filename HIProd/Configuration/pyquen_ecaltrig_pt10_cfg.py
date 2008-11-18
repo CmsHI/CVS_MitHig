@@ -20,7 +20,7 @@ process.load('Configuration/StandardSequences/FrontierConditions_GlobalTag_cff')
 process.load('Configuration/EventContent/EventContent_cff')
 
 process.configurationMetadata = cms.untracked.PSet(
-    version = cms.untracked.string('$Revision: 1.1 $'),
+    version = cms.untracked.string('$Revision: 1.2 $'),
     annotation = cms.untracked.string('GeneratorInterface/PyquenInterface/python/pyquenSourceDefault_cfi.py nevts:10'),
     name = cms.untracked.string('PyReleaseValidation')
 )
@@ -120,25 +120,27 @@ process.GlobalTag.globaltag = 'IDEAL_V9::All'
 process.ecaltrig = cms.EDFilter("MCSingleParticleFilter",
     Status = cms.untracked.vint32(1, 1, 1, 1, 1, 
         1, 1, 1, 1, 1, 
-        1, 1, 1, 1, 1, 
-        1),
+        1, 1, 1),
     MaxEta = cms.untracked.vdouble(3, 3, 3, 3, 3, 
         3, 3, 3, 3, 3, 
-        3, 3, 3, 3, 3, 
-        3),
+        3, 3, 3),
     MinEta = cms.untracked.vdouble(-3, -3, -3, -3, -3, 
         -3, -3, -3, -3, -3, 
-        -3, -3, -3, -3, -3, 
-        -3),
+        -3, -3, -3),
     MinPt = cms.untracked.vdouble(10, 10, 10, 10, 10, 
         10, 10, 10, 10, 10, 
-        10, 10, 10, 10, 10, 
-        10),
-    ParticleID = cms.untracked.vint32(221, -221, 331, -331, 223, 
-        -223, 221, -221, 331, -331, 
-        11, -11, 311, -311, 22, 
-        -22)
+        10, 10),
+    ParticleID = cms.untracked.vint32(221, -221, # eta
+                                      331, -331, # eta'
+                                      223, -223, # omega
+                                      211, -211, # pi
+                                      111,       # pi0
+                                      311,       # K0
+                                      11, -11,   # e
+                                      22         # gamma
+                                      )
 )
+
 process.ProductionFilterSequence = cms.Sequence(process.ecaltrig)
 
 process.VtxSmeared.MinX = 0.0001

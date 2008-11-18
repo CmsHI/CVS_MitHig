@@ -20,7 +20,7 @@ process.load('Configuration/StandardSequences/FrontierConditions_GlobalTag_cff')
 process.load('Configuration/EventContent/EventContent_cff')
 
 process.configurationMetadata = cms.untracked.PSet(
-    version = cms.untracked.string('$Revision: 1.1 $'),
+    version = cms.untracked.string('$Revision: 1.2 $'),
     annotation = cms.untracked.string('GeneratorInterface/PyquenInterface/python/pyquenSourceDefault_cfi.py nevts:10'),
     name = cms.untracked.string('PyReleaseValidation')
 )
@@ -96,7 +96,7 @@ process.source = cms.Source("PyquenSource",
     numQuarkFlavor = cms.int32(0),
     pythiaPylistVerbosity = cms.untracked.int32(0),
     maxEventsToPrint = cms.untracked.int32(0),
-    aBeamTarget = cms.double(207.0),
+    aBeamTarget = cms.double(208.0),
     doRadiativeEnLoss = cms.bool(True)
 )
 
