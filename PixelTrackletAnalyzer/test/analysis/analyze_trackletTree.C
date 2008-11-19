@@ -15,6 +15,8 @@ void analyze_trackletTree(char * infile, char * outfile = "output.root"){
   TFile* inf = new  TFile(infile);
   TTree* t = dynamic_cast<TTree*>(inf->Get("ana/PixelTree"));
 
+  int maxEvents = 1000000000;
+
   int zbins = 1;
   int hitbins = 100;
   int nbins = zbins*hitbins;
@@ -31,7 +33,7 @@ void analyze_trackletTree(char * infile, char * outfile = "output.root"){
   
   // Output PDF
   TFile* outf = new TFile(outfile,"recreate");
-  TNtuple *ntmatched = new TNtuple("ntmatched","","eta1:matchedeta:phi1:matchedphi:deta:dphi:signalCheck:tid:r1id:r2id:evtid:nhit1:sid:ptype:vz");
+  TNtuple *ntmatched = new TNtuple("ntmatched","","eta1:matchedeta:phi1:matchedphi:deta:dphi:signalCheck:tid:r1id:r2id:evtid:nhit1:sid:ptype:vz:eta:phi:pt:id");
   TNtuple *ntmult = new TNtuple("ntmult","","mult:nhit1:nhit2");
   
   TTree *trackletTree = new TTree("TrackletTree","Tree of Reconstructed Tracklets");
@@ -54,7 +56,7 @@ void analyze_trackletTree(char * infile, char * outfile = "output.root"){
 
   trackletTree->Branch("npart",&tdata.npart,"npart/I");
   trackletTree->Branch("eta",tdata.eta,"eta[npart]/F");
-//  trackletTree->Branch("phi",tdata.phi,"phi[npart]/F");
+  trackletTree->Branch("phi",tdata.phi,"phi[npart]/F");
   trackletTree->Branch("pdg",tdata.pdg,"pdg[npart]/I");
   trackletTree->Branch("chg",tdata.chg,"chg[npart]/I");
   trackletTree->Branch("nhad",tdata.nhad,"nhad[12]/F");
@@ -94,15 +96,18 @@ void analyze_trackletTree(char * infile, char * outfile = "output.root"){
   t->SetBranchAddress("vz",par.vz);
   t->SetBranchAddress("nv",&par.nv);
   t->SetBranchAddress("npart",&par.npart);
+  t->SetBranchAddress("pt",par.pt);
   t->SetBranchAddress("eta",&par.eta);
   t->SetBranchAddress("phi",&par.phi);
   t->SetBranchAddress("chg",&par.chg);
   t->SetBranchAddress("pdg",&par.pdg);
+  t->SetBranchAddress("gp1",par.gp1);
+  t->SetBranchAddress("gp2",par.gp2);
 
   cout <<"Number of Events: "<<t->GetEntries()<<endl;
 
   // Main loop
-  for(int i = 0; i< t->GetEntries(); ++i){    
+  for(int i = 0; i< t->GetEntries() && i < maxEvents; ++i){    
     t->GetEntry(i);
     if (i % 1000 == 0) cout <<"Event "<<i<<endl;    
     // Selection on Events
@@ -162,6 +167,11 @@ void analyze_trackletTree(char * infile, char * outfile = "output.root"){
 	var[12] = recoTracklets[j].getSId();
 	var[13] = recoTracklets[j].getType();
 	var[14] = par.vz[1];
+	var[15] = (float)recoTracklets[j].eta;
+	var[16] = (float)recoTracklets[j].phi;
+	var[17] = (float)recoTracklets[j].pt;
+	var[18] = (float)recoTracklets[j].genid;
+
         ntmatched->Fill(var);
 
         tdata.eta1[j] = recoTracklets[j].eta1();	
@@ -180,7 +190,7 @@ void analyze_trackletTree(char * infile, char * outfile = "output.root"){
     {
         if (fabs(par.eta[j])>3||par.chg[j]==0) continue;
 	tdata.eta[tdata.npart]=par.eta[j];
-//	tdata.phi[tdata.npart]=par.phi[j];
+	tdata.phi[tdata.npart]=par.phi[j];
 	tdata.chg[tdata.npart]=par.chg[j];
 	tdata.pdg[tdata.npart]=par.pdg[j];
         tdata.npart++;
