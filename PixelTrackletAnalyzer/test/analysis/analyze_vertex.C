@@ -36,7 +36,7 @@ void analyze_vertex(char * infile = "/Users/yetkinyilmaz/data/pythia_mb_900GeV_c
 
 
   TFile* inf = new  TFile(infile);
-  TTree* t = dynamic_cast<TTree*>(inf->Get("ana/PixelTree"));
+  TTree* t = dynamic_cast<TTree*>(inf->Get("TrackletTree"));
 
   int maxEvents = 1000000000;
 
@@ -59,53 +59,15 @@ void analyze_vertex(char * infile = "/Users/yetkinyilmaz/data/pythia_mb_900GeV_c
   TNtuple *ntmatched = new TNtuple("ntmatched","","eta1:matchedeta:phi1:matchedphi:deta:dphi:signalCheck:tid:r1id:r2id:evtid:nhit1:sid:ptype:vz:eta:phi:pt:id");
   TNtuple *ntmult = new TNtuple("ntmult","","mult:nhit1:nhit2");
   
-  TTree *trackletTree = new TTree("TrackletTree","Tree of Reconstructed Tracklets");
-
-  TrackletData tdata;
-
-  trackletTree->Branch("nTracklets",&tdata.nTracklet,"nTracklets/I");
-  trackletTree->Branch("nhit1",&tdata.nhit1,"nhit1/I");
-  trackletTree->Branch("nhit2",&tdata.nhit2,"nhit2/I");
-  trackletTree->Branch("mult",&tdata.mult,"mult/I");
-  trackletTree->Branch("nv",&tdata.nv,"nv/I");
-  trackletTree->Branch("vz",tdata.vz,"vz[nv]/F");
-  trackletTree->Branch("eta1",tdata.eta1,"eta1[nTracklets]/F");
-  trackletTree->Branch("phi1",tdata.phi1,"phi1[nTracklets]/F");
-  trackletTree->Branch("eta2",tdata.eta2,"eta2[nTracklets]/F");
-  trackletTree->Branch("phi2",tdata.phi2,"phi2[nTracklets]/F");
-  trackletTree->Branch("deta",tdata.deta,"deta[nTracklets]/F");
-  trackletTree->Branch("dphi",tdata.dphi,"dphi[nTracklets]/F");
-
-  trackletTree->Branch("npart",&tdata.npart,"npart/I");
-  trackletTree->Branch("eta",tdata.eta,"eta[npart]/F");
-  trackletTree->Branch("phi",tdata.phi,"phi[npart]/F");
-  trackletTree->Branch("pdg",tdata.pdg,"pdg[npart]/I");
-  trackletTree->Branch("chg",tdata.chg,"chg[npart]/I");
-  trackletTree->Branch("nhad",tdata.nhad,"nhad[12]/F");
-
   // Parameters for the tree:
   Parameters par;  
 
-  t->SetBranchAddress("eta1",par.eta1);
-  t->SetBranchAddress("phi1",par.phi1);
-  t->SetBranchAddress("r1",par.r1);
-  t->SetBranchAddress("eta2",par.eta2);
-  t->SetBranchAddress("phi2",par.phi2);
-  t->SetBranchAddress("r2",par.r2);
-  t->SetBranchAddress("nhits1",&par.nhits1);
-  t->SetBranchAddress("nhits2",&par.nhits2);
+  t->SetBranchAddress("nhit1",&par.nhits1);
+  t->SetBranchAddress("nhit2",&par.nhits2);
   t->SetBranchAddress("mult",&par.mult);
   t->SetBranchAddress("vz",par.vz);
   t->SetBranchAddress("nv",&par.nv);
   t->SetBranchAddress("npart",&par.npart);
-  t->SetBranchAddress("pt",par.pt);
-  t->SetBranchAddress("eta",par.eta);
-  t->SetBranchAddress("phi",par.phi);
-  t->SetBranchAddress("chg",par.chg);
-  t->SetBranchAddress("pdg",par.pdg);
-  t->SetBranchAddress("gp1",par.gp1);
-  t->SetBranchAddress("gp2",par.gp2);
-
 
   TH1D* hitsall = new TH1D("hitsall","Events; hits in 1st layer; events",50,0,50);
   TH1D* hitsv1 = new TH1D("hitsv1","Events with vertex found; hits in 1st layer (|#eta|<1); efficiency",50,0,50);
@@ -168,15 +130,10 @@ void analyze_vertex(char * infile = "/Users/yetkinyilmaz/data/pythia_mb_900GeV_c
     // Selection on Events
 
     //    if (fabs(par.vz[0])>cuts.vzCut) continue;
+
     
     if (par.vz[0] == -99) continue;
-
-    // Process the first layer
-    vector<RecoHit> layer1 = removeDoubleHits(par, cuts,1);
-    double l1hits = 0;
-    for(int ihit = 0; ihit< (int)layer1.size(); ++ihit) {
-      if(fabs(layer1[ihit].eta)<1) l1hits++;
-    }
+    double l1hits = par.mult;
 
     if (fabs(par.vz[0]) < cuts.vzCut){
       hitsall->Fill(l1hits);
@@ -197,7 +154,7 @@ void analyze_vertex(char * infile = "/Users/yetkinyilmaz/data/pythia_mb_900GeV_c
 
 	zr1->Fill(par.vz[1] - par.vz[0]);
     }
- 
+
     if(par.vz[2] != -99){
       if(fabs(par.vz[2] - par.vz[0]) < zres){
         hitsv2->Fill(l1hits);
