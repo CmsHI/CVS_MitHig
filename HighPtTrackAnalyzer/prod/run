@@ -1,6 +1,0 @@
-#!/bin/sh
-
-cfg=TrackingWithHighPtAnalyzer_cfg.py
-
-cmsRun $cfg
-
