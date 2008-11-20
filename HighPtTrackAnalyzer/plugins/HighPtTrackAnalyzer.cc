@@ -266,11 +266,18 @@ int HighPtTrackAnalyzer::getNumberOfPixelHits(const TrackingParticle& simTrack,f
 	int numberOfPixelHits = 0;
 	
 	for(std::vector<PSimHit>::const_iterator simHit = simTrack.pSimHit_begin();simHit!= simTrack.pSimHit_end();simHit++){
-		DetId id = DetId(simHit->detUnitId());
-		
-		if(theTracker->idToDetUnit(id)->subDetector()==GeomDetEnumerators::PixelBarrel||theTracker->idToDetUnit(id)->subDetector()==GeomDetEnumerators::PixelEndcap){
-			filled[getDetLayerId(*simHit)] = true;
-			numberOfPixelHits++;
+		//DetId id = DetId(simHit->detUnitId());
+		unsigned int id = simHit->detUnitId();
+
+		if (id > 490000000){
+			cout << "-----------------id " << id << endl;
+		} else {
+			
+			DetId detId(id);
+			if(detId.subdetId() ==PixelSubdetector::PixelBarrel||detId.subdetId() ==PixelSubdetector::PixelEndcap){
+				filled[getDetLayerId(*simHit)] = true;
+				numberOfPixelHits++;
+			}
 		}
 	}
 	
