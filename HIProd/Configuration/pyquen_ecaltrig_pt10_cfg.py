@@ -20,7 +20,7 @@ process.load('Configuration/StandardSequences/FrontierConditions_GlobalTag_cff')
 process.load('Configuration/EventContent/EventContent_cff')
 
 process.configurationMetadata = cms.untracked.PSet(
-    version = cms.untracked.string('$Revision: 1.3 $'),
+    version = cms.untracked.string('$Revision: 1.4 $'),
     annotation = cms.untracked.string('GeneratorInterface/PyquenInterface/python/pyquenSourceDefault_cfi.py nevts:10'),
     name = cms.untracked.string('PyReleaseValidation')
 )
@@ -135,7 +135,7 @@ process.ecaltrig = cms.EDFilter("MCSingleParticleFilter",
                                   5,       # K0
                                   8.5, 8.5,   # e
                                   9.5         # gamma           
-                                  )
+                                  ),
 
     ParticleID = cms.untracked.vint32(221, -221, # eta
                                       331, -331, # eta'
