@@ -20,7 +20,7 @@ process.load('Configuration/StandardSequences/FrontierConditions_GlobalTag_cff')
 process.load('Configuration/EventContent/EventContent_cff')
 
 process.configurationMetadata = cms.untracked.PSet(
-    version = cms.untracked.string('$Revision: 1.2 $'),
+    version = cms.untracked.string('$Revision: 1.3 $'),
     annotation = cms.untracked.string('GeneratorInterface/PyquenInterface/python/pyquenSourceDefault_cfi.py nevts:10'),
     name = cms.untracked.string('PyReleaseValidation')
 )
@@ -118,8 +118,8 @@ process.output = cms.OutputModule("PoolOutputModule",
 # Other statements
 process.GlobalTag.globaltag = 'IDEAL_V9::All'
 process.ecaltrig = cms.EDFilter("MCSingleParticleFilter",
-    Status = cms.untracked.vint32(1, 1, 1, 1, 1, 
-        1, 1, 1, 1, 1, 
+    Status = cms.untracked.vint32(2, 2, 2, 2, 2, 
+        2, 2, 2, 2, 2, 
         1, 1, 1),
     MaxEta = cms.untracked.vdouble(3, 3, 3, 3, 3, 
         3, 3, 3, 3, 3, 
@@ -127,9 +127,16 @@ process.ecaltrig = cms.EDFilter("MCSingleParticleFilter",
     MinEta = cms.untracked.vdouble(-3, -3, -3, -3, -3, 
         -3, -3, -3, -3, -3, 
         -3, -3, -3),
-    MinPt = cms.untracked.vdouble(10, 10, 10, 10, 10, 
-        10, 10, 10, 10, 10, 
-        10, 10),
+    MinPt = cms.untracked.vdouble(5.5, 5.5, # eta
+                                  5.5, 5.5, # eta'
+                                  5.5, 5.5, # omega
+                                  5, 5, # pi
+                                  6,       # pi0
+                                  5,       # K0
+                                  8.5, 8.5,   # e
+                                  9.5         # gamma           
+                                  )
+
     ParticleID = cms.untracked.vint32(221, -221, # eta
                                       331, -331, # eta'
                                       223, -223, # omega
@@ -141,7 +148,15 @@ process.ecaltrig = cms.EDFilter("MCSingleParticleFilter",
                                       )
 )
 
-process.ProductionFilterSequence = cms.Sequence(process.ecaltrig)
+process.partontrig = cms.EDFilter("MCSingleParticleFilter",
+                                  Status = cms.untracked.vint32(2,2,2,2,2,2),
+                                  MaxEta = cms.untracked.vdouble(3,3,3,3,3,3),
+                                  MinEta = cms.untracked.vdouble(-3,-3,-3,-3,-3,-3),
+                                  MinPt = cms.untracked.vdouble(9.5,9.5,9.5,9.5,9.5,9.5),
+                                  ParticleID = cms.untracked.vint32(1,2,3,4,5,6)
+                                  )
+
+process.ProductionFilterSequence = cms.Sequence(process.partontrig*process.ecaltrig)
 
 process.VtxSmeared.MinX = 0.0001
 process.VtxSmeared.MaxX = 0.0001
