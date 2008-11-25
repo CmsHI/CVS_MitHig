@@ -70,6 +70,11 @@ process.RandomNumberGeneratorService = cms.Service("RandomNumberGeneratorService
 )
 
 ##############################################################################
+# RawToDigi
+
+process.rawDataCollector.currentProcessOnly = True
+
+##############################################################################
 # Paths
 
 process.p = cms.Path(process.mix
