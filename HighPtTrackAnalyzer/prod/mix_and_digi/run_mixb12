@@ -1,0 +1,32 @@
+#!/bin/sh
+
+cfg=$1
+
+datatag=pythia_dijet_pt100to9999_d20081021
+mixtag=hydjet_x2_b12_oldPL_d20081106
+
+a=$PWD
+
+cd ~edwenger/cmssw/src
+. ~edwenger/set
+
+cd $a
+
+run=`printf "%06d" $2`
+event=$3
+let "skipevent = $event - 1" 
+mixrun=`printf "%06d" $4`
+
+mkdir proc-$run-$event-$mixrun
+cd proc-$run-$event-$mixrun
+
+random=$RANDOM
+cat $a/$cfg | replace __DATATAG__ $datatag | replace __MIXTAG__ $mixtag | replace __OUTPUT__ mix_and_digi_r${run}_e${event}_mixrun${mixrun} | replace __RUN__ ${run} | replace __MIXRUN__ ${mixrun} | replace __SKIPEVENT__ ${skipevent} | replace __RANDOM__ ${random}> run${run}_event${event}_mixrun${mixrun}_cfg.py
+cmsRun run${run}_event${event}_mixrun${mixrun}_cfg.py 1>${run}.run.${event}.event.${mixrun}.mixrun.out 2>${run}.run.${event}.event.${mixrun}.mixrun.err
+
+dccp mix_and_digi_r${run}_e${event}_mixrun${mixrun}.root ~edwenger/dcache/mix_and_digi/$mixtag/${mixtag}_r${mixrun}_embedded_with_${datatag}_r${run}_e${event}.root
+rm mix_and_digi_r${run}_e${event}_mixrun${mixrun}.root
+
+cd ..
+tar cvfz $cfg-$datatag-r$run-e$event-$mixtag-r$mixrun.tgz proc-$run-$event-$mixrun
+rm proc-$run-$event-$mixrun -rf
