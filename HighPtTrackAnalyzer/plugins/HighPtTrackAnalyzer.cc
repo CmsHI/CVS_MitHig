@@ -269,7 +269,7 @@ int HighPtTrackAnalyzer::getNumberOfPixelHits(const TrackingParticle& simTrack,f
 		//DetId id = DetId(simHit->detUnitId());
 		unsigned int id = simHit->detUnitId();
 
-		if (id > 490000000){
+		if (id > 490000000){  //exclude simHits from outside the tracker
 			cout << "-----------------id " << id << endl;
 		} else {
 			
