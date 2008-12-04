@@ -1,5 +1,8 @@
 #include <vector>
+#include <iostream>
+#include <algorithm>
 #include "Math/Vector3D.h"
+#include <TRandom.h>
 
 #define MAXHITS 1000
 #define PI 3.141592653589
@@ -19,19 +22,31 @@ class RecoHit {
       genphi=-9999;
       genpt=-9999;
       genid=-9999;
-
    }; 
+   RecoHit(double _eta,double _phi,double _r,double _l) 
+   { 
+      eta = _eta;
+      phi = _phi;
+      r = _r;
+      layer = _l;
+      
+      geneta=-9999;
+      genphi=-9999;
+      genpt=-9999;
+      genid=-9999;
+   }; 
+   
    ~RecoHit(){};
    
       double eta;
       double phi;
       double r;
-
+      double layer;
+      
       double geneta;
       double genphi;
       double genpt;
       double genid;
-
 };
 
 class SelectionCriteria {
@@ -68,6 +83,7 @@ class TrackletData {
 
 bool compareEta(RecoHit a,RecoHit b) { return a.eta<b.eta;}
 bool comparePhi(RecoHit a,RecoHit b) { return a.phi<b.phi;}
+bool compareAbsEta(RecoHit a,RecoHit b) { return fabs(a.eta)<fabs(b.eta);}
 
 vector<RecoHit> removeDoubleHits(Parameters par, SelectionCriteria cuts,Int_t layer)
 {
@@ -77,8 +93,6 @@ vector<RecoHit> removeDoubleHits(Parameters par, SelectionCriteria cuts,Int_t la
   if (layer == 1) {
     for(int ihit = 0; ihit < par.nhits1; ++ihit){
       RecoHit tmp(par.eta1[ihit],par.phi1[ihit],par.r1[ihit]);
-
-      //      cout<<" Hit Par Id : "<<par.gp1[ihit]<<endl;
 
       if(par.gp1[ihit] != -9999){
 	tmp.genid = par.gp1[ihit];
@@ -134,4 +148,10 @@ vector<RecoHit> removeDoubleHits(Parameters par, SelectionCriteria cuts,Int_t la
   return cleanedHits;
 }
 
-
+RecoHit RandomHit(double etaMin, double etaMax, double phiMin, double phiMax)
+{
+   double eta = etaMin + (etaMax-etaMin)*gRandom->Rndm();
+   double phi = phiMin + (phiMax-phiMin)*gRandom->Rndm();
+   RecoHit myRandomHit(eta,phi,0);
+   return myRandomHit;
+}

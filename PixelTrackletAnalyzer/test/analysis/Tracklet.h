@@ -174,11 +174,11 @@ vector<Tracklet> cleanTracklets(vector<Tracklet> input, int matchNumber,Selectio
 
   for (unsigned int i = 0; i < input.size(); i++){
 
-    if(cuts.useDeltaPhi_)
+    if(cuts.useDeltaPhi_) {
       if (cuts.verbose_) cout<<"Eta 1 : "<<input[i].eta1()<<"  ; Eta 2 : "<<input[i].eta2()<<" ;  Delta R : "<<input[i].dR()<<endl;
-      else
-	if (cuts.verbose_) cout<<"Eta 1 : "<<input[i].eta1()<<"  ; Eta 2 : "<<input[i].eta2()<<" ;  Delta Eta : "<<input[i].deta()<<endl;
-
+    } else {
+      if (cuts.verbose_) cout<<"Eta 1 : "<<input[i].eta1()<<"  ; Eta 2 : "<<input[i].eta2()<<" ;  Delta Eta : "<<input[i].deta()<<endl;
+    }
     int i1=input[i].getIt1();
     int i2=input[i].getIt2();
 
@@ -203,7 +203,108 @@ vector<Tracklet> cleanTracklets(vector<Tracklet> input, int matchNumber,Selectio
   return output;
 }
 
+vector<Tracklet> recoFastTracklets(vector<RecoHit> hits,int verbose_ = 0)
+{
+  vector<Tracklet> fastTracklets;
+  sort( hits.begin() , hits.end() , compareEta);
 
+  int i=0;
+  int i1=1,i2=2;
+  int n[3]={0,0,0};
+  int flag=0;
+  for (int i=0;i<(int)hits.size();i++) {
+     n[(int)hits[i].layer]++;
+  }
+
+  while (n[1]!=0&&n[2]!=0)
+  {
+     double left=-10,center=10e10,right=10e10;
+
+     if (i!=0&&hits[i].layer!=hits[i-1].layer) {
+        left = fabs(hits[i].eta-hits[i-1].eta);       
+     } else {
+        left = 10e10;
+     }
+	
+     i1=i+1;
+     while (center==10e10&&i1<hits.size()) {
+        if (i1!=(int)hits.size()&&hits[i1-1].layer!=hits[i1].layer) {
+           center = fabs(hits[i1-1].eta-hits[i1].eta);
+        } else {
+           center = 10e10;
+	   i1++;
+        } 
+     }
+
+     i2=i1+1;
+     while (right==10e10&&i2<hits.size()) {
+        if (i2!=(int)hits.size()&&hits[i2-1].layer!=hits[i2].layer) {
+           right = fabs(hits[i2-1].eta-hits[i2].eta);
+        } else {
+           right = 10e10;
+	   i2++;
+        }
+     }
+
+     if (verbose_) {       
+        for (int j=0;j<(int) hits.size();j++) 
+        {
+           if (j==i1-1) cout <<"[";
+           cout <<" "<<Form("%.2f",hits[j].eta)<<";"<<hits[j].layer<<" ";
+           if (j==i1) cout <<"]";
+        }
+         
+     cout <<" ("<<i<<" "<<i1<<" "<<i2<<")"<<endl;
+     cout <<"LCR = "<<left<<" "<<center<<" "<<right<<endl;
+     }
+     
+     if (center<left&&center<right) {
+          if (flag==0&&i2>=hits.size()) {
+	      flag++;
+	      i=0;
+	      continue;
+	  }
+	  flag=0;
+	  Tracklet mytracklet(hits[i1-1].eta,hits[i1].eta,hits[i1-1].phi,hits[i1].phi);
+          fastTracklets.push_back(mytracklet);
+	  n[(int)hits[i1-1].layer]--;
+	  n[(int)hits[i1].layer]--;
+	  hits.erase(hits.begin()+i1-1,hits.begin()+i1+1);
+	  if (verbose_) {
+	     cout <<"Form Tracklet! "<<i1-1<<" "<<i1<<" d= "<<mytracklet.deta()<<endl;
+             cout <<endl;
+	     cout <<n[1]<<" "<<n[2]<<endl;
+          }
+	  i=0;
+     } else {
+          i++;
+     }
+     if (i>=hits.size()||i<0) i=0;
+  }
+    sort( fastTracklets.begin() , fastTracklets.end() , compareDeltaEta);
+
+  return fastTracklets;
+}
+
+void printTrackletVector(vector<Tracklet> x)
+{
+   
+   for (int i=0;i<x.size();i++)
+   {
+      cout <<fabs(x[i].deta())<<" "<<"L1: "<<x[i].eta1()<<" "<<x[i].phi1()<<" L2: "<<x[i].eta2()<<" "<<x[i].phi2()<<endl;
+       
+   }
+}
+
+double sumTrackletVector(vector<Tracklet> x)
+{
+   double total=0;
+   for (int i=0;i<x.size();i++)
+   {
+      total+=fabs(x[i].deta());
+   }
+   return total;
+}
 
 
 
