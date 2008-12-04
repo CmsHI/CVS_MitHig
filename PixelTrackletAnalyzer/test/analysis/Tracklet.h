@@ -227,7 +227,7 @@ vector<Tracklet> recoFastTracklets(vector<RecoHit> hits,int verbose_ = 0)
      }
 	
      i1=i+1;
-     while (center==10e10&&i1<hits.size()) {
+     while (center==10e10&&(unsigned int)i1<hits.size()) {
         if (i1!=(int)hits.size()&&hits[i1-1].layer!=hits[i1].layer) {
            center = fabs(hits[i1-1].eta-hits[i1].eta);
         } else {
@@ -237,7 +237,7 @@ vector<Tracklet> recoFastTracklets(vector<RecoHit> hits,int verbose_ = 0)
      }
 
      i2=i1+1;
-     while (right==10e10&&i2<hits.size()) {
+     while (right==10e10&&(unsigned int)i2<hits.size()) {
         if (i2!=(int)hits.size()&&hits[i2-1].layer!=hits[i2].layer) {
            right = fabs(hits[i2-1].eta-hits[i2].eta);
         } else {
@@ -259,7 +259,7 @@ vector<Tracklet> recoFastTracklets(vector<RecoHit> hits,int verbose_ = 0)
      }
      
      if (center<left&&center<right) {
-          if (flag==0&&i2>=hits.size()) {
+          if (flag==0&&(unsigned int)i2>=hits.size()) {
 	      flag++;
 	      i=0;
 	      continue;
@@ -279,7 +279,7 @@ vector<Tracklet> recoFastTracklets(vector<RecoHit> hits,int verbose_ = 0)
      } else {
           i++;
      }
-     if (i>=hits.size()||i<0) i=0;
+     if ((unsigned int)i>=hits.size()||i<0) i=0;
   }
     sort( fastTracklets.begin() , fastTracklets.end() , compareDeltaEta);
 
@@ -289,7 +289,7 @@ vector<Tracklet> recoFastTracklets(vector<RecoHit> hits,int verbose_ = 0)
 void printTrackletVector(vector<Tracklet> x)
 {
    
-   for (int i=0;i<x.size();i++)
+   for (int i=0;(unsigned int)i<x.size();i++)
    {
       cout <<fabs(x[i].deta())<<" "<<"L1: "<<x[i].eta1()<<" "<<x[i].phi1()<<" L2: "<<x[i].eta2()<<" "<<x[i].phi2()<<endl;
        
@@ -299,7 +299,7 @@ void printTrackletVector(vector<Tracklet> x)
 double sumTrackletVector(vector<Tracklet> x)
 {
    double total=0;
-   for (int i=0;i<x.size();i++)
+   for (int i=0;(unsigned int)i<x.size();i++)
    {
       total+=fabs(x[i].deta());
    }

@@ -71,6 +71,8 @@ void analyze_trackletTree(char * infile, char * outfile = "output.root"){
   layer2HitEta.reserve(nbins);
   vector<TH1D*> layer2HitPhi;
   layer2HitPhi.reserve(nbins);
+
+  vector<RecoHit> layer;
     
   for(int i = 0; i< nbins; ++i){
     layer1HitEta[i] = new TH1D(Form("dNdEtaHits1_%02d",i),"dNdEta Hits Layer 1",500,-3,3);
@@ -127,6 +129,12 @@ void analyze_trackletTree(char * infile, char * outfile = "output.root"){
       if (hitbin1 > 99) hitbin1 = 99;
       layer1HitEta[hitbin1]->Fill(layer1[ihit].eta);
       layer1HitPhi[hitbin1]->Fill(layer1[ihit].phi);
+      RecoHit myhit(layer1[ihit].eta,layer1[ihit].phi,layer1[ihit].r,1);
+      myhit.geneta = layer1[ihit].geneta;
+      myhit.genphi = layer1[ihit].genphi;
+      myhit.genpt = layer1[ihit].genpt;
+      myhit.genid = layer1[ihit].genid;
+      layer.push_back(myhit);
       if(fabs(layer1[ihit].eta)<1) mult++;
     }
 
@@ -138,11 +146,18 @@ void analyze_trackletTree(char * infile, char * outfile = "output.root"){
       if (hitbin2 > 99) hitbin2 = 99;
       layer2HitEta[hitbin2]->Fill(layer2[ihit].eta);
       layer2HitPhi[hitbin2]->Fill(layer2[ihit].phi);
+      RecoHit myhit(layer2[ihit].eta,layer2[ihit].phi,layer2[ihit].r,2);
+      myhit.geneta = layer2[ihit].geneta;
+      myhit.genphi = layer2[ihit].genphi;
+      myhit.genpt = layer2[ihit].genpt;
+      myhit.genid = layer2[ihit].genid;
+      layer.push_back(myhit);
     }
 
     // Form Tracklets        
-    vector<Tracklet> protoTracklets = recoProtoTracklets(layer1,layer2);
-    vector<Tracklet> recoTracklets = cleanTracklets(protoTracklets,0,cuts);
+//    vector<Tracklet> protoTracklets = recoProtoTracklets(layer1,layer2);
+//    vector<Tracklet> recoTracklets = cleanTracklets(protoTracklets,0,cuts);
+    vector<Tracklet> recoTracklets = recoFastTracklets(layer);
 
     // Fill Ntuple
     tdata.nTracklet = recoTracklets.size();
@@ -202,7 +217,10 @@ void analyze_trackletTree(char * infile, char * outfile = "output.root"){
     nhits->Fill(mult,layer1.size(),layer2.size());
     ntmult->Fill(mult,layer1.size(),layer2.size());
     trackletTree->Fill();
-    
+    layer1.clear();
+    layer2.clear();
+    layer.clear();
+    recoTracklets.clear();    
   }
 
   outf->Write();
