@@ -50,13 +50,13 @@ struct HydjetEvent{
 
 };
 
-double analyze_with_cut(TTree* tsub, TTree* tall, double jetEtCut = 20);
+double analyze_with_cut(TTree* tsub, TTree* treco, double jetEtCut = 20);
 
 void analyze_genjets(char * infile = "genjets.root", char * outfile = "output.root"){
 
   TFile* inf = new TFile(infile);
   TTree* tsub = dynamic_cast<TTree*>(inf->Get("subevent/hi"));
-  TTree* tall = dynamic_cast<TTree*>(inf->Get("recoevent/hi"));
+  TTree* treco = dynamic_cast<TTree*>(inf->Get("recoevent/hi"));
 
   TFile* outf = new TFile(outfile,"recreate");
 
@@ -67,7 +67,7 @@ void analyze_genjets(char * infile = "genjets.root", char * outfile = "output.ro
     x[i] = 5*i;
     cout<<"Et Cut  : "<<x[i]<<endl;
 
-    y[i] = analyze_with_cut(tsub,tall,5*i);
+    y[i] = analyze_with_cut(tsub,treco,5*i);
     cout<<"Overlap : "<<y[i]<<endl;
 
   }  
@@ -85,7 +85,7 @@ void analyze_genjets(char * infile = "genjets.root", char * outfile = "output.ro
   c5->Print("nsubjets.gif");
 
   TCanvas* c6 = new TCanvas();
-  tall->Draw("njet");
+  treco->Draw("njet");
   c6->Print("nrecojets.gif");
 
   TCanvas* c7 = new TCanvas();
@@ -93,7 +93,7 @@ void analyze_genjets(char * infile = "genjets.root", char * outfile = "output.ro
   c7->Print("subjet_et.gif");
 
   TCanvas* c8 = new TCanvas();
-  tall->Draw("et");
+  treco->Draw("et");
   c8->Print("recojet_et.gif");
 
 
@@ -101,11 +101,13 @@ void analyze_genjets(char * infile = "genjets.root", char * outfile = "output.ro
 
 }
 
-double analyze_with_cut(TTree* tsub, TTree* tall, double jetEtCut){
+double analyze_with_cut(TTree* tsub, TTree* treco, double jetEtCut){
   cout<<"Begin"<<endl;
 
    TH1F* h1 = new TH1F(Form("h1_et%02d",(int)jetEtCut),"Self Correlation;#Delta R;jets",200,0,6);
    TH1F* h2 = new TH1F(Form("h2_et%02d",(int)jetEtCut),"Relation between Globally reconstructed and Sub-Event based Jets;#Delta R;jets",200,0,6);
+   TH1F* hres = new TH1F(Form("hres_et%02d",(int)jetEtCut),"Jet Energy Resolution;E_{Reco}-E_{Gen};jets",200,-50,50);
+
    TH2F* het = new TH2F(Form("het_et%02d",(int)jetEtCut),";E_{T}^{genjet};E_{T}^{calojet}",50,0,200,50,0,200);
 
    double cone = 0.5;
@@ -142,11 +144,11 @@ double analyze_with_cut(TTree* tsub, TTree* tall, double jetEtCut){
    tsub->SetBranchAddress("vz",&jet.vz);
    tsub->SetBranchAddress("vr",&jet.vr);
 
-   tall->SetBranchAddress("njet",&jet2.njet);
-   tall->SetBranchAddress("et",jet2.et);
-   tall->SetBranchAddress("eta",jet2.eta);
-   tall->SetBranchAddress("phi",jet2.phi);
-   tall->SetBranchAddress("area",jet2.area);
+   treco->SetBranchAddress("njet",&jet2.njet);
+   treco->SetBranchAddress("et",jet2.et);
+   treco->SetBranchAddress("eta",jet2.eta);
+   treco->SetBranchAddress("phi",jet2.phi);
+   treco->SetBranchAddress("area",jet2.area);
 
 
    cout<<"B"<<endl;
@@ -155,7 +157,7 @@ double analyze_with_cut(TTree* tsub, TTree* tall, double jetEtCut){
    // Event Loop
    for(int i = 0; i< tsub->GetEntries() && i < maxEvents; ++i){    
      tsub->GetEntry(i);
-     tall->GetEntry(i);
+     treco->GetEntry(i);
      if (i % 1000 == 0) cout <<"Event "<<i<<endl;    
      // Selection on Events
 
@@ -182,6 +184,7 @@ double analyze_with_cut(TTree* tsub, TTree* tall, double jetEtCut){
          h2->Fill(dR);
 	 if(dR < match){
 	   het->Fill(jet.et[j],jet2.et[j2]);
+           hres->Fill(jet2.et[j]-jet.et[j2]);
 	 }
        }
       
