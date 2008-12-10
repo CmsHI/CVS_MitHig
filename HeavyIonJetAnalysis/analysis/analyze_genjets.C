@@ -52,24 +52,23 @@ struct HydjetEvent{
 
 double analyze_with_cut(TTree* tsub, TTree* tall, double jetEtCut = 20);
 
-void analyze_genjets(char * infile = "genjets100.root", char * outfile = "output.root"){
+void analyze_genjets(char * infile = "genjets.root", char * outfile = "output.root"){
 
   TFile* inf = new TFile(infile);
   TTree* tsub = dynamic_cast<TTree*>(inf->Get("subevent/hi"));
-  TTree* tall = dynamic_cast<TTree*>(inf->Get("allevent/hi"));
+  TTree* tall = dynamic_cast<TTree*>(inf->Get("recoevent/hi"));
 
   TFile* outf = new TFile(outfile,"recreate");
 
   double x[6];
   double y[6];
 
-  for(int i=0; i < 6; ++i){
+  for(int i=0; i < 3; ++i){
     x[i] = 5*i;
     cout<<"Et Cut  : "<<x[i]<<endl;
 
     y[i] = analyze_with_cut(tsub,tall,5*i);
     cout<<"Overlap : "<<y[i]<<endl;
-
 
   }  
 
@@ -110,6 +109,8 @@ double analyze_with_cut(TTree* tsub, TTree* tall, double jetEtCut){
    TH2F* het = new TH2F(Form("het_et%02d",(int)jetEtCut),";E_{T}^{sub-event genjet};E_{T}^{global genjet}",50,0,200,50,0,200);
 
    double cone = 0.5;
+   double match = cone/2.;
+
    int maxEvents = 100000;
 
    cout<<"A"<<endl;
@@ -179,7 +180,7 @@ double analyze_with_cut(TTree* tsub, TTree* tall, double jetEtCut){
 	 double dR = deltaR(jet.eta[j],jet.phi[j],jet2.eta[j2],jet2.phi[j2]);
 
          h2->Fill(dR);
-	 if(dR < cone){
+	 if(dR < match){
 	   het->Fill(jet.et[j],jet2.et[j2]);
 	 }
        }
