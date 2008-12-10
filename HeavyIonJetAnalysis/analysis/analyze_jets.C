@@ -52,7 +52,7 @@ struct HydjetEvent{
 
 double analyze_with_cut(TTree* tsub, TTree* treco, double jetEtCut = 20);
 
-void analyze_genjets(char * infile = "genjets.root", char * outfile = "output.root"){
+void analyze_jets(char * infile = "jets_d20081210.root", char * outfile = "output.root"){
 
   TFile* inf = new TFile(infile);
   TTree* tsub = dynamic_cast<TTree*>(inf->Get("subevent/hi"));
@@ -80,19 +80,19 @@ void analyze_genjets(char * infile = "genjets.root", char * outfile = "output.ro
   g1->Write();
   c1->Write();
 
-  TCanvas* c5 = new TCanvas();
+  TCanvas* c5 = new TCanvas("c5","c5",400,400);
   tsub->Draw("njet");
   c5->Print("nsubjets.gif");
 
-  TCanvas* c6 = new TCanvas();
+  TCanvas* c6 = new TCanvas("c6","c6",400,400);
   treco->Draw("njet");
   c6->Print("nrecojets.gif");
 
-  TCanvas* c7 = new TCanvas();
+  TCanvas* c7 = new TCanvas("c7","c7",400,400);
   tsub->Draw("et");
   c7->Print("subjet_et.gif");
 
-  TCanvas* c8 = new TCanvas();
+  TCanvas* c8 = new TCanvas("c8","c8",400,400);
   treco->Draw("et");
   c8->Print("recojet_et.gif");
 
@@ -106,9 +106,9 @@ double analyze_with_cut(TTree* tsub, TTree* treco, double jetEtCut){
 
    TH1F* h1 = new TH1F(Form("h1_et%02d",(int)jetEtCut),"Self Correlation;#Delta R;jets",200,0,6);
    TH1F* h2 = new TH1F(Form("h2_et%02d",(int)jetEtCut),"Relation between Globally reconstructed and Sub-Event based Jets;#Delta R;jets",200,0,6);
-   TH1F* hres = new TH1F(Form("hres_et%02d",(int)jetEtCut),"Jet Energy Resolution;E_{Reco}-E_{Gen};jets",200,-50,50);
+   TH1F* hres = new TH1F(Form("hres_et%02d",(int)jetEtCut),"Jet Energy Resolution;E_{T}^{CaloJet}-E_{T}^{GenJet} [GeV];jets",200,-50,50);
 
-   TH2F* het = new TH2F(Form("het_et%02d",(int)jetEtCut),";E_{T}^{genjet};E_{T}^{calojet}",50,0,200,50,0,200);
+   TH2F* het = new TH2F(Form("het_et%02d",(int)jetEtCut),";E_{T}^{GenJet};E_{T}^{CaloJet} [GeV]",50,0,200,50,0,200);
 
    double cone = 0.5;
    double match = cone/2.;
@@ -190,33 +190,33 @@ double analyze_with_cut(TTree* tsub, TTree* treco, double jetEtCut){
       
      }
 
-
-
-
-
    }
 
 
    cout<<"End."<<endl;
 
-   TCanvas* c1 = new TCanvas();
+   TCanvas* c1 = new TCanvas(Form("c1_et%02d",(int)jetEtCut),Form("c1_et%02d",(int)jetEtCut),400,400);
    h1->Draw();
 
-   TCanvas* c2 = new TCanvas();
+   TCanvas* c2 = new TCanvas(Form("c2_et%02d",(int)jetEtCut),Form("c2_et%02d",(int)jetEtCut),400,400);
    h2->Draw();
 
-   TCanvas* c3 = new TCanvas();
+   TCanvas* c3 = new TCanvas(Form("c3_et%02d",(int)jetEtCut),Form("c3_et%02d",(int)jetEtCut),400,400);
    het->Draw("colz");
 
+   TCanvas* c4 = new TCanvas(Form("c4_et%02d",(int)jetEtCut),Form("c4_et%02d",(int)jetEtCut),400,400);
+   hres->Draw("");
+   hres->Print(Form("EnergyResolution_et%02d.gif",(int)jetEtCut));
 
    c1->Write();
    c2->Write();
    c3->Write();
-
+   c4->Write();
 
    h1->Write();
    h2->Write();
    het->Write();
+   hres->Write();
 
    double overlap = h1->Integral(0,cone/(h1->GetBinWidth(1)));
    overlap /= h1->Integral();
