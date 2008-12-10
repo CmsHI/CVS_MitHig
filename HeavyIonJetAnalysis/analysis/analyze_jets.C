@@ -108,7 +108,9 @@ double analyze_with_cut(TTree* tsub, TTree* treco, double jetEtCut){
    TH1F* h2 = new TH1F(Form("h2_et%02d",(int)jetEtCut),"Relation between Globally reconstructed and Sub-Event based Jets;#Delta R;jets",200,0,6);
    TH1F* hres = new TH1F(Form("hres_et%02d",(int)jetEtCut),"Jet Energy Resolution;E_{T}^{CaloJet}-E_{T}^{GenJet} [GeV];jets",200,-50,50);
 
-   TH2F* het = new TH2F(Form("het_et%02d",(int)jetEtCut),";E_{T}^{GenJet};E_{T}^{CaloJet} [GeV]",50,0,200,50,0,200);
+   //   TH2F* het = new TH2F(Form("het_et%02d",(int)jetEtCut),";E_{T}^{GenJet};E_{T}^{CaloJet} [GeV]",50,0,200,50,0,200);
+   TH2F* het = new TH2F(Form("het_et%02d",(int)jetEtCut),";E_{T}^{GenJet};E_{T}^{CaloJet} [GeV]",100,0,50,100,0,50);
+
 
    double cone = 0.5;
    double match = cone/2.;
@@ -152,7 +154,6 @@ double analyze_with_cut(TTree* tsub, TTree* treco, double jetEtCut){
 
 
    cout<<"B"<<endl;
-
 
    // Event Loop
    for(int i = 0; i< tsub->GetEntries() && i < maxEvents; ++i){    
@@ -203,10 +204,11 @@ double analyze_with_cut(TTree* tsub, TTree* treco, double jetEtCut){
 
    TCanvas* c3 = new TCanvas(Form("c3_et%02d",(int)jetEtCut),Form("c3_et%02d",(int)jetEtCut),400,400);
    het->Draw("colz");
+   c3->Print(Form("EnergyScatter_et%02d.gif",(int)jetEtCut));
 
    TCanvas* c4 = new TCanvas(Form("c4_et%02d",(int)jetEtCut),Form("c4_et%02d",(int)jetEtCut),400,400);
    hres->Draw("");
-   hres->Print(Form("EnergyResolution_et%02d.gif",(int)jetEtCut));
+   c4->Print(Form("EnergyResolution_et%02d.gif",(int)jetEtCut));
 
    c1->Write();
    c2->Write();
