@@ -56,7 +56,7 @@ void analyze_genjets(char * infile = "genjets.root", char * outfile = "output.ro
 
   TFile* inf = new TFile(infile);
   TTree* tsub = dynamic_cast<TTree*>(inf->Get("subevent/hi"));
-  TTree* tall = dynamic_cast<TTree*>(inf->Get("allevent/hi"));
+  TTree* tall = dynamic_cast<TTree*>(inf->Get("recoevent/hi"));
 
   TFile* outf = new TFile(outfile,"recreate");
 
@@ -86,7 +86,7 @@ void analyze_genjets(char * infile = "genjets.root", char * outfile = "output.ro
 
   TCanvas* c6 = new TCanvas();
   tall->Draw("njet");
-  c6->Print("nglobjets.gif");
+  c6->Print("nrecojets.gif");
 
   TCanvas* c7 = new TCanvas();
   tsub->Draw("et");
@@ -94,7 +94,7 @@ void analyze_genjets(char * infile = "genjets.root", char * outfile = "output.ro
 
   TCanvas* c8 = new TCanvas();
   tall->Draw("et");
-  c8->Print("globjet_et.gif");
+  c8->Print("recojet_et.gif");
 
 
 
@@ -105,8 +105,8 @@ double analyze_with_cut(TTree* tsub, TTree* tall, double jetEtCut){
   cout<<"Begin"<<endl;
 
    TH1F* h1 = new TH1F(Form("h1_et%02d",(int)jetEtCut),"Self Correlation;#Delta R;jets",200,0,6);
-   TH1F* h2 = new TH1F(Form("h2_et%02d",(int)jetEtCut),"Relation between Globally reconstructed and Sub-Event based GenJets;#Delta R;jets",200,0,6);
-   TH2F* het = new TH2F(Form("het_et%02d",(int)jetEtCut),";E_{T}^{sub-event genjet};E_{T}^{global genjet}",50,0,200,50,0,200);
+   TH1F* h2 = new TH1F(Form("h2_et%02d",(int)jetEtCut),"Relation between Globally reconstructed and Sub-Event based Jets;#Delta R;jets",200,0,6);
+   TH2F* het = new TH2F(Form("het_et%02d",(int)jetEtCut),";E_{T}^{genjet};E_{T}^{calojet}",50,0,200,50,0,200);
 
    double cone = 0.5;
    double match = cone/2.;
