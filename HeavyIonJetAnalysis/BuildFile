@@ -1,8 +1,10 @@
 <use name=hepmc>
 <use name=boost>
 <use name=FWCore/Framework>
+<use name=DataFormats/JetReco>
 <use name=SimDataFormats/HepMCProduct>
 <use name=SimDataFormats/HiGenData>
+<use name=SimDataFormats/Vertex>
 <use name=SimGeneral/HepPDTRecord>
 <use name=PhysicsTools/UtilAlgos>
 <use name=FWCore/ServiceRegistry>
