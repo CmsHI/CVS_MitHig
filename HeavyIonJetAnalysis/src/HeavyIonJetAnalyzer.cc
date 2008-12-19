@@ -46,7 +46,11 @@
 #include "SimDataFormats/Vertex/interface/SimVertex.h"
 #include "SimDataFormats/Vertex/interface/SimVertexContainer.h"
 
+#include "DataFormats/JetReco/interface/JetCollection.h"
+#include "DataFormats/JetReco/interface/Jet.h"
 #include "DataFormats/JetReco/interface/GenJetCollection.h"
+#include "DataFormats/JetReco/interface/GenJet.h"
+
 
 #include "HepMC/GenEvent.h"
 #include "HepMC/HeavyIon.h"
@@ -309,24 +313,29 @@ HeavyIonJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
       }
 
    }
+   
+   //   edm::Handle<reco::GenJetCollection> genjets;
+   edm::Handle<reco::JetView> genjets;
+   //   edm::Handle<vector<reco::Jet> > genjets;
+   iEvent.getByLabel(jetSrc_[0],genjets);
+   for(int ijet = 0; ijet < genjets->size(); ++ijet){
 
-      edm::Handle<reco::GenJetCollection> genjets;
-      iEvent.getByLabel(jetSrc_[0],genjets);
-      for(int ijet = 0; ijet < genjets->size(); ++ijet){
-	 const reco::GenJet & jet = (*genjets)[ijet];
-	 cout<<"Jet Quantities : "<<jet.pt()<<" "<<jet.eta()<<" "<<jet.phi()<<" "<<jet.jetArea()<<endl;
+      const reco::Jet* jet = &((*genjets)[ijet]);
+      //	 const reco::GenJet* jet = dynamic_cast<const reco::GenJet*>(&((*genjets)[ijet]));
 
-	 hev_.et[hev_.njet] = jet.pt();
-	 hev_.eta[hev_.njet] = jet.eta();
-	 hev_.phi[hev_.njet] = jet.phi();
-	 hev_.area[hev_.njet] = jet.jetArea();
+      cout<<"Jet Quantities : "<<jet->pt()<<" "<<jet->eta()<<" "<<jet->phi()<<" "<<jet->jetArea()<<endl;
+      
+      hev_.et[hev_.njet] = jet->pt();
+      hev_.eta[hev_.njet] = jet->eta();
+      hev_.phi[hev_.njet] = jet->phi();
+      //      hev_.area[hev_.njet] = jet->jetArea();
 
-	 ++(hev_.njet);
-	 
-      }
-
+      ++(hev_.njet);
+      
+   }
+   
    /*
-   edm::Handle<edm::SimVertexContainer> simVertices;
+     edm::Handle<edm::SimVertexContainer> simVertices;
    iEvent.getByType<edm::SimVertexContainer>(simVertices);
 
    if (! simVertices.isValid() ) throw cms::Exception("FatalError") << "No vertices found\n";
