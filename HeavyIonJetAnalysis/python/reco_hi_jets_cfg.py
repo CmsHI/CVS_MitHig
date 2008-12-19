@@ -34,7 +34,6 @@ process.SimpleMemoryCheck = cms.Service('SimpleMemoryCheck',
 process.iterativeCone5HiGenJets = cms.EDProducer("IterativeConeHiGenJetProducer",
                                                  process.GenJetParameters,  
                                                  process.IconeJetParameters, 
-                                                 jetType = cms.untracked.string('GenJet'), 
                                                  alias = cms.untracked.string('IC5HiGenJet'),
                                                  coneRadius = cms.double(0.5)
                                                  )
