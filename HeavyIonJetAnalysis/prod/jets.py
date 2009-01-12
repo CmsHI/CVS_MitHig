@@ -13,9 +13,13 @@ process.load("Configuration.StandardSequences.L1TriggerDefaultMenu_cff")
 process.load("Configuration.StandardSequences.DigiToRaw_cff")
 process.load("Configuration.StandardSequences.RawToDigi_cff")
 process.load("SimGeneral.HepPDTESSource.pythiapdt_cfi")
-process.load("Configuration.StandardSequences.FakeConditions_cff")
+process.load("Configuration.StandardSequences.FrontierConditions_GlobalTag_cff")
 
 process.load("HeavyIonsAnalysis.Configuration.Reconstruction_HI_cff")
+
+process.load("RecoHI.HiCandidateAlgos.hiGenParticles_cfi")
+
+process.GlobalTag.globaltag = 'IDEAL_V9::All'
 
 process.source = cms.Source("PoolSource",
                             fileNames = cms.untracked.vstring('__INPUT__'
@@ -33,8 +37,10 @@ process.SimpleMemoryCheck = cms.Service('SimpleMemoryCheck',
                                         )
 
 process.iterativeCone5HiGenJets = cms.EDProducer("IterativeConeHiGenJetProducer",
-                                                 process.GenJetParameters,  
+#                                                 process.GenJetParameters,  
                                                  process.IconeJetParameters, 
+                                                 inputEtMin = cms.double(0.0),
+                                                 inputEMin = cms.double(0.0),
                                                  alias = cms.untracked.string('IC5HiGenJet'),
                                                  coneRadius = cms.double(0.5)
                                                  )
@@ -66,7 +72,7 @@ process.output = cms.OutputModule("PoolOutputModule",
     fileName = cms.untracked.string('edmfile.root')
 )
 
-process.myjets = cms.Sequence(process.GeneInfo*process.runjets*process.iterativeCone5HiGenJets)
+process.myjets = cms.Sequence(process.GeneInfo*process.hiGenParticles*process.runjets*process.iterativeCone5HiGenJets)
 process.pre = cms.Path(process.mix*process.doAllDigi*process.L1Emulator*process.DigiToRaw*process.RawToDigi*process.ecalloc*process.hcalLocalRecoSequence*process.hiCentrality)
 process.p = cms.Path(process.myjets*process.subevent*process.allevent*process.recoevent)
 process.outpath = cms.EndPath(process.output)
