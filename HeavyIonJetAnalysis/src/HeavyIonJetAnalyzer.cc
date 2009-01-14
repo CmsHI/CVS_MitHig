@@ -313,35 +313,58 @@ HeavyIonJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
 	    }
 	 }
 
+
+	 cout<<"A"<<endl;
+
 	 edm::Handle<reco::GenParticleCollection> inputHandle;
 	 iEvent.getByLabel("hiGenParticles",inputHandle);
+
+         cout<<"B"<<endl;
 
 	 edm::Handle<edm::SubEventMap> subs;
 	 iEvent.getByLabel("hiGenParticles",subs);
 
+         cout<<"C"<<endl;
 	 for (unsigned i = 0; i < inputHandle->size(); ++i) {
+
+	    cout<<"D"<<endl;
+
 	    const reco::GenParticle & p = (*inputHandle)[i];
+	    cout<<"E"<<endl;
+
 	    int status = p.status();
 	    int pdg = p.pdgId();
+	    cout<<"F"<<endl;
+
 	    int subid = (*subs)[reco::GenParticleRef(inputHandle,i)];
+	    cout<<"G"<<endl;
 
 	    npsub[subid] ++;
  
 	    int matched = 0;
 	    edm::SubEvent sub(subid);
+	    cout<<"H"<<endl;
 	    std::vector<HepMC::GenParticle*> hps = sub.getParticles(*evt);
+	    cout<<"I"<<endl;
             npsub2[subid] = hps.size();
+	    cout<<"J"<<endl;
 	    for (unsigned j = 0; j < hps.size(); ++j) {
+	       cout<<"K"<<endl;
 	       HepMC::GenParticle* hp = hps[j];
+	       cout<<"L"<<endl;
 	       if(p.pdgId() == hp->pdg_id() && fabs(p.pt() - hp->momentum().perp())+fabs(p.eta() - hp->momentum().eta())+fabs(p.phi() - hp->momentum().phi()) < 0.1) matched = 1;
+	       cout<<"M"<<endl;
 	    }
+	    cout<<"N"<<endl;
 	    nt2->Fill(matched, pdg, status);
+	    cout<<"O"<<endl;
 
 	 }
 
       }
       
    }
+   cout<<"P"<<endl;
 
    const HeavyIon* hi = evt->heavy_ion();
    if(hi){
@@ -444,8 +467,8 @@ HeavyIonJetAnalyzer::beginJob(const edm::EventSetup& iSetup)
       hydjetTree_ = f->make<TTree>("hi","Tree of Hydjet Events");
 
       nt = f->make<TNtuple>("nt","NTuple for debugging by Jets","ptjets:ptcons");
-      nt = f->make<TNtuple>("nt","NTuple for debugging by Particles","matched:pdg:status");
-      nt = f->make<TNtuple>("nt","NTuple for debugging by SubEvents","ncands:nparts");
+      nt2 = f->make<TNtuple>("nt2","NTuple for debugging by Particles","matched:pdg:status");
+      nt3 = f->make<TNtuple>("nt3","NTuple for debugging by SubEvents","ncands:nparts");
 
       hydjetTree_->Branch("event",&hev_.event,"event/I");
       hydjetTree_->Branch("b",&hev_.b,"b/F");
