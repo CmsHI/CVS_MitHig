@@ -13,7 +13,7 @@
 //
 // Original Author:  Yetkin Yilmaz
 //         Created:  Tue Dec 18 09:44:41 EST 2007
-// $Id: HeavyIonJetAnalyzer.cc,v 1.2 2008/08/29 17:24:35 yilmaz Exp $
+// $Id: HeavyIonJetAnalyzer.cc,v 1.2 2008/12/19 19:04:12 yilmaz Exp $
 //
 //
 
@@ -51,6 +51,9 @@
 #include "DataFormats/JetReco/interface/GenJetCollection.h"
 #include "DataFormats/JetReco/interface/GenJet.h"
 
+#include "DataFormats/HepMCCandidate/interface/GenParticle.h"
+#include "SimDataFormats/HiGenData/interface/SubEvent.h"
+#include "SimDataFormats/HiGenData/interface/SubEventMap.h"
 
 #include "HepMC/GenEvent.h"
 #include "HepMC/HeavyIon.h"
@@ -72,6 +75,8 @@ using namespace std;
 #define MAXHITS 50000
 #define MAXVTX 1000
 #define ETABINS 3 // Fix also in branch string
+
+#define MAXSUBS 1000
 
 //
 // class decleration
@@ -152,6 +157,12 @@ class HeavyIonJetAnalyzer : public edm::EDAnalyzer {
    edm::ESHandle < ParticleDataTable > pdt;
    edm::Service<TFileService> f;
 
+   TNtuple * nt;
+   TNtuple * nt2;
+   TNtuple * nt3;
+
+   int npsub[MAXSUBS];
+   int npsub2[MAXSUBS];
 
 };
 
@@ -218,12 +229,15 @@ HeavyIonJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
    int npart = -1;
    int ncoll = -1;
    int nhard = -1;
+   int nsub = -1;
    double vx = -99;
    double vy = -99;
    double vz = -99;
    double vr = -99;
    const GenEvent* evt;
-   
+
+   for(int is = 0; is< MAXSUBS; ++is) npsub[is] = 0;
+
    if(doCF_){
 
      Handle<CrossingFrame<HepMCProduct> > cf;
@@ -269,43 +283,75 @@ HeavyIonJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
       evt = mc->GetEvent();
 
       if(doParticles_){
-      int all = evt->particles_size();
-      HepMC::GenEvent::particle_const_iterator begin = evt->particles_begin();
-      HepMC::GenEvent::particle_const_iterator end = evt->particles_end();
-      for(HepMC::GenEvent::particle_const_iterator it = begin; it != end; ++it){
-	if((*it)->status() == 1){
-	   int pdg_id = (*it)->pdg_id();
-	   float eta = (*it)->momentum().eta();
-           float phi = (*it)->momentum().phi();
-	   float pt = (*it)->momentum().perp();
-	  const ParticleData * part = pdt->particle(pdg_id );
-	  int charge = part->charge();
+	 int all = evt->particles_size();
+	 HepMC::GenEvent::particle_const_iterator begin = evt->particles_begin();
+	 HepMC::GenEvent::particle_const_iterator end = evt->particles_end();
+	 for(HepMC::GenEvent::particle_const_iterator it = begin; it != end; ++it){
+	    if((*it)->status() == 1){
+	       int pdg_id = (*it)->pdg_id();
+	       float eta = (*it)->momentum().eta();
+	       float phi = (*it)->momentum().phi();
+	       float pt = (*it)->momentum().perp();
+	       const ParticleData * part = pdt->particle(pdg_id );
+	       int charge = part->charge();
+	       
+	       hev_.par_pt[hev_.np] = pt;
+	       hev_.par_eta[hev_.np] = eta;
+	       hev_.par_phi[hev_.np] = phi;
+	       hev_.pdg[hev_.np] = pdg_id;
+	       hev_.chg[hev_.np] = charge;
+	       
+	       eta = fabs(eta);
+	       int etabin = 0;
+	       if(eta > 0.5) etabin = 1; 
+	       if(eta > 1.) etabin = 2;
+	       if(eta < 2.){
+		  hev_.ptav[etabin] += pt;
+		  ++(hev_.n[etabin]);
+	       }
+	       ++(hev_.np);
+	    }
+	 }
 
-	  hev_.par_pt[hev_.np] = pt;
-          hev_.par_eta[hev_.np] = eta;
-          hev_.par_phi[hev_.np] = phi;
-          hev_.pdg[hev_.np] = pdg_id;
-          hev_.chg[hev_.np] = charge;
+	 edm::Handle<reco::GenParticleCollection> inputHandle;
+	 iEvent.getByLabel("hiGenParticles",inputHandle);
 
-	  eta = fabs(eta);
-	  int etabin = 0;
-	  if(eta > 0.5) etabin = 1; 
-	  if(eta > 1.) etabin = 2;
-	  if(eta < 2.){
-	     hev_.ptav[etabin] += pt;
-	     ++(hev_.n[etabin]);
-	  }
-	  ++(hev_.np);
-	}
+	 edm::Handle<edm::SubEventMap> subs;
+	 iEvent.getByLabel("hiGenParticles",subs);
+
+	 for (unsigned i = 0; i < inputHandle->size(); ++i) {
+	    const reco::GenParticle & p = (*inputHandle)[i];
+	    int status = p.status();
+	    int pdg = p.pdgId();
+	    int subid = (*subs)[reco::GenParticleRef(inputHandle,i)];
+
+	    npsub[subid] ++;
+ 
+	    int matched = 0;
+	    edm::SubEvent sub(subid);
+	    std::vector<HepMC::GenParticle*> hps = sub.getParticles(*evt);
+            npsub2[subid] = hps.size();
+	    for (unsigned j = 0; j < hps.size(); ++j) {
+	       HepMC::GenParticle* hp = hps[j];
+	       if(p.pdgId() == hp->pdg_id() && fabs(p.pt() - hp->momentum().perp())+fabs(p.eta() - hp->momentum().eta())+fabs(p.phi() - hp->momentum().phi()) < 0.1) matched = 1;
+	    }
+	    nt2->Fill(matched, pdg, status);
+
+	 }
+
       }
-      }
-
+      
    }
 
    const HeavyIon* hi = evt->heavy_ion();
    if(hi){
       b = hi->impact_parameter();
       npart = hi->Npart_proj()+hi->Npart_targ();
+      nsub = hi->Ncoll_hard() + 1;
+
+      for(int i1 = 0; i1< nsub; ++i1){
+	 nt3->Fill(npsub[i1],npsub2[i1]);
+      }
 
       if(printLists_){
 	 out_b<<b<<endl;
@@ -331,7 +377,15 @@ HeavyIonJetAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
       //      hev_.area[hev_.njet] = jet->jetArea();
 
       ++(hev_.njet);
-      
+
+      double ptsum = 0;
+      std::vector<const reco::Candidate*> constituents = jet->getJetConstituentsQuick();
+      for(int ic = 0; ic< constituents.size(); ++ic){
+	 const reco::GenParticle* p = dynamic_cast<const reco::GenParticle*>((constituents[ic]));
+	 ptsum += p->pt();
+      }
+
+      nt->Fill(jet->pt(),ptsum);      
    }
    
    /*
@@ -388,6 +442,10 @@ HeavyIonJetAnalyzer::beginJob(const edm::EventSetup& iSetup)
    
    if(doAnalysis_){
       hydjetTree_ = f->make<TTree>("hi","Tree of Hydjet Events");
+
+      nt = f->make<TNtuple>("nt","NTuple for debugging by Jets","ptjets:ptcons");
+      nt = f->make<TNtuple>("nt","NTuple for debugging by Particles","matched:pdg:status");
+      nt = f->make<TNtuple>("nt","NTuple for debugging by SubEvents","ncands:nparts");
 
       hydjetTree_->Branch("event",&hev_.event,"event/I");
       hydjetTree_->Branch("b",&hev_.b,"b/F");
