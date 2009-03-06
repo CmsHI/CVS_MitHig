@@ -11,9 +11,9 @@
      <Notes on implementation>
 */
 //
-// Original Author:  Yi Chen
+// Original Author:  Yi Chen, Yen-Jie Lee
 //         Created:  Tue Jan  8 16:02:03 EST 2008
-// $Id$
+// $Id: SESCandidateNtupleExporter.cc,v 1.1 2008/08/18 12:26:03 yjlee Exp $
 //
 //
 
@@ -32,6 +32,9 @@
 
 #include "DataFormats/Candidate/interface/CandidateFwd.h"
 #include "DataFormats/Candidate/interface/Candidate.h"
+#include "DataFormats/HepMCCandidate/interface/GenParticleFwd.h"
+#include "DataFormats/HepMCCandidate/interface/GenParticle.h"
+
 
 #include "TNtuple.h"
 #include "TFile.h"
@@ -100,9 +103,9 @@ SESCandidateNtupleExporter::analyze(const edm::Event& iEvent, const edm::EventSe
    using namespace reco;
    using namespace std;
 
-   Handle<CandidateCollection> pInput1;
+   Handle<GenParticleCollection> pInput1;
    iEvent.getByLabel(InputTag(input), pInput1);
-   const CandidateCollection *collection1 = pInput1.product();
+   const GenParticleCollection *collection1 = pInput1.product();
    if(collection1 == 0)
       return;
 
@@ -121,6 +124,7 @@ SESCandidateNtupleExporter::analyze(const edm::Event& iEvent, const edm::EventSe
       }
 
       if (c1.status()==1) datatemp->Fill(c1.phi(), c1.eta(), c1.p(), c1.energy(), c1.charge(), c1.status(), c1.pdgId(), mid,gmid,ggmid);
+      if (c1.pdgId()==111) datatemp->Fill(c1.phi(), c1.eta(), c1.p(), c1.energy(), c1.charge(), c1.status(), c1.pdgId(), mid,gmid,ggmid);
    }
 }
 
