@@ -3,6 +3,7 @@
 <use name=FWCore/ParameterSet>
 <use name=root>
 <use name=DataFormats/Candidate>
+<use name=DataFormats/HepMCCandidate>
 <flags EDM_PLUGIN=1>
 <export>
    <lib name=AhaSESDoubleCandidateNtupleExporter>
