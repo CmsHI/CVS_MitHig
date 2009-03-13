@@ -62,6 +62,7 @@ struct HydjetEvent{
 
    int event;
    int mult;
+   int my;
    float b;
    float npart;
    float ncoll;
@@ -151,6 +152,7 @@ HydjetEventAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
 
    hev_.event = iEvent.id().event();
    hev_.mult = 0;
+   hev_.my = 0;
       
    double phi0 = 0;
    double b = -1;  
@@ -186,6 +188,7 @@ HydjetEventAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
       const Candidate &c1 = (*collection1)[i];
 
       if (c1.status()==1 && fabs(c1.eta())<1 && c1.charge()!=0) hev_.mult++;
+      if (c1.status()==1 && fabs(c1.rapidity())<1 && c1.charge()!=0) hev_.my++;
       if (c1.status()==1) multiplicity++;
       if (c1.status()==1 && c1.charge()!=0) {
          chargedMultiplicity++;
@@ -195,7 +198,7 @@ HydjetEventAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
 
 
 
-   nt->Fill(b,npart,ncoll,hev_.mult,nhard,phi0,multiplicity,chargedMultiplicity);
+   nt->Fill(b,npart,ncoll,hev_.mult,nhard,phi0,multiplicity,chargedMultiplicity,hev_.my);
    
 }
 
@@ -204,7 +207,7 @@ HydjetEventAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iS
 void  HydjetEventAnalyzer::beginJob(const edm::EventSetup& iSetup)
 {
 
-   nt = f->make<TNtuple>("nt","Mixing Analysis","b:npart:ncoll:meta1:nhard:phi0:m:cm");
+   nt = f->make<TNtuple>("nt","Mixing Analysis","b:npart:ncoll:meta1:nhard:phi0:m:cm:my");
    hDNDeta = f->make<TH1F>("hDNDeta","dN/d#eta",200,-10,10);
 
 }
