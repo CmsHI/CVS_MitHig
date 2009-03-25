@@ -1,6 +1,8 @@
 #include "MitHig/MatchedTrack/interface/MatchedTrack.h"
 
-MatchedTrack::MatchedTrack()
+MatchedTrack::MatchedTrack():PXBLayerHits(3,0), PXFLayerHits(3,0), PXBLayerMHits(3,0), PXFLayerMHits(3,0),
+                             TIBLayerHits(4,0), TOBLayerHits(6,0), TIDLayerHits(3,0), TECLayerHits(9,0),
+                             TIBLayerMHits(4,0), TOBLayerMHits(6,0), TIDLayerMHits(3,0), TECLayerMHits(9,0)
 {
 	fPt=0.0;
 	fPx=0.0;

@@ -2,6 +2,9 @@
 #define ROOT_MATCHEDTRACK_H
 
 #include "TObject.h"
+#include <vector>
+
+using namespace std;
 
 class MatchedTrack : public TObject {
 	
@@ -18,6 +21,20 @@ public:
 	int iParentPID;
 	int iq,iMq;
 	
+	vector<int> PXBLayerHits;
+	vector<int> PXFLayerHits;
+	vector<int> TIBLayerHits;
+	vector<int> TOBLayerHits;
+	vector<int> TIDLayerHits;
+	vector<int> TECLayerHits;
+	
+	vector<int> PXBLayerMHits;
+	vector<int> PXFLayerMHits;
+	vector<int> TIBLayerMHits;
+	vector<int> TOBLayerMHits;
+	vector<int> TIDLayerMHits;
+	vector<int> TECLayerMHits;
+
 	float fD0,fMD0;
 	float fD0Err,fMD0Err;
 	
@@ -45,7 +62,7 @@ public:
 	float fMRefitPt,fMRefitChi2;
 	float fValidHits,fMValidHits;
 	
-	ClassDef(MatchedTrack,1)
+	ClassDef(MatchedTrack,2)
 	
 };
 
