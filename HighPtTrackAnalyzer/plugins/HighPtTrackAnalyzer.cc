@@ -78,6 +78,8 @@ private:
 	int getDetLayerId(const PSimHit& simHit);
 	int getNumberOfPixelHits(const TrackingParticle& simTrack,float *);
 	int getNumberOfRecPixelHits(const reco::Track & recTrack, float *);
+	void getRecHitLayerPatterns(const reco::Track & recTrack, vector<int> &,vector<int> &,vector<int> &,vector<int> &,vector<int> &,vector<int> &);	
+	void getSimHitLayerPatterns(const TrackingParticle & simTrack, vector<int> &,vector<int> &,vector<int> &,vector<int> &,vector<int> &,vector<int> &);	
 	void checkSimTracks (edm::Handle<TrackingParticleCollection>& simCollection,reco::SimToRecoCollection& q);
 	
 	pair<float,float> refitWithVertex(const reco::Track & recTrack,const reco::VertexCollection* vertices);
@@ -91,11 +93,14 @@ private:
 	
 	vector<string> trackCollectionLabels;
 	string resultFileLabel;
-	bool plotEvent, zipFiles;
+	bool plotEvent, zipFiles, useAbsoluteNumberOfHits, keepLowPtSimTracks;
 	int proc;
 	Int_t iTrkSim,iTrkReco,iVtx;
 	Int_t iEvent,iRun;
+	Float_t RecVtx;
 	Float_t fSimPxlLayerHit,dMinSimPt,fRecPxlLayerHit;
+	vector<int> vPXBHits, vPXFHits, vTIBHits, vTOBHits, vTIDHits, vTECHits;
+	vector<int> vPXBSimHits, vPXFSimHits, vTIBSimHits, vTOBSimHits, vTIDSimHits, vTECSimHits;
 	
 	TFile * resultFile; 
 	TTree *recInfoTree;
@@ -109,6 +114,8 @@ HighPtTrackAnalyzer::HighPtTrackAnalyzer(const edm::ParameterSet& pset)
 {
 	trackCollectionLabels = pset.getParameter<vector<string> >("trackCollection");
 	resultFileLabel       = pset.getParameter<string>("resultFile");
+	useAbsoluteNumberOfHits = pset.getUntrackedParameter<bool>("useAbsoluteNumberOfHits",false);
+	keepLowPtSimTracks = pset.getUntrackedParameter<bool>("keepLowPtSimTracks",false);
 	
 	//  plotEvent = pset.getParameter<bool>("plotEvent");
 	// zipFiles  = pset.getParameter<bool>("zipFiles");
@@ -156,6 +163,7 @@ void HighPtTrackAnalyzer::beginJob(const edm::EventSetup& es)
 	recInfoTree->Branch("TotalRecoTracks",&iTrkReco,"TotalRecTracks/I");
 	recInfoTree->Branch("TotalSimTracks",&iTrkSim,"TotalSimTracks/I");
 	recInfoTree->Branch("TotalVtx",&iVtx,"TotalVtx/I");
+	recInfoTree->Branch("RecVertex",&RecVtx,"RecVertex/F");
 }
 
 /*****************************************************************************/
@@ -268,13 +276,13 @@ int HighPtTrackAnalyzer::getNumberOfPixelHits(const TrackingParticle& simTrack,f
 	for(std::vector<PSimHit>::const_iterator simHit = simTrack.pSimHit_begin();simHit!= simTrack.pSimHit_end();simHit++){
 		//DetId id = DetId(simHit->detUnitId());
 		unsigned int id = simHit->detUnitId();
-
+		
 		if (id > 490000000){  //exclude simHits from outside the tracker
-			cout << "-----------------id " << id << endl;
+			//cout << "-----------------id " << id << endl;
 		} else {
 			
 			DetId detId(id);
-			if(detId.subdetId() ==PixelSubdetector::PixelBarrel||detId.subdetId() ==PixelSubdetector::PixelEndcap){
+			if(detId.subdetId() ==(int)PixelSubdetector::PixelBarrel||detId.subdetId() ==(int)PixelSubdetector::PixelEndcap){
 				filled[getDetLayerId(*simHit)] = true;
 				numberOfPixelHits++;
 			}
@@ -341,7 +349,146 @@ int HighPtTrackAnalyzer::getNumberOfRecPixelHits(const reco::Track& recTrack,flo
 	return numberOfPixelHits;
 }
 
+/******************************************************************************************/
 
+void HighPtTrackAnalyzer::getRecHitLayerPatterns(const reco::Track & recTrack, vector<int> &vPXBHits,vector<int> &vPXFHits,vector<int> &vTIBHits,vector<int> &vTOBHits,vector<int> &vTIDHits,vector<int> &vTECHits) {	
+	
+	// re-initialize vectors
+	vPXBHits.assign(3,0);
+	vPXFHits.assign(3,0);
+	vTIBHits.assign(4,0);
+	vTOBHits.assign(6,0);
+	vTIDHits.assign(3,0);
+	vTECHits.assign(9,0);
+	
+	// loop over recHits on track
+	for(trackingRecHit_iterator recHit = recTrack.recHitsBegin();recHit!= recTrack.recHitsEnd(); recHit++){
+		if((*recHit)->isValid()){
+			
+			DetId detId = (*recHit)->geographicalId();
+			if(!theTracker->idToDet(detId))
+				continue;
+			
+			Int_t layerNumber=0;
+			unsigned int subdetId = static_cast<unsigned int>(detId.subdetId());
+			
+			if ( subdetId ==  PixelSubdetector::PixelBarrel )
+			{
+				PXBDetId pxbid(detId.rawId());
+				layerNumber = pxbid.layer();
+				vPXBHits[layerNumber-1]++;
+				cout << "PXB layer " << layerNumber << ": " << vPXBHits[layerNumber-1] << " hit(s)" << endl;
+			}
+			else if ( subdetId ==  PixelSubdetector::PixelEndcap )
+			{
+				PXFDetId pxfid(detId.rawId());
+				layerNumber = pxfid.disk();
+				vPXFHits[layerNumber-1]++;
+				cout << "PXF layer " << layerNumber << ": " << vPXFHits[layerNumber-1] << " hit(s)" << endl;
+			}
+			else if ( subdetId == StripSubdetector::TIB)
+			{
+				TIBDetId tibid(detId.rawId());
+				layerNumber = tibid.layer();
+				vTIBHits[layerNumber-1]++;
+				cout << "TIB layer " << layerNumber << ": " << vTIBHits[layerNumber-1] << " hit(s)" << endl;
+			}
+			else if ( subdetId ==  StripSubdetector::TOB )
+			{
+				TOBDetId tobid(detId.rawId());
+				layerNumber = tobid.layer();
+				vTOBHits[layerNumber-1]++;
+				cout << "TOB layer " << layerNumber << ": " << vTOBHits[layerNumber-1] << " hit(s)" << endl;
+			}
+			else if ( subdetId ==  StripSubdetector::TID)
+			{
+				TIDDetId tidid(detId.rawId());
+				layerNumber = tidid.wheel();
+				vTIDHits[layerNumber-1]++;
+				cout << "TID layer " << layerNumber << ": " << vTIDHits[layerNumber-1] << " hit(s)" << endl;
+			}
+			else if ( subdetId ==  StripSubdetector::TEC )
+			{
+				TECDetId tecid(detId.rawId());
+				layerNumber = tecid.wheel();
+				vTECHits[layerNumber-1]++;
+				cout << "TEC layer " << layerNumber << ": " << vTECHits[layerNumber-1] << " hit(s)" << endl;
+			}
+			
+		}// end isValid
+	}//end loop over recHits
+	
+	cout << "-------------------------------------------------\n" << endl;
+	
+}
+
+void HighPtTrackAnalyzer::getSimHitLayerPatterns(const TrackingParticle & simTrack, vector<int> &vPXBSimHits,vector<int> &vPXFSimHits,vector<int> &vTIBSimHits,vector<int> &vTOBSimHits,vector<int> &vTIDSimHits,vector<int> &vTECSimHits) {	
+
+	// re-initialize vectors
+	vPXBSimHits.assign(3,0);
+	vPXFSimHits.assign(3,0);
+	vTIBSimHits.assign(4,0);
+	vTOBSimHits.assign(6,0);
+	vTIDSimHits.assign(3,0);
+	vTECSimHits.assign(9,0);
+	
+	for(std::vector<PSimHit>::const_iterator simHit = simTrack.pSimHit_begin();simHit!= simTrack.pSimHit_end();simHit++){
+
+		DetId detId(simHit->detUnitId());
+		if(!theTracker->idToDet(detId))
+			continue;
+		
+		Int_t layerNumber=0;
+		unsigned int subdetId = static_cast<unsigned int>(detId.subdetId());
+		
+		if ( subdetId ==  PixelSubdetector::PixelBarrel )
+		{
+			PXBDetId pxbid(detId.rawId());
+			layerNumber = pxbid.layer();
+			vPXBSimHits[layerNumber-1]++;
+			cout << "PXB layer " << layerNumber << ": " << vPXBSimHits[layerNumber-1] << " hit(s)" << endl;
+		}
+		else if ( subdetId ==  PixelSubdetector::PixelEndcap )
+		{
+			PXFDetId pxfid(detId.rawId());
+			layerNumber = pxfid.disk();
+			vPXFSimHits[layerNumber-1]++;
+			cout << "PXF layer " << layerNumber << ": " << vPXFSimHits[layerNumber-1] << " hit(s)" << endl;
+		}
+		else if ( subdetId == StripSubdetector::TIB)		{
+			TIBDetId tibid(detId.rawId());
+			layerNumber = tibid.layer();
+			vTIBSimHits[layerNumber-1]++;
+			cout << "TIB layer " << layerNumber << ": " << vTIBSimHits[layerNumber-1] << " hit(s)" << endl;
+		}
+		else if ( subdetId ==  StripSubdetector::TOB )
+		{
+			TOBDetId tobid(detId.rawId());
+			layerNumber = tobid.layer();
+			vTOBSimHits[layerNumber-1]++;
+			cout << "TOB layer " << layerNumber << ": " << vTOBSimHits[layerNumber-1] << " hit(s)" << endl;
+		}
+		else if ( subdetId ==  StripSubdetector::TID)
+		{
+			TIDDetId tidid(detId.rawId());
+			layerNumber = tidid.wheel();
+			vTIDSimHits[layerNumber-1]++;
+			cout << "TID layer " << layerNumber << ": " << vTIDSimHits[layerNumber-1] << " hit(s)" << endl;
+		}
+		else if ( subdetId ==  StripSubdetector::TEC )
+		{
+			TECDetId tecid(detId.rawId());
+			layerNumber = tecid.wheel();
+			vTECSimHits[layerNumber-1]++;
+			cout << "TEC layer " << layerNumber << ": " << vTECSimHits[layerNumber-1] << " hit(s)" << endl;
+		}
+			
+		
+	}// end loop over simHits
+	
+	cout << "-------------------------------------------------\n" << endl;
+	
+}
 
 /*****************************************************************************/
 void HighPtTrackAnalyzer::checkSimTracks(edm::Handle<TrackingParticleCollection>& simCollection,reco::SimToRecoCollection& q){
@@ -354,7 +501,7 @@ void HighPtTrackAnalyzer::checkSimTracks(edm::Handle<TrackingParticleCollection>
 		const TrackingParticleRef simTrack(simCollection, i);
 		
 		if(simTrack->charge() != 0){
-			if(simTrack->pt()<2.0)
+			if(simTrack->pt()<2.0 && !keepLowPtSimTracks)
 				continue;
 			
 			
@@ -362,6 +509,11 @@ void HighPtTrackAnalyzer::checkSimTracks(edm::Handle<TrackingParticleCollection>
 			MatchedTrack *TrackTemp=new(CASimTemp[iSimCount]) MatchedTrack();
 			
 			//std::cout<<"in the loop : "<<simTrack->pt()<<std::endl;
+			
+			cout << "\n================================================="<<endl;
+			cout << "SimTrack #" << i << endl;
+			cout << "pT = " << simTrack->pt() << "\t eta = " << simTrack->eta() << endl;
+			cout << "-------------------------------------------------" << endl;
 			
 			// sim
 			TrackTemp->iPID=simTrack->pdgId();
@@ -378,11 +530,19 @@ void HighPtTrackAnalyzer::checkSimTracks(edm::Handle<TrackingParticleCollection>
 			TrackTemp->iq=simTrack->charge();
 			TrackTemp->fPxlLayerHit=fSimPxlLayerHit;
 			
+			getSimHitLayerPatterns(*simTrack,vPXBSimHits,vPXFSimHits,vTIBSimHits,vTOBSimHits,vTIDSimHits,vTECSimHits);
+			TrackTemp->PXBLayerHits=vPXBSimHits;
+			TrackTemp->PXFLayerHits=vPXFSimHits;
+			TrackTemp->TIBLayerHits=vTIBSimHits;
+			TrackTemp->TOBLayerHits=vTOBSimHits;
+			TrackTemp->TIDLayerHits=vTIDSimHits;
+			TrackTemp->TECLayerHits=vTECSimHits;
 			
 			// reco
 			edm::RefToBase<reco::Track> matchedRecTrack;
 			int nRec=0;
 			int nSharedT=0;
+			int nShared=0;
 			
 			if(q.find(simTrack)!=q.end()){
 				try{
@@ -390,8 +550,11 @@ void HighPtTrackAnalyzer::checkSimTracks(edm::Handle<TrackingParticleCollection>
 					vector<pair<edm::RefToBase<reco::Track>, double> > recTracks = q[simTrack];
 					for(vector<pair<edm::RefToBase<reco::Track>,double> >::const_iterator it = recTracks.begin(); it != recTracks.end(); ++it){
 						edm::RefToBase<reco::Track> recTrack = it->first;
-						int nShared=(int)(it->second * TrackTemp->fHit + 0.5);
-						
+						if(!useAbsoluteNumberOfHits) {
+							nShared=(int)(it->second * TrackTemp->fHit + 0.5); //quality = # of shared hits/total # of sim hits
+						} else {
+							nShared=(int)(it->second+0.5); //quality = # of shared hits
+						}
 						if(nSharedT<nShared){
 							nSharedT=nShared;
 							matchedRecTrack=recTrack; 
@@ -405,6 +568,11 @@ void HighPtTrackAnalyzer::checkSimTracks(edm::Handle<TrackingParticleCollection>
 				TrackTemp->iMatches=nRec;
 				
 				if(nSharedT > 0){
+					
+					cout << "Matched Rec Track" << endl;
+					cout << "pT = " << matchedRecTrack->pt() << "\t eta = " << matchedRecTrack->eta() << endl;
+					cout << "-------------------------------------------------" << endl;
+					
 					TrackTemp->fMPt=matchedRecTrack->pt();
 					TrackTemp->fMPx=matchedRecTrack->px();
 					TrackTemp->fMPy=matchedRecTrack->py();
@@ -427,6 +595,17 @@ void HighPtTrackAnalyzer::checkSimTracks(edm::Handle<TrackingParticleCollection>
 					 TrackTemp->fMZErr=matchedRecTrack->dyError();*/
 					TrackTemp->fMPxlLayerHit=fRecPxlLayerHit;
 					TrackTemp->fMValidHits=matchedRecTrack->numberOfValidHits();
+					
+					getRecHitLayerPatterns(*matchedRecTrack,vPXBHits,vPXFHits,vTIBHits,vTOBHits,vTIDHits,vTECHits);
+					TrackTemp->PXBLayerMHits=vPXBHits;
+					TrackTemp->PXFLayerMHits=vPXFHits;
+					TrackTemp->TIBLayerMHits=vTIBHits;
+					TrackTemp->TOBLayerMHits=vTOBHits;
+					TrackTemp->TIDLayerMHits=vTIDHits;
+					TrackTemp->TECLayerMHits=vTECHits;
+					
+					cout << "-------------------------------------------------" << endl;
+					
 				}else{
 					
 				}
@@ -466,13 +645,23 @@ pair<float,float> HighPtTrackAnalyzer::refitWithVertex(const reco::Track & recTr
 								beamSize*beamSize, 0,
 								0,closestVertex->covariance(2,2));
 		
-		// Refit track with vertex constraint
-		SingleTrackVertexConstraint stvc;
-		pair<TransientTrack, float> result =
-		stvc.constrain(theTransientTrack, vertexPosition, vertexError);
-		
-		return pair<float,float>(result.first.impactPointTSCP().pt(),
-								 result.second);
+		// sometimes the median vertex producer gives very large errors that cause a crash on matrix inversion
+		if(closestVertex->covariance(2,2)>1.0) {
+			//cout << "vtx position = (" << closestVertex->position().x() << "," << closestVertex->position().y() << "," << closestVertex->position().z() << ")" << endl;
+			//cout << "vertex cov(2,2) = " << closestVertex->covariance(2,2) << endl;
+			return pair<float,float>(recTrack.pt(), -9999);
+		} else {
+			// Refit track with vertex constraint
+			SingleTrackVertexConstraint stvc;
+			pair<TransientTrack, float> result =
+			stvc.constrain(theTransientTrack, vertexPosition, vertexError);
+			
+			//cout << "Track refitted with vertex constraint: pT = " << result.first.impactPointTSCP().pt()
+			//<< ", chi2 = " << result.second << endl;
+			
+			return pair<float,float>(result.first.impactPointTSCP().pt(),
+									 result.second);
+		}
 	}
 	else
 		return pair<float,float>(recTrack.pt(), -9999);
@@ -515,6 +704,10 @@ void HighPtTrackAnalyzer::checkRecTracks(edm::Handle<edm::View<reco::Track> >& r
 		iRecCount++;
 		MatchedTrack *TrackTemp=new(CARecTemp[iRecCount]) MatchedTrack();
 		
+		cout << "\n================================================="<<endl;
+		cout << "RecTrack #" << i << endl;
+		cout << "pT = " << recTrack->pt() << "\t eta = " << recTrack->eta() << endl;
+		cout << "-------------------------------------------------" << endl;
 		
 		TrackTemp->fPt=recTrack->pt();
 		TrackTemp->fPx=recTrack->px();
@@ -540,7 +733,14 @@ void HighPtTrackAnalyzer::checkRecTracks(edm::Handle<edm::View<reco::Track> >& r
 		TrackTemp->fRefitChi2=refitWithVertex(*recTrack,vertices).second;
 		TrackTemp->fValidHits=recTrack->numberOfValidHits();
 		
-		
+		getRecHitLayerPatterns(*recTrack,vPXBHits,vPXFHits,vTIBHits,vTOBHits,vTIDHits,vTECHits);
+		TrackTemp->PXBLayerHits=vPXBHits;
+		TrackTemp->PXFLayerHits=vPXFHits;
+		TrackTemp->TIBLayerHits=vTIBHits;
+		TrackTemp->TOBLayerHits=vTOBHits;
+		TrackTemp->TIDLayerHits=vTIDHits;
+		TrackTemp->TECLayerHits=vTECHits;
+
 		// sim 
 		TrackingParticleRef matchedSimTrack;
 		int nSim = 0;
@@ -569,6 +769,7 @@ void HighPtTrackAnalyzer::checkRecTracks(edm::Handle<edm::View<reco::Track> >& r
 		
 		
 		if(nSim > 0){
+			
 			int parentId;
 			float T;
 			
@@ -589,6 +790,10 @@ void HighPtTrackAnalyzer::checkRecTracks(edm::Handle<edm::View<reco::Track> >& r
 			
 			T = matchedSimTrack->parentVertex()->position().T(); // ?
 			
+			cout << "Matched Sim Track" << endl;
+			cout << "pT = " << matchedSimTrack->pt() << "\t eta = " << matchedSimTrack->eta() << endl;
+			cout << "-------------------------------------------------" << endl;
+			
 			TrackTemp->iPID=matchedSimTrack->pdgId();
 			TrackTemp->iMParentPID=parentId;
 			//result.push_back(simTrack->parentVertex()->position().T()); // ?
@@ -605,6 +810,18 @@ void HighPtTrackAnalyzer::checkRecTracks(edm::Handle<edm::View<reco::Track> >& r
 			TrackTemp->fMPxlLayerHit=fSimPxlLayerHit;
 			TrackTemp->fHitMatched=fHitMatch;
 			TrackTemp->iMatches=nSim;
+			
+			getSimHitLayerPatterns(*matchedSimTrack,vPXBSimHits,vPXFSimHits,vTIBSimHits,vTOBSimHits,vTIDSimHits,vTECSimHits);
+			TrackTemp->PXBLayerMHits=vPXBSimHits;
+			TrackTemp->PXFLayerMHits=vPXFSimHits;
+			TrackTemp->TIBLayerMHits=vTIBSimHits;
+			TrackTemp->TOBLayerMHits=vTOBSimHits;
+			TrackTemp->TIDLayerMHits=vTIDSimHits;
+			TrackTemp->TECLayerMHits=vTECSimHits;
+			
+			cout << "-------------------------------------------------" << endl;
+
+			
 		}else {
 		}  
 	}
@@ -648,6 +865,7 @@ void HighPtTrackAnalyzer::analyze(const edm::Event& ev, const edm::EventSetup& e
 	iTrkReco = recCollection.product()->size();
 	iTrkSim=simCollection.product()->size();
 	iVtx = vertexCollection.product()->size();
+	if (iVtx>0) RecVtx = vertices->begin()->position().z();
 	iEvent=ev.id().event();
 	iRun=ev.id().run();
 	
