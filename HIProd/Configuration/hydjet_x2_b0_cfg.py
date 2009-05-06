@@ -14,18 +14,18 @@ process.load('Configuration/StandardSequences/MixingNoPileUp_cff')
 process.load('Configuration/StandardSequences/Geometry_cff') # Ecal Pre-Shower In
 process.load('Configuration/StandardSequences/MagneticField_38T_cff')
 process.load('Configuration/StandardSequences/Generator_cff')
-process.load('Configuration/StandardSequences/VtxSmearedFlat_cff') # For fixed vertex
+process.load('Configuration/StandardSequences/VtxSmearedGauss_cff') # For Heavy-Ion conditions
 process.load('Configuration/StandardSequences/Sim_cff')
 process.load('Configuration/StandardSequences/FrontierConditions_GlobalTag_cff')
 process.load('Configuration/EventContent/EventContent_cff')
 
 process.configurationMetadata = cms.untracked.PSet(
-    version = cms.untracked.string('$Revision: 1.5 $'),
+    version = cms.untracked.string('$Revision: 1.1 $'),
     annotation = cms.untracked.string('Hydjet, Most Central (b = 0 fm)'),
-    name = cms.untracked.string('$Source: /cvs_server/repositories/CMSSW/CMSSW/GeneratorInterface/HydjetInterface/python/hydjetSourceDefault_cfi.py,v $')
+    name = cms.untracked.string('$Source: /cvs_server/repositories/CMSSW/UserCode/MitHig/HIProd/Configuration/hydjet_x2_b0_cfg.py,v $')
 )
 process.maxEvents = cms.untracked.PSet(
-    input = cms.untracked.int32(10)
+    input = cms.untracked.int32(1)
 )
 process.options = cms.untracked.PSet(
     Rethrow = cms.untracked.vstring('ProductNotFound')
@@ -88,10 +88,103 @@ process.source = cms.Source("HydjetSource",
             'MSUB(29)=1', 
             'MSUB(114)=1', 
             'MSUB(115)=1'),
+	pythiaBoson = cms.vstring(
+            'MSUB(1)=1',
+            'MSUB(2)=1'),
+        pythiaCharmoniumNRQCD = cms.vstring(                              
+            'MSUB(421) = 1',
+            'MSUB(422) = 1',
+            'MSUB(423) = 1',
+            'MSUB(424) = 1',
+            'MSUB(425) = 1',
+            'MSUB(426) = 1',
+            'MSUB(427) = 1',
+            'MSUB(428) = 1',
+            'MSUB(429) = 1',
+            'MSUB(430) = 1',
+            'MSUB(431) = 1',
+            'MSUB(432) = 1',
+            'MSUB(433) = 1',
+            'MSUB(434) = 1',
+            'MSUB(435) = 1',
+            'MSUB(436) = 1',
+            'MSUB(437) = 1',
+            'MSUB(438) = 1',
+            'MSUB(439) = 1',
+#            'MSTP(142) = 2',
+            'PARJ(13)=0.60',
+            'PARJ(14)=0.162',
+            'PARJ(15)=0.018',
+            'PARJ(16)=0.054',
+            'MSTP(145)=0',
+            'MSTP(146)=0',
+            'MSTP(147)=0',
+            'MSTP(148)=1',
+            'MSTP(149)=1',
+            'PARP(141)=1.16',
+            'PARP(142)=0.0119',
+            'PARP(143)=0.01',
+            'PARP(144)=0.01',
+            'PARP(145)=0.05',
+            'PARP(146)=9.28',
+            'PARP(147)=0.15',
+            'PARP(148)=0.02',
+            'PARP(149)=0.02',
+            'PARP(150)=0.085',
+            'BRAT(861)=0.202',
+            'BRAT(862)=0.798',
+            'BRAT(1501)=0.013',
+            'BRAT(1502)=0.987',
+            'BRAT(1555)=0.356',
+            'BRAT(1556)=0.644'),
+        pythiaBottomoniumNRQCD = cms.vstring(
+            'MSUB(461) = 1',
+            'MSUB(462) = 1',
+            'MSUB(463) = 1',
+            'MSUB(464) = 1',
+            'MSUB(465) = 1',
+            'MSUB(466) = 1',
+            'MSUB(467) = 1',
+            'MSUB(468) = 1',
+            'MSUB(469) = 1',
+            'MSUB(470) = 1',
+            'MSUB(471) = 1',
+            'MSUB(472) = 1',
+            'MSUB(473) = 1',
+            'MSUB(474) = 1',
+            'MSUB(475) = 1',
+            'MSUB(476) = 1',
+            'MSUB(477) = 1',
+            'MSUB(478) = 1',
+            'MSUB(479) = 1',
+ #           'MSTP(142)=2',    
+            'PARJ(13)=0.750',  
+            'PARJ(14)=0.162',  
+            'PARJ(15)=0.018',  
+            'PARJ(16)=0.054',
+            'MSTP(145)=0',    
+            'MSTP(146)=0',     
+            'MSTP(147)=0',   
+            'MSTP(148)=1',    
+            'MSTP(149)=1',     
+            'PARP(141)=1.16', 
+            'PARP(142)=0.0119',
+            'PARP(143)=0.01',  
+            'PARP(144)=0.01',  
+            'PARP(145)=0.05',  
+            'PARP(146)=9.28', 
+            'PARP(147)=0.15',  
+            'PARP(148)=0.02',  
+            'PARP(149)=0.02',  
+            'PARP(150)=0.085'),                 
+#        decaytiming = cms.vstring('PARJ(71)=40'),                # only for gen-level
         parameterSets = cms.vstring('pythiaDefault', 
             'csa08Settings', 
             'pythiaJets', 
-            'pythiaPromptPhotons')
+            'pythiaPromptPhotons',
+            'pythiaBoson',
+            'pythiaCharmoniumNRQCD',
+            'pythiaBottomoniumNRQCD')
     ),
     firstRun = cms.untracked.uint32(1),
     qgpProperTimeFormation = cms.double(0.1)
@@ -113,15 +206,7 @@ process.output = cms.OutputModule("PoolOutputModule",
 # Additional output definition
 
 # Other statements
-process.GlobalTag.globaltag = 'IDEAL_V9::All'
-
-# Fixed Vertex 
-process.VtxSmeared.MinX = 0.0001
-process.VtxSmeared.MaxX = 0.0001
-process.VtxSmeared.MinY = 0.0002
-process.VtxSmeared.MaxY = 0.0002
-process.VtxSmeared.MinZ = 2.
-process.VtxSmeared.MaxZ = 2.
+process.GlobalTag.globaltag = 'IDEAL_V12::All'
 
 # pgen re-defined to exclude all genJets
 process.pgenhi = cms.Sequence(cms.SequencePlaceholder("randomEngineStateProducer")+process.VertexSmearing+process.GeneInfo)
