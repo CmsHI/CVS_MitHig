@@ -34,6 +34,9 @@ public:
 	vector<int> TOBLayerMHits;
 	vector<int> TIDLayerMHits;
 	vector<int> TECLayerMHits;
+	
+	float fHitLayers;
+	float fMHitLayers;
 
 	float fD0,fMD0;
 	float fD0Err,fMD0Err;
@@ -62,7 +65,7 @@ public:
 	float fMRefitPt,fMRefitChi2;
 	float fValidHits,fMValidHits;
 	
-	ClassDef(MatchedTrack,2)
+	ClassDef(MatchedTrack,4)
 	
 };
 
