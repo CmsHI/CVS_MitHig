@@ -82,7 +82,6 @@ private:
 	void getRecHitLayerPatterns(const reco::Track & recTrack, vector<int> &,vector<int> &,vector<int> &,vector<int> &,vector<int> &,vector<int> &, float &);	
 	void getSimHitLayerPatterns(const TrackingParticle & simTrack, vector<int> &,vector<int> &,vector<int> &,vector<int> &,vector<int> &,vector<int> &, float &);	
 	void checkSimTracks (edm::Handle<TrackingParticleCollection>& simCollection,reco::SimToRecoCollection& q);
-        void checkHepMCInfo (edm::Handle<edm::HepMCProduct>& hepEv);
 
 	pair<float,float> refitWithVertex(const reco::Track & recTrack,const reco::VertexCollection* vertices);
 	int getParticleId(edm::RefToBase<reco::Track>& recTrack, int & ptype);
@@ -159,14 +158,12 @@ void HighPtTrackAnalyzer::beginJob(const edm::EventSetup& es)
 	
 	CAReco=new TClonesArray("MatchedTrack",10000);
 	CASim=new TClonesArray("MatchedTrack",10000);
-	//CAHepMC = new TClonesArray("MatchedTrack",10000);
 	
 	recInfoTree=new TTree("RecoStudyTree","RecoStudyTree");
 	recInfoTree->Branch("RunNo",&iRun,"RunNumber/I");
 	recInfoTree->Branch("EventNo",&iEvent,"EventNumber/I");
 	recInfoTree->Branch("RecTracks",&CAReco);
 	recInfoTree->Branch("SimTracks",&CASim);
-	//recInfoTree->Branch("HepMCInfo",&CAHepMC);
 	recInfoTree->Branch("TotalRecoTracks",&iTrkReco,"TotalRecTracks/I");
 	recInfoTree->Branch("TotalSimTracks",&iTrkSim,"TotalSimTracks/I");
 	recInfoTree->Branch("TotalVtx",&iVtx,"TotalVtx/I");
@@ -552,10 +549,6 @@ void HighPtTrackAnalyzer::getSimHitLayerPatterns(const TrackingParticle & simTra
 	
 }
 
-/*****************************************************************************/
-//void HighPtTrackAnalyzer::checkHepMCInfo(edm::Handle<edm::HepMCProduct>& hepEv){
-//   TClonesArray &CAHepMCTemp = *((TClonesArray*)CAHepMC);
-//}
 /*****************************************************************************/
 void HighPtTrackAnalyzer::checkSimTracks(edm::Handle<TrackingParticleCollection>& simCollection,reco::SimToRecoCollection& q){
 	Int_t iSimCount=-1;
@@ -958,7 +951,6 @@ void HighPtTrackAnalyzer::analyze(const edm::Event& ev, const edm::EventSetup& e
 	reco::RecoToSimCollection recoToSim=theAssociatorByHits->associateRecoToSim(recCollection, simCollection,&ev);
 	
 	// Analyze
-	//checkHepMCInfo(hepEv);
 	checkSimTracks(simCollection,simToReco);
 	
 	checkRecTracks(recCollection, vertices, recoToSim);
