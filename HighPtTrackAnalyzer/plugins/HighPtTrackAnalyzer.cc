@@ -82,7 +82,8 @@ private:
 	void getRecHitLayerPatterns(const reco::Track & recTrack, vector<int> &,vector<int> &,vector<int> &,vector<int> &,vector<int> &,vector<int> &, float &);	
 	void getSimHitLayerPatterns(const TrackingParticle & simTrack, vector<int> &,vector<int> &,vector<int> &,vector<int> &,vector<int> &,vector<int> &, float &);	
 	void checkSimTracks (edm::Handle<TrackingParticleCollection>& simCollection,reco::SimToRecoCollection& q);
-	
+        void checkHepMCInfo (edm::Handle<edm::HepMCProduct>& hepEv);
+
 	pair<float,float> refitWithVertex(const reco::Track & recTrack,const reco::VertexCollection* vertices);
 	int getParticleId(edm::RefToBase<reco::Track>& recTrack, int & ptype);
 	void checkRecTracks(edm::Handle<edm::View<reco::Track> >& recCollection,const reco::VertexCollection* vertices,reco::RecoToSimCollection& p);
@@ -94,10 +95,13 @@ private:
 	
 	vector<string> trackCollectionLabels;
 	string resultFileLabel;
-	bool plotEvent, zipFiles, useAbsoluteNumberOfHits, keepLowPtSimTracks;
+	bool plotEvent, zipFiles, useAbsoluteNumberOfHits, keepLowPtSimTracks, infoHiEventTopology;
 	int proc;
 	Int_t iTrkSim,iTrkReco,iVtx;
 	Int_t iEvent,iRun;
+        Int_t Npart, Ncoll, Nhard;
+        Float_t Phi0;
+        Float_t ImpactPara; 
 	Float_t RecVtx;
 	Float_t fSimPxlLayerHit,dMinSimPt,fRecPxlLayerHit;
 	vector<int> vPXBHits, vPXFHits, vTIBHits, vTOBHits, vTIDHits, vTECHits;
@@ -106,8 +110,7 @@ private:
 	
 	TFile * resultFile; 
 	TTree *recInfoTree;
-	TClonesArray *CAReco,*CASim;
-	
+        TClonesArray *CAReco,*CASim;
 	
 };
 
@@ -118,7 +121,7 @@ HighPtTrackAnalyzer::HighPtTrackAnalyzer(const edm::ParameterSet& pset)
 	resultFileLabel       = pset.getParameter<string>("resultFile");
 	useAbsoluteNumberOfHits = pset.getUntrackedParameter<bool>("useAbsoluteNumberOfHits",false);
 	keepLowPtSimTracks = pset.getUntrackedParameter<bool>("keepLowPtSimTracks",false);
-	
+	infoHiEventTopology = pset.getUntrackedParameter<bool>("infoHiEventTopology",false); 
 	//  plotEvent = pset.getParameter<bool>("plotEvent");
 	// zipFiles  = pset.getParameter<bool>("zipFiles");
 }
@@ -156,16 +159,25 @@ void HighPtTrackAnalyzer::beginJob(const edm::EventSetup& es)
 	
 	CAReco=new TClonesArray("MatchedTrack",10000);
 	CASim=new TClonesArray("MatchedTrack",10000);
+	//CAHepMC = new TClonesArray("MatchedTrack",10000);
 	
 	recInfoTree=new TTree("RecoStudyTree","RecoStudyTree");
 	recInfoTree->Branch("RunNo",&iRun,"RunNumber/I");
 	recInfoTree->Branch("EventNo",&iEvent,"EventNumber/I");
 	recInfoTree->Branch("RecTracks",&CAReco);
 	recInfoTree->Branch("SimTracks",&CASim);
+	//recInfoTree->Branch("HepMCInfo",&CAHepMC);
 	recInfoTree->Branch("TotalRecoTracks",&iTrkReco,"TotalRecTracks/I");
 	recInfoTree->Branch("TotalSimTracks",&iTrkSim,"TotalSimTracks/I");
 	recInfoTree->Branch("TotalVtx",&iVtx,"TotalVtx/I");
 	recInfoTree->Branch("RecVertex",&RecVtx,"RecVertex/F");
+	if(infoHiEventTopology){
+	   recInfoTree->Branch("ImpactParameter",&ImpactPara,"ImpactParameter/F");
+	   recInfoTree->Branch("Npart",&Npart,"Npart/I");
+	   recInfoTree->Branch("Ncoll",&Ncoll,"Ncoll/I");
+	   recInfoTree->Branch("Nhard",&Nhard,"Nhard/I");
+	   recInfoTree->Branch("EventPlaneAngle",&Phi0,"EventPlaneAngle/F");
+	}
 }
 
 /*****************************************************************************/
@@ -541,6 +553,10 @@ void HighPtTrackAnalyzer::getSimHitLayerPatterns(const TrackingParticle & simTra
 }
 
 /*****************************************************************************/
+//void HighPtTrackAnalyzer::checkHepMCInfo(edm::Handle<edm::HepMCProduct>& hepEv){
+//   TClonesArray &CAHepMCTemp = *((TClonesArray*)CAHepMC);
+//}
+/*****************************************************************************/
 void HighPtTrackAnalyzer::checkSimTracks(edm::Handle<TrackingParticleCollection>& simCollection,reco::SimToRecoCollection& q){
 	Int_t iSimCount=-1;
 	TClonesArray &CASimTemp = *((TClonesArray*)CASim);
@@ -894,6 +910,13 @@ void HighPtTrackAnalyzer::analyze(const edm::Event& ev, const edm::EventSetup& e
 	edm::Handle<edm::HepMCProduct> hepEv;
 	ev.getByType(hepEv);
 	proc = hepEv->GetEvent()->signal_process_id();
+	if(infoHiEventTopology) {
+	   ImpactPara = hepEv->GetEvent()->heavy_ion()->impact_parameter();
+	   Npart      = hepEv->GetEvent()->heavy_ion()->Npart_proj() + hepEv->GetEvent()->heavy_ion()->Npart_targ();
+	   Ncoll      = hepEv->GetEvent()->heavy_ion()->Ncoll();
+	   Nhard      = hepEv->GetEvent()->heavy_ion()->Ncoll_hard();
+	   Phi0       = hepEv->GetEvent()->heavy_ion()->event_plane_angle();
+	}
 	cout<<"Event Number : "<<ev.id().event()<<endl;
 	cout<<"[HighPtTrackAnalyzer] process = "<<proc<<endl;
 	
@@ -935,6 +958,7 @@ void HighPtTrackAnalyzer::analyze(const edm::Event& ev, const edm::EventSetup& e
 	reco::RecoToSimCollection recoToSim=theAssociatorByHits->associateRecoToSim(recCollection, simCollection,&ev);
 	
 	// Analyze
+	//checkHepMCInfo(hepEv);
 	checkSimTracks(simCollection,simToReco);
 	
 	checkRecTracks(recCollection, vertices, recoToSim);
