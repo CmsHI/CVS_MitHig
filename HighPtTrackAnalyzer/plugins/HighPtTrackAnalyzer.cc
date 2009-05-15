@@ -94,14 +94,14 @@ private:
 	
 	vector<string> trackCollectionLabels;
 	string resultFileLabel;
-	bool plotEvent, zipFiles, useAbsoluteNumberOfHits, keepLowPtSimTracks, infoHiEventTopology;
+	bool useAbsoluteNumberOfHits, keepLowPtSimTracks, infoHiEventTopology;
 	int proc;
 	Int_t iTrkSim,iTrkReco,iVtx;
 	Int_t iEvent,iRun;
-        Int_t Npart, Ncoll, Nhard;
-        Float_t Phi0;
-        Float_t ImpactPara; 
-	Float_t RecVtx;
+	Int_t Npart, Ncoll, Nhard;
+	Float_t Phi0;
+	Float_t ImpactPara; 
+	Float_t RecVtx, SimVtx;
 	Float_t fSimPxlLayerHit,dMinSimPt,fRecPxlLayerHit;
 	vector<int> vPXBHits, vPXFHits, vTIBHits, vTOBHits, vTIDHits, vTECHits;
 	vector<int> vPXBSimHits, vPXFSimHits, vTIBSimHits, vTOBSimHits, vTIDSimHits, vTECSimHits;
@@ -109,7 +109,7 @@ private:
 	
 	TFile * resultFile; 
 	TTree *recInfoTree;
-        TClonesArray *CAReco,*CASim;
+	TClonesArray *CAReco,*CASim;
 	
 };
 
@@ -120,10 +120,7 @@ HighPtTrackAnalyzer::HighPtTrackAnalyzer(const edm::ParameterSet& pset)
 	resultFileLabel       = pset.getParameter<string>("resultFile");
 	useAbsoluteNumberOfHits = pset.getUntrackedParameter<bool>("useAbsoluteNumberOfHits",false);
 	keepLowPtSimTracks = pset.getUntrackedParameter<bool>("keepLowPtSimTracks",false);
-	infoHiEventTopology = pset.getUntrackedParameter<bool>("infoHiEventTopology",false); 
-	//  plotEvent = pset.getParameter<bool>("plotEvent");
-	// zipFiles  = pset.getParameter<bool>("zipFiles");
-}
+	infoHiEventTopology = pset.getUntrackedParameter<bool>("infoHiEventTopology",false); }
 
 /*****************************************************************************/
 HighPtTrackAnalyzer::~HighPtTrackAnalyzer()
@@ -168,12 +165,13 @@ void HighPtTrackAnalyzer::beginJob(const edm::EventSetup& es)
 	recInfoTree->Branch("TotalSimTracks",&iTrkSim,"TotalSimTracks/I");
 	recInfoTree->Branch("TotalVtx",&iVtx,"TotalVtx/I");
 	recInfoTree->Branch("RecVertex",&RecVtx,"RecVertex/F");
+	recInfoTree->Branch("SimVertex",&SimVtx,"SimVertex/F");
 	if(infoHiEventTopology){
 	   recInfoTree->Branch("ImpactParameter",&ImpactPara,"ImpactParameter/F");
 	   recInfoTree->Branch("Npart",&Npart,"Npart/I");
 	   recInfoTree->Branch("Ncoll",&Ncoll,"Ncoll/I");
 	   recInfoTree->Branch("Nhard",&Nhard,"Nhard/I");
-	   recInfoTree->Branch("EventPlaneAngle",&Phi0,"EventPlaneAngle/F");
+	   recInfoTree->Branch("ReactionPlaneAngle",&Phi0,"ReactionPlaneAngle/F");
 	}
 }
 
@@ -899,21 +897,43 @@ void HighPtTrackAnalyzer::analyze(const edm::Event& ev, const edm::EventSetup& e
 	// Get associator
 	theHitAssociator = new TrackerHitAssociator::TrackerHitAssociator(ev);
 	
-	// Get generated
+	// Get generated info
 	edm::Handle<edm::HepMCProduct> hepEv;
-	ev.getByType(hepEv);
-	proc = hepEv->GetEvent()->signal_process_id();
+	ev.getByLabel("source",hepEv);
+	const HepMC::GenEvent * inev = hepEv->GetEvent();
+	HepMC::HeavyIon* hi = inev->heavy_ion();
+	proc = inev->signal_process_id();
+
+	// the heavy ion event info
 	if(infoHiEventTopology) {
-	   ImpactPara = hepEv->GetEvent()->heavy_ion()->impact_parameter();
-	   Npart      = hepEv->GetEvent()->heavy_ion()->Npart_proj() + hepEv->GetEvent()->heavy_ion()->Npart_targ();
-	   Ncoll      = hepEv->GetEvent()->heavy_ion()->Ncoll();
-	   Nhard      = hepEv->GetEvent()->heavy_ion()->Ncoll_hard();
-	   Phi0       = hepEv->GetEvent()->heavy_ion()->event_plane_angle();
+	   ImpactPara = hi->impact_parameter();
+	   Npart      = hi->Npart_proj() + hi->Npart_targ();
+	   Ncoll      = hi->Ncoll();
+	   Nhard      = hi->Ncoll_hard();
+	   Phi0       = hi->event_plane_angle();
 	}
 	cout<<"Event Number : "<<ev.id().event()<<endl;
 	cout<<"[HighPtTrackAnalyzer] process = "<<proc<<endl;
 	
-	// Get simulated
+	// Get signal process vertex
+	HepMC::GenVertex* genvtx = inev->signal_process_vertex();
+	HepMC::FourVector* vtx_;
+
+	if(!genvtx){
+		HepMC::GenEvent::particle_const_iterator pt=inev->particles_begin();
+		HepMC::GenEvent::particle_const_iterator ptend=inev->particles_end();
+		while(!genvtx || ( genvtx->particles_in_size() == 1 && pt != ptend ) ){
+			++pt;
+			genvtx = (*pt)->production_vertex();
+		}
+	}
+
+	vtx_ = &(genvtx->position());
+	SimVtx = 0.1 * vtx_->z(); // hepMC gen vtx is in mm.  everything else is cm so we divide by 10 ;)
+	cout << "Vertex is at : " << SimVtx << " cm";
+	
+	
+	// Get simulated tracks
 	edm::Handle<TrackingParticleCollection> simCollection;
 	//ev.getByLabel("trackingtruthprod",simCollection); //name changed in trackingParticles_cfi between 2_0_5 and 2_1_7
 	ev.getByLabel("mergedtruth",simCollection);
@@ -921,14 +941,14 @@ void HighPtTrackAnalyzer::analyze(const edm::Event& ev, const edm::EventSetup& e
 	
 	cout<<"[HighPtTrackAnalyzer] simTracks = "<<simCollection.product()->size()<<endl;
 	
-	// Get reconstructed
+	// Get reconstructed tracks
 	edm::Handle<edm::View<reco::Track> >  recCollection;
 	ev.getByLabel(trackCollectionLabels[0], recCollection); // !!
 	
 	cout<<"[HighPtTrackAnalyzer] recTracks = "<<recCollection.product()->size()<<endl;
 	
 	
-	// Get vertices
+	// Get reconstructed vertices
 	edm::Handle<reco::VertexCollection> vertexCollection;
 	ev.getByLabel("pixelVertices",vertexCollection);
 	const reco::VertexCollection * vertices = vertexCollection.product();
