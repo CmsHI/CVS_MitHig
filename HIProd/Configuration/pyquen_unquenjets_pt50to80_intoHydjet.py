@@ -13,8 +13,7 @@ process.load("RecoHI.Configuration.Reconstruction_HI_cff")
 process.MessageLogger.debugModules = cms.untracked.vstring("mix")
                              
 process.source = cms.Source('PoolSource',
-                            fileNames = cms.untracked.vstring(__INPUT__),
-                            duplicateCheckMode = cms.untracked.string("noDuplicateCheck"),
+                            fileNames = cms.untracked.vstring('dcache:/pnfs/cmsaf.mit.edu/t2bat/cms/store/mc/Summer09/Hydjet_MinBias_4TeV/GEN-SIM-RAW/MC_31X_V2-GaussianVtx_311_ver1/0000/8C53B062-9673-DE11-94C6-001EC94BF0EF.root'),
                             inputCommands = cms.untracked.vstring('keep *',
                                                                   'drop *_*rawData*_*_*',
                                                                   'drop *_*Digis_*_*',
@@ -23,7 +22,7 @@ process.source = cms.Source('PoolSource',
                             )
 
 process.maxEvents = cms.untracked.PSet(
-    input = cms.untracked.int32(-1)
+    input = cms.untracked.int32(1)
 )
 
 from GeneratorInterface.PyquenInterface.pyquenDefault_cfi import *
@@ -31,15 +30,15 @@ process.signal = generator.clone()
 process.signal.doQuench = False
 process.signal.embeddingMode = True
 process.signal.PythiaParameters.parameterSets = cms.vstring('pythiaDefault','pythiaJets','pythiaPromptPhotons','kinematics')
-process.signal.PythiaParameters.kinematics = cms.vstring('CKIN(3) = 120','CKIN(4) = 150')
+process.signal.PythiaParameters.kinematics = cms.vstring('CKIN(3) = 50','CKIN(4) = 80')
 
 process.RandomNumberGeneratorService.signal = cms.PSet(
-    initialSeed = cms.untracked.uint32(__RANDOM__)
+    initialSeed = cms.untracked.uint32(1)
     )
 
 process.RandomNumberGeneratorService.signalSIM = cms.PSet(process.RandomNumberGeneratorService.g4SimHits)
 
-process.RandomNumberGeneratorService.signalSIM.initialSeed = __RANDOM__
+process.RandomNumberGeneratorService.signalSIM.initialSeed = 1
 
 from CmsHi.Utilities.EventEmbedding_cff import *
 process.mix=cms.EDProducer('HiEventEmbedder',
@@ -77,8 +76,11 @@ process.output = cms.OutputModule("PoolOutputModule",
                                   process.HITrackAnalysisObjects,
                                   compressionLevel = cms.untracked.int32(2),
                                   commitInterval = cms.untracked.uint32(1),
-                                  fileName = cms.untracked.string('__OUTPUT__')
+                                  fileName = cms.untracked.string('pyquen_mixed_into_hydjet.root')
                                   )
+
+process.load('Configuration.EventContent.EventContent_cff')
+process.HITrackAnalysisObjects.outputCommands.extend(process.RAWEventContent.outputCommands)
 
 process.load("SimGeneral.TrackingAnalysis.trackingParticles_cfi")
 process.mergedtruth.HepMCDataLabels = ['signal']                      # by default: 'VtxSmeared', 'PythiaSource', 'source' (and 'generator' in 3_1_x)
