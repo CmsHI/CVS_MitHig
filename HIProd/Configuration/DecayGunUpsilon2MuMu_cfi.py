@@ -18,7 +18,7 @@ generator = cms.EDProducer("Pythia6PtGun",
                                                      ),
 
                            PythiaParameters = cms.PSet(pyquenPythiaDefaultBlock,
-                                                       parameterSets = cms.vstring('pythiaDefault','pythiaUpsilontoMuons')
+                                                       parameterSets = cms.vstring('pythiaDefault','pythiaUpsilonToMuons')
                                                        )
                            )
 
