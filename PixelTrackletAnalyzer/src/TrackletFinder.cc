@@ -28,26 +28,28 @@ void TrackletFinder::sortLayers(){
   event_->getByLabel("siPixelRecHits",rchts);
   rechits = rchts.product();
 
-  for(SiPixelRecHitCollection::id_iterator id = rechits->id_begin(); id!= rechits->id_end(); id++)
-    {
-      if((*id).subdetId() == int(PixelSubdetector::PixelBarrel))
-	{
-	  PXBDetId pid(*id);
-	  SiPixelRecHitCollection::range range;
-	  int layer = pid.layer();
-	  if(layer == 1 || layer == 2)
-	    {
-	      range = rechits->get(*id);
-	    }
-	  
-	  for(SiPixelRecHitCollection::const_iterator recHit = range.first; recHit!= range.second; recHit++)
-	    {
-	      if(layer == 1) layer1_.push_back(&(*recHit));
-	      if(layer == 2) layer2_.push_back(&(*recHit));
-	    }
-	}
-    }
+   for (SiPixelRecHitCollection::const_iterator it = rechits->begin(); it!=rechits->end();it++)
+   {
+      SiPixelRecHitCollection::DetSet hits = *it;
+      DetId detId = DetId(hits.detId());
+      SiPixelRecHitCollection::const_iterator recHitMatch = rechits->find(detId);
+      const SiPixelRecHitCollection::DetSet recHitRange = *recHitMatch;
+      unsigned int detType=detId.det();    // det type, tracker=1
+      unsigned int subid=detId.subdetId(); //subdetector type, barrel=1, fpix=2
+      if (detType!=1||subid!=1) continue;
 
+      PXBDetId pdetId = PXBDetId(detId);
+      unsigned int layer=0;
+      layer=pdetId.layer();
+      if (layer == 1 || layer == 2 ) {
+         for ( SiPixelRecHitCollection::DetSet::const_iterator recHitIterator = recHitRange.begin(); 
+	    recHitIterator != recHitRange.end(); ++recHitIterator) {
+            const SiPixelRecHit * recHit = &(*recHitIterator);
+    	    if(layer == 1) layer1_.push_back(&(*recHit));
+	    if(layer == 2) layer2_.push_back(&(*recHit));        
+         }
+      }
+   }
 }
 
 std::vector<Tracklet> TrackletFinder::makeTracklets(bool invert){

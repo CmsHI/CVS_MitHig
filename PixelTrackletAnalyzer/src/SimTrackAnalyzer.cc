@@ -13,7 +13,7 @@
 //
 // Original Author:  Arya Tafvizi, Yen-Jie Lee
 //         Created:  Tue Jul 22 07:59:06 EDT 2008
-// $Id: SimTrackAnalyzer.cc,v 1.1 2008/09/18 10:36:13 yilmaz Exp $
+// $Id: SimTrackAnalyzer.cc,v 1.2 2008/09/19 17:17:25 yilmaz Exp $
 //
 //
 
@@ -69,7 +69,7 @@
 #include "DataFormats/SiPixelDetId/interface/PixelSubdetector.h"
 #include "DataFormats/DetId/interface/DetId.h"
 
-#include "SimDataFormats/HepMCProduct/interface/HepMCProduct.h"
+#include "SimDataFormats/GeneratorProducts/interface/HepMCProduct.h"
 #include "SimDataFormats/TrackingAnalysis/interface/TrackingParticle.h"
 #include "SimDataFormats/TrackingHit/interface/PSimHit.h"
 #include "SimDataFormats/TrackingAnalysis/interface/TrackingVertex.h"
@@ -313,24 +313,26 @@ SimTrackAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
   ntvertex->Fill(vertex.x(),vertex.y(),vertex.z(),daughter,nVertex);
   
   // Prepare the reconstructed hits
-  for(SiPixelRecHitCollection::id_iterator id = rechits->id_begin(); id!= rechits->id_end(); id++)
+  for (SiPixelRecHitCollection::const_iterator it = rechits->begin(); it!=rechits->end();it++)
   {
-     if((*id).subdetId() == int(PixelSubdetector::PixelBarrel))
-     {
-	PXBDetId pid(*id);
-	SiPixelRecHitCollection::range range;
-	int layer = pid.layer();
-	if(layer == 1 || layer == 2)
-        {
-	   range = rechits->get(*id);
-	   pixelLayer = dynamic_cast<const PixelGeomDetUnit*> (trGeo->idToDet(*id));
-	}
-	
-	for(SiPixelRecHitCollection::const_iterator recHit = range.first; recHit!= range.second; recHit++)
-	{
-	   if(layer == 1) layer1.push_back(&(*recHit));
-	   if(layer == 2) layer2.push_back(&(*recHit));
-	}
+     SiPixelRecHitCollection::DetSet hits = *it;
+     DetId detId = DetId(hits.detId());
+     SiPixelRecHitCollection::const_iterator recHitMatch = rechits->find(detId);
+     const SiPixelRecHitCollection::DetSet recHitRange = *recHitMatch;
+     unsigned int detType=detId.det();    // det type, tracker=1
+     unsigned int subid=detId.subdetId(); //subdetector type, barrel=1, fpix=2
+     if (detType!=1||subid!=1) continue;
+
+     PXBDetId pdetId = PXBDetId(detId);
+     unsigned int layer=0;
+     layer=pdetId.layer();
+     if (layer == 1 || layer == 2 ) {
+  	for ( SiPixelRecHitCollection::DetSet::const_iterator recHitIterator = recHitRange.begin(); 
+           recHitIterator != recHitRange.end(); ++recHitIterator) {
+  	   const SiPixelRecHit * recHit = &(*recHitIterator);
+  	   if(layer == 1) layer1.push_back(&(*recHit));
+           if(layer == 2) layer2.push_back(&(*recHit));        
+  	}
      }
   }
 
@@ -427,7 +429,7 @@ SimTrackAnalyzer::analyzeHits(const edm::Event& iEvent, const edm::EventSetup& i
    Handle<PSimHitContainer> simhits2;
    iEvent.getByLabel(InputTag("g4SimHits","TrackerHitsPixelBarrelLowTof"),simhits2);
 
-   for(int i1 = 0; i1 < simhits1->size(); ++i1){
+   for(unsigned int i1 = 0; i1 < simhits1->size(); ++i1){
       const PSimHit & hit = (*simhits1)[i1];
       int detid = hit.detUnitId();
       const PixelGeomDetUnit* pxlayer;
@@ -446,7 +448,7 @@ SimTrackAnalyzer::analyzeHits(const edm::Event& iEvent, const edm::EventSetup& i
       ntpixelsim1->Fill(x,y,z,r,type,part,id);
    }
 
-   for(int i2 = 0; i2 < simhits2->size(); ++i2){
+   for(unsigned int i2 = 0; i2 < simhits2->size(); ++i2){
       const PSimHit & hit = (*simhits2)[i2];
       int detid = hit.detUnitId();
       const PixelGeomDetUnit* pxlayer;
@@ -464,6 +466,39 @@ SimTrackAnalyzer::analyzeHits(const edm::Event& iEvent, const edm::EventSetup& i
       h.Fill(x,y);
       ntpixelsim2->Fill(x,y,z,r,type,part,id);
    }
+   
+   for (SiPixelRecHitCollection::const_iterator it = rechits->begin(); it!=rechits->end();it++)
+   {
+      SiPixelRecHitCollection::DetSet hits = *it;
+      DetId detId = DetId(hits.detId());
+      SiPixelRecHitCollection::const_iterator recHitMatch = rechits->find(detId);
+      const SiPixelRecHitCollection::DetSet recHitRange = *recHitMatch;
+      unsigned int detType=detId.det();    // det type, tracker=1
+      unsigned int subid=detId.subdetId(); //subdetector type, barrel=1, fpix=2
+      if (detType!=1||subid!=1) continue;
+
+      PXBDetId pdetId = PXBDetId(detId);
+      unsigned int layer=0;
+      layer=pdetId.layer();
+      if (layer == 1 || layer == 2 ) {
+         for ( SiPixelRecHitCollection::DetSet::const_iterator recHitIterator = recHitRange.begin(); 
+	    recHitIterator != recHitRange.end(); ++recHitIterator) {
+            const SiPixelRecHit * hit = &(*recHitIterator);
+
+            pixelLayer = dynamic_cast<const PixelGeomDetUnit*> (trGeo->idToDet(hit->geographicalId()));
+
+            GlobalPoint gpos1 = pixelLayer->toGlobal(hit->localPosition());
+
+            double x = gpos1.x();
+            double y = gpos1.y();
+            double z = gpos1.z() - simvrtxZ;
+            double r = sqrt(x*x+y*y);
+            ntpixelrec->Fill(x,y,z,r,layer);
+	    h.Fill(x,y);
+         }
+      }
+   }
+   /*
    for(SiPixelRecHitCollection::id_iterator id = rechits->id_begin(); id!= rechits->id_end(); id++)
       {
          if((*id).subdetId() == int(PixelSubdetector::PixelBarrel))
@@ -494,7 +529,7 @@ SimTrackAnalyzer::analyzeHits(const edm::Event& iEvent, const edm::EventSetup& i
                   }
             }
       }
-   
+   */
    if(h.GetMean(2) < 4){
       ntpixelsim1->Reset();
       ntpixelsim2->Reset();

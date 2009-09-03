@@ -13,7 +13,7 @@
 //
 // Original Author:  Arya Tafvizi, Yen-Jie Lee
 //         Created:  Tue Jul 22 07:59:06 EDT 2008
-// $Id: PixelTrackletAnalyzer.cc,v 1.10 2008/10/07 11:43:09 yjlee Exp $
+// $Id: PixelTrackletAnalyzer.cc,v 1.17 2008/10/15 08:38:20 yilmaz Exp $
 //
 //
 
@@ -69,7 +69,7 @@
 #include "DataFormats/SiPixelDetId/interface/PixelSubdetector.h"
 #include "DataFormats/DetId/interface/DetId.h"
 
-#include "SimDataFormats/HepMCProduct/interface/HepMCProduct.h"
+#include "SimDataFormats/GeneratorProducts/interface/HepMCProduct.h"
 #include "SimDataFormats/TrackingAnalysis/interface/TrackingParticle.h"
 #include "SimDataFormats/TrackingHit/interface/PSimHit.h"
 #include "SimDataFormats/TrackingAnalysis/interface/TrackingVertex.h"
@@ -366,17 +366,22 @@ PixelTrackletAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& 
   if (verbose_) cout <<"vertex: "<<vertex<<endl;
  
   // Prepare the reconstructed hits
-  for(SiPixelRecHitCollection::id_iterator id = rechits->id_begin(); id!= rechits->id_end(); id++)
+  
+  /*
+  for(SiPixelRecHitCollection::const_iterator recHitIdIterator = rechits->begin(); recHitIdIterator!= rechits->end(); recHitIdIterator++)
   {
-     if((*id).subdetId() == int(PixelSubdetector::PixelBarrel))
+     SiPixelRecHitCollection::DetSet hits = *recHitIdIterator;
+     DetId detId = DetId(hits.detId()); // Get the Detid object
+     
+     if((detId).subdetId() == int(PixelSubdetector::PixelBarrel))
      {
-	PXBDetId pid(*id);
+	PXBDetId pid(detId);
 	SiPixelRecHitCollection::range range;
 	int layer = pid.layer();
 	if(layer == 1 || layer == 2)
         {
-	   range = rechits->get(*id);
-	   pixelLayer = dynamic_cast<const PixelGeomDetUnit*> (trGeo->idToDet(*id));
+	   range = rechits->get(detId);
+	   pixelLayer = dynamic_cast<const PixelGeomDetUnit*> (trGeo->idToDet(detId));
 	}
 	
 	for(SiPixelRecHitCollection::const_iterator recHit = range.first; recHit!= range.second; recHit++)
@@ -386,7 +391,29 @@ PixelTrackletAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& 
 	}
      }
   }
+   */
+   for (SiPixelRecHitCollection::const_iterator it = rechits->begin(); it!=rechits->end();it++)
+   {
+      SiPixelRecHitCollection::DetSet hits = *it;
+      DetId detId = DetId(hits.detId());
+      SiPixelRecHitCollection::const_iterator recHitMatch = rechits->find(detId);
+      const SiPixelRecHitCollection::DetSet recHitRange = *recHitMatch;
+      unsigned int detType=detId.det();    // det type, tracker=1
+      unsigned int subid=detId.subdetId(); //subdetector type, barrel=1, fpix=2
+      if (detType!=1||subid!=1) continue;
 
+      PXBDetId pdetId = PXBDetId(detId);
+      unsigned int layer=0;
+      layer=pdetId.layer();
+      if (layer == 1 || layer == 2 ) {
+         for ( SiPixelRecHitCollection::DetSet::const_iterator recHitIterator = recHitRange.begin(); 
+	    recHitIterator != recHitRange.end(); ++recHitIterator) {
+            const SiPixelRecHit * recHit = &(*recHitIterator);
+    	    if(layer == 1) layer1.push_back(&(*recHit));
+	    if(layer == 2) layer2.push_back(&(*recHit));        
+         }
+      }
+   }
 
   layer1HitInEta1_ = 0;
 
@@ -513,7 +540,7 @@ vector<Tracklet> PixelTrackletAnalyzer::makeTracklets(const edm::Event& iEvent,v
         for(vector<PSimHit>::const_iterator simHit1 = simHits1.begin(); simHit1!= simHits1.end(); simHit1++)   //gets the primary simhit and its specifications for the rechit 
         {  
            simIdx++;
-           unsigned int associatedTPID = associateSimhitToTrackingparticle((&(*simHit1))->trackId());
+           int associatedTPID = associateSimhitToTrackingparticle((&(*simHit1))->trackId());
            if (verbose_) cout <<"AssociatedPID: "<<associatedTPID<<" "<<endl;
            if (associatedTPID == -1) continue;    // doesn't match to any Trackingparticle
 
@@ -572,7 +599,7 @@ vector<Tracklet> PixelTrackletAnalyzer::makeTracklets(const edm::Event& iEvent,v
 
              int ptype = (&(*simHit2))->processType();
              if (ptype != 2) continue;
-              unsigned int associatedTPID2 = associateSimhitToTrackingparticle((&(*simHit2))->trackId());
+              int associatedTPID2 = associateSimhitToTrackingparticle((&(*simHit2))->trackId());
 
               if (associatedTPID2 == -1) continue;    // doesn't match to any Trackingparticle
 
@@ -594,7 +621,7 @@ vector<Tracklet> PixelTrackletAnalyzer::makeTracklets(const edm::Event& iEvent,v
 	         trackletProcessType = bestSimHit2->processType();
 	         double energyloss = bestSimHit2->energyLoss();
 	         double pt = bestSimHit2->momentumAtEntry().perp();
-                 unsigned int associatedTPID = associateSimhitToTrackingparticle(trid);
+                 int associatedTPID = associateSimhitToTrackingparticle(trid);
 
                  if (associatedTPID == -1) continue;    // doesn't match to any Trackingparticle
 

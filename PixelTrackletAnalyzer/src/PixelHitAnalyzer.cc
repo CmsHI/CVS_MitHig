@@ -8,12 +8,12 @@
  Description: <one line class summary>
 
  Implementation:
-     <Notes on implementation>
+     Prepare the Hit Tree for analysis
 */
 //
 // Original Author:  Yilmaz Yetkin, Yen-Jie 
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: PixelHitAnalyzer.cc,v 1.10 2008/11/12 09:48:51 yilmaz Exp $
+// $Id: PixelHitAnalyzer.cc,v 1.11 2009/05/02 21:29:51 yjlee Exp $
 //
 //
 
@@ -25,7 +25,12 @@
 #include <string>
 #include <map>
 
-// user include files
+// CMSSW user include files
+#include "DataFormats/GeometryVector/interface/GlobalPoint.h"
+#include "DataFormats/SiPixelDetId/interface/PXBDetId.h"
+#include "DataFormats/VertexReco/interface/Vertex.h"
+#include "DataFormats/VertexReco/interface/VertexFwd.h"
+#include "DataFormats/TrackerRecHit2D/interface/SiPixelRecHitCollection.h"
 #include "FWCore/Framework/interface/Frameworkfwd.h"
 #include "FWCore/Framework/interface/EDAnalyzer.h"
 #include "FWCore/Framework/interface/Event.h"
@@ -33,24 +38,22 @@
 #include "FWCore/Framework/interface/ESHandle.h"
 #include "FWCore/Framework/interface/MakerMacros.h"
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
-#include "Geometry/Records/interface/TrackerDigiGeometryRecord.h"
-
 #include "FWCore/ServiceRegistry/interface/Service.h"
-#include "PhysicsTools/UtilAlgos/interface/TFileService.h"
+#include "Geometry/Records/interface/TrackerDigiGeometryRecord.h"
 #include "Geometry/TrackerGeometryBuilder/interface/PixelGeomDetUnit.h"
-#include "DataFormats/TrackerRecHit2D/interface/SiPixelRecHitCollection.h"
 #include "Geometry/TrackerGeometryBuilder/interface/TrackerGeometry.h"
-#include "DataFormats/GeometryVector/interface/GlobalPoint.h"
-#include "DataFormats/SiPixelDetId/interface/PXBDetId.h"
-#include "DataFormats/VertexReco/interface/Vertex.h"
-#include "DataFormats/VertexReco/interface/VertexFwd.h"
+#include "Geometry/TrackerGeometryBuilder/interface/TrackerLayerIdAccessor.h"
+#include "PhysicsTools/UtilAlgos/interface/TFileService.h"
 #include "SimDataFormats/TrackingAnalysis/interface/TrackingVertex.h"
 #include "SimDataFormats/TrackingAnalysis/interface/TrackingVertexContainer.h"
 #include "SimDataFormats/TrackingAnalysis/interface/TrackingParticle.h"
 #include "SimDataFormats/TrackingHit/interface/PSimHit.h"
-#include "SimTracker/TrackerHitAssociation/interface/TrackerHitAssociator.h"
 #include "SimGeneral/HepPDTRecord/interface/ParticleDataTable.h"
+#include "SimTracker/TrackerHitAssociation/interface/TrackerHitAssociator.h"
 
+#include "DataFormats/Common/interface/DetSetAlgorithm.h"
+
+// Root include files
 #include "TTree.h"
 #include "TNtuple.h"
 
@@ -244,7 +247,7 @@ void
 PixelHitAnalyzer::fillVertices(const edm::Event& iEvent){
 
    if(doMC_){
-      int daughter = 0;
+      unsigned int daughter = 0;
       int nVertex = 0;
       int greatestvtx = 0;
       Handle<TrackingVertexCollection> vertices;
@@ -267,12 +270,12 @@ PixelHitAnalyzer::fillVertices(const edm::Event& iEvent){
       pev_.nv++;
    }
    
-   for(int iv = 0; iv < vertexSrc_.size(); ++iv){
+   for(unsigned int iv = 0; iv < vertexSrc_.size(); ++iv){
       const reco::VertexCollection * recoVertices;
       edm::Handle<reco::VertexCollection> vertexCollection;
       iEvent.getByLabel(vertexSrc_[iv],vertexCollection);
       recoVertices = vertexCollection.product();
-      int daughter = 0;
+      unsigned int daughter = 0;
       int nVertex = 0;
       int greatestvtx = 0;
       
@@ -313,156 +316,158 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
    iEvent.getByLabel("siPixelRecHits",rchts);
    rechits = rchts.product();
 
-   for(SiPixelRecHitCollection::id_iterator id = rechits->id_begin(); id!= rechits->id_end(); id++){
-      if((*id).subdetId() == int(PixelSubdetector::PixelBarrel)){
-	 PXBDetId pid(*id);
-	 SiPixelRecHitCollection::range range;
-	 int layer = pid.layer();
-	 if(layer == 1 || layer == 2 || layer == 3) range = rechits->get(*id);
-	 for(SiPixelRecHitCollection::const_iterator recHit = range.first; recHit!= range.second; recHit++){
-	    
-	    int ptype = -99;
-	    bool isprimary = false;
-	    bool issecondary = false;
-	    bool isbackground = false;
+   for (SiPixelRecHitCollection::const_iterator it = rechits->begin(); it!=rechits->end();it++)
+   {
+      SiPixelRecHitCollection::DetSet hits = *it;
+      DetId detId = DetId(hits.detId());
+      SiPixelRecHitCollection::const_iterator recHitMatch = rechits->find(detId);
+      const SiPixelRecHitCollection::DetSet recHitRange = *recHitMatch;
+      unsigned int detType=detId.det();    // det type, tracker=1
+      unsigned int subid=detId.subdetId(); //subdetector type, barrel=1, fpix=2
+      if (detType!=1||subid!=1) continue;
 
-	    const SiPixelRecHit* recHit1 = &*recHit;
+      PXBDetId pdetId = PXBDetId(detId);
+      unsigned int layer=0;
+      layer=pdetId.layer();
+      for ( SiPixelRecHitCollection::DetSet::const_iterator recHitIterator = recHitRange.begin(); 
+	 recHitIterator != recHitRange.end(); ++recHitIterator) {
+         const SiPixelRecHit * recHit = &(*recHitIterator);
 
-	    //	    cout<<"For the same hit : -------------------"<<endl;
+         // SIM INFO
+         bool isprimary    = false;
+         bool issecondary  = false;
+         bool isbackground = false;
+         int ptype = -99;
+         int gpid = -9999;
+         int trid = -9999;
 
-            // GEOMETRY INFO                        
+         const PixelGeomDetUnit* pixelLayer = dynamic_cast<const PixelGeomDetUnit*> (geo_->idToDet(recHit->geographicalId()));
+         GlobalPoint gpos = pixelLayer->toGlobal(recHit->localPosition());
+         math::XYZVector rechitPos(gpos.x(),gpos.y(),gpos.z());
 
-            const PixelGeomDetUnit* pixelLayer = dynamic_cast<const PixelGeomDetUnit*> (geo_->idToDet(recHit1->geographicalId()));
-            GlobalPoint gpos = pixelLayer->toGlobal(recHit1->localPosition());
+         // position
+         double eta = rechitPos.eta();
+         double phi = rechitPos.phi();
+         double r   = rechitPos.rho();
 
-            //Removed by Yen-Jie, we do the calculation in root level.          
-            //double vertex = 0;                                                
-            //if(pev_.vz[(int)(!doMC_)] != -99) vertex = pev_.vz[(int)(!doMC_); 
-	    //	    math::XYZVector rechitPos(gpos.x(),gpos.y(),gpos.z()-pev_.vz[0]);
-	    math::XYZVector rechitPos(gpos.x(),gpos.y(),gpos.z()); 
-            
-            double eta = rechitPos.eta();
-            double phi = rechitPos.phi();
-            double r = rechitPos.rho();
+         if (doMC_) {
+            vector<PSimHit> simHits1 = theHitAssociator.associateHit(*recHitIterator);
+            const PSimHit * bestSimHit1 = 0;
+            int simIdx =0;
 
-	    // SIM INFO
-	    int gpid = -9999;
-	    int trid = -9999;
-	    if (doMC_) {
-	       vector<PSimHit> simHits1 = theHitAssociator.associateHit(*recHit1);
-	       const PSimHit * bestSimHit1 = 0;
-	       int simIdx =0;
+            //gets the primary simhit and its specifications for the rechit	       
+            for(vector<PSimHit>::const_iterator simHit1 = simHits1.begin(); simHit1!= simHits1.end(); simHit1++){  
+  	       simIdx++;
+ 
+	       GlobalPoint simpos = pixelLayer->toGlobal((*simHit1).localPosition());
+	       math::XYZVector simhitPos(simpos.x(),simpos.y(),simpos.z());
 
-	       //gets the primary simhit and its specifications for the rechit   	     
-	       for(vector<PSimHit>::const_iterator simHit1 = simHits1.begin(); simHit1!= simHits1.end(); simHit1++){  
-		  simIdx++;
+	       double simrecdeltaphi = fabs(simhitPos.phi()-phi)>matchPhiMax;
+	       if(simrecdeltaphi > 2*PI) simrecdeltaphi -= 2*PI;
+	       if(simrecdeltaphi > PI) simrecdeltaphi = PI -simrecdeltaphi;
+               if(fabs(simhitPos.eta()-eta)>matchEtaMax) continue;
+               if(simrecdeltaphi>matchPhiMax) continue;
 
-		  GlobalPoint simpos = pixelLayer->toGlobal((*simHit1).localPosition());
-		  math::XYZVector simhitPos(simpos.x(),simpos.y(),simpos.z());
+               nt2->Fill(eta,phi,simpos.eta(),simpos.phi(),ptype); 
 
-		  double simrecdeltaphi = fabs(simhitPos.phi()-phi)>matchPhiMax;
-		  if(simrecdeltaphi > 2*PI) simrecdeltaphi -= 2*PI;
-		  if(simrecdeltaphi > PI) simrecdeltaphi = PI -simrecdeltaphi;
-                  if(fabs(simhitPos.eta()-eta)>matchEtaMax) continue;
-                  if(simrecdeltaphi>matchPhiMax) continue;
+	       int associatedTPID = associateSimhitToTrackingparticle((*simHit1).trackId());
+	       ptype = (&(*simHit1))->processType();
 
-                  nt2->Fill(eta,phi,simpos.eta(),simpos.phi(),ptype);
-
-		  unsigned int associatedTPID = associateSimhitToTrackingparticle((*simHit1).trackId());
-		  ptype = (&(*simHit1))->processType();
-
-		  if (associatedTPID == -1){
-		     isbackground = true;
-		     continue;    // doesn't match to any Trackingparticle
-		  }
-		  
-		  const TrackingParticle* associatedTP = &(*trackingParticles)[associatedTPID];
-		  
-		  TrackingParticle::genp_iterator itb = associatedTP->genParticle_begin();
-		  TrackingParticle::genp_iterator itend = associatedTP->genParticle_end();
-
-		  isprimary = checkprimaryparticle(associatedTP);
-                  issecondary = itb == itend;
-
-		  if(itb == itend){
-		     //		     cout<<"This is a secondary particle"<<endl;
-		  }
-
-		  //		  cout<<"TP eta : "<<associatedTP->eta()<<" phi : "<<associatedTP->phi()<<endl;
-
-		  for(TrackingParticle::genp_iterator itp = itb; itp != itend; ++itp){
-		     gpid = tpmap_[(*itp)->barcode()];
-		     //		     cout<<" Particle : "<<gpid<<endl;
-		  }
-		  
-		  if (isprimary && bestSimHit1==0){ 
-		     bestSimHit1 = &(*simHit1);
-		     break;
-		  }
-	       } 
-	       
-	       if(bestSimHit1!=0){
-		  trid = bestSimHit1->trackId();  
-
-                  GlobalPoint simpos = pixelLayer->toGlobal((*bestSimHit1).localPosition());
-		  nt->Fill(eta,phi,simpos.eta(),simpos.phi(),0);
-
-		  //		  cout<<" trid : "<<trid<<endl;
-
+	       if (associatedTPID == -1){
+	          isbackground = true;
+	          continue;    // doesn't match to any Trackingparticle
 	       }
-	    }
 	    
-	    int type = -99;
-	    if(isbackground) type = 0;
-	    if(isprimary) type = 1;
-	    if(ptype != 2) type = 2;
-            if(issecondary) type = 3;
-
-	    //	    cout<<"Hit eta : "<<eta<<" phi : "<<phi<<endl;
-	    //            cout<<"Particle eta : "<<pev_.eta[gpid]<<" phi : "<<pev_.phi[gpid]<<endl;
-
-	    if(layer == 1){ 
-	       pev_.eta1[pev_.nhits1] = eta;
-	       pev_.phi1[pev_.nhits1] = phi;
-	       pev_.r1[pev_.nhits1] = r;
-	       pev_.id1[pev_.nhits1] = trid;
-	       pev_.cs1[pev_.nhits1] = recHit1->cluster()->size(); //Cluster Size
-               pev_.ch1[pev_.nhits1] = recHit1->cluster()->charge(); //Cluster Charge
-	       pev_.gp1[pev_.nhits1] = gpid;
-	       pev_.type1[pev_.nhits1] = type;
-	       pev_.nhits1++;
-	       if(fabs(gpos.eta()) < etaMult_ ) pev_.mult++;
-	       pev_.layer1Hit.push_back(rechitPos);
-	    }
-	    if(layer == 2){
-	       pev_.eta2[pev_.nhits2] = eta;
-	       pev_.phi2[pev_.nhits2] = phi;
-	       pev_.r2[pev_.nhits2] = r;
-               pev_.id2[pev_.nhits2] = trid;
-	       pev_.cs2[pev_.nhits2] = recHit1->cluster()->size(); //Cluster Size
-               pev_.ch2[pev_.nhits2] = recHit1->cluster()->charge(); //Cluster Charge
-	       pev_.gp2[pev_.nhits2] = gpid;
-	       pev_.type2[pev_.nhits2] = type;
-	       pev_.nhits2++;
-	       pev_.layer2Hit.push_back(rechitPos);
-	    } 
-
-	    if(layer == 3){
-	       pev_.eta3[pev_.nhits3] = eta;
-	       pev_.phi3[pev_.nhits3] = phi;
-	       pev_.r3[pev_.nhits3] = r;
-               pev_.id3[pev_.nhits3] = trid;
-	       pev_.cs3[pev_.nhits3] = recHit1->cluster()->size(); //Cluster Size
-               pev_.ch3[pev_.nhits3] = recHit1->cluster()->charge(); //Cluster Charge
-	       pev_.gp3[pev_.nhits3] = gpid;
-	       pev_.type3[pev_.nhits3] = type;
-	       pev_.nhits3++;
-	       pev_.layer3Hit.push_back(rechitPos);
-	    } 
+	       const TrackingParticle* associatedTP = &(*trackingParticles)[associatedTPID];
 	    
+	       TrackingParticle::genp_iterator itb = associatedTP->genParticle_begin();
+	       TrackingParticle::genp_iterator itend = associatedTP->genParticle_end();
+
+	       isprimary = checkprimaryparticle(associatedTP);
+               issecondary = itb == itend; 
+
+	       if(itb == itend){
+	          //	       cout<<"This is a secondary particle"<<endl;
+	       }
+
+	       //  	    cout<<"TP eta : "<<associatedTP->eta()<<" phi : "<<associatedTP->phi()<<endl;
+
+	       for(TrackingParticle::genp_iterator itp = itb; itp != itend; ++itp){
+	          gpid = tpmap_[(*itp)->barcode()];
+	          //	       cout<<" Particle : "<<gpid<<endl;
+	       }
+	       
+	       if (isprimary && bestSimHit1==0){ 
+	          bestSimHit1 = &(*simHit1);
+	          break;
+	       }
+            } 
+         
+            if(bestSimHit1!=0){
+	       trid = bestSimHit1->trackId();  
+
+               GlobalPoint simpos = pixelLayer->toGlobal((*bestSimHit1).localPosition());
+	       nt->Fill(eta,phi,simpos.eta(),simpos.phi(),0);
+ 
+	       //  	    cout<<" trid : "<<trid<<endl;
+
+            }
+         }
+ 	    
+         int type = -99;
+	 if(isbackground) type = 0;
+	 if(isprimary) type = 1;
+	 if(ptype != 2) type = 2;
+         if(issecondary) type = 3;
+
+	
+	 if(layer == 1){ 
+	    pev_.eta1[pev_.nhits1] = eta;
+	    pev_.phi1[pev_.nhits1] = phi;
+	    pev_.r1[pev_.nhits1] = r;
+	    pev_.id1[pev_.nhits1] = trid;
+	    pev_.cs1[pev_.nhits1] = recHit->cluster()->size(); //Cluster Size
+            pev_.ch1[pev_.nhits1] = recHit->cluster()->charge(); //Cluster Charge
+	    pev_.gp1[pev_.nhits1] = gpid;
+	    pev_.type1[pev_.nhits1] = type;
+	    pev_.nhits1++;
+	    if(fabs(gpos.eta()) < etaMult_ ) pev_.mult++;
+	    pev_.layer1Hit.push_back(rechitPos);
 	 }
+	 
+	 if(layer == 2){
+	    pev_.eta2[pev_.nhits2] = eta;
+	    pev_.phi2[pev_.nhits2] = phi;
+	    pev_.r2[pev_.nhits2] = r;
+            pev_.id2[pev_.nhits2] = trid;
+	    pev_.cs2[pev_.nhits2] = recHit->cluster()->size(); //Cluster Size
+            pev_.ch2[pev_.nhits2] = recHit->cluster()->charge(); //Cluster Charge
+	    pev_.gp2[pev_.nhits2] = gpid;
+	    pev_.type2[pev_.nhits2] = type;
+	    pev_.nhits2++;
+	    pev_.layer2Hit.push_back(rechitPos);
+	 } 
+
+	 if(layer == 3){
+	    pev_.eta3[pev_.nhits3] = eta;
+	    pev_.phi3[pev_.nhits3] = phi;
+	    pev_.r3[pev_.nhits3] = r;
+            pev_.id3[pev_.nhits3] = trid;
+	    pev_.cs3[pev_.nhits3] = recHit->cluster()->size(); //Cluster Size
+            pev_.ch3[pev_.nhits3] = recHit->cluster()->charge(); //Cluster Charge
+	    pev_.gp3[pev_.nhits3] = gpid;
+	    pev_.type3[pev_.nhits3] = type;
+	    pev_.nhits3++;
+	    pev_.layer3Hit.push_back(rechitPos);
+	 } 
+         	 
+
       }
    }
+
+
+
+
 }
 
 void

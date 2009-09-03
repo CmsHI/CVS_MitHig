@@ -13,7 +13,7 @@
 //
 // Original Author:  Yilmaz Yetkin
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackletCounter.cc,v 1.3 2008/10/02 09:51:05 yilmaz Exp $
+// $Id: TrackletCounter.cc,v 1.4 2008/10/03 18:08:28 yilmaz Exp $
 //
 //
 
@@ -40,7 +40,8 @@
 
 #include "PhysicsTools/UtilAlgos/interface/TFileService.h"
 
-#include "SimDataFormats/HepMCProduct/interface/HepMCProduct.h"
+#include "SimDataFormats/GeneratorProducts/interface/HepMCProduct.h"
+
 #include "SimGeneral/HepPDTRecord/interface/ParticleDataTable.h"
 
 #include "DataFormats/VertexReco/interface/Vertex.h"
