@@ -13,7 +13,7 @@
 //
 // Original Author:  Yilmaz Yetkin, Yen-Jie 
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: PixelHitAnalyzer.cc,v 1.11 2009/05/02 21:29:51 yjlee Exp $
+// $Id: PixelHitAnalyzer.cc,v 1.12 2009/09/03 16:33:10 yjlee Exp $
 //
 //
 
@@ -26,6 +26,7 @@
 #include <map>
 
 // CMSSW user include files
+#include "DataFormats/Common/interface/DetSetAlgorithm.h"
 #include "DataFormats/GeometryVector/interface/GlobalPoint.h"
 #include "DataFormats/SiPixelDetId/interface/PXBDetId.h"
 #include "DataFormats/VertexReco/interface/Vertex.h"
@@ -50,8 +51,6 @@
 #include "SimDataFormats/TrackingHit/interface/PSimHit.h"
 #include "SimGeneral/HepPDTRecord/interface/ParticleDataTable.h"
 #include "SimTracker/TrackerHitAssociation/interface/TrackerHitAssociator.h"
-
-#include "DataFormats/Common/interface/DetSetAlgorithm.h"
 
 // Root include files
 #include "TTree.h"
