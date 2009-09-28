@@ -13,7 +13,7 @@
 //
 // Original Author:  Yilmaz Yetkin, Yen-Jie 
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: PixelHitAnalyzer.cc,v 1.12 2009/09/03 16:33:10 yjlee Exp $
+// $Id: PixelHitAnalyzer.cc,v 1.13 2009/09/15 11:27:17 yjlee Exp $
 //
 //
 
@@ -80,7 +80,7 @@ struct PixelEvent{
    int mult;
    //   int mult2;
    int npart;
-
+   
    int nv;
    float vz[MAXVTX];
    float vzMinDeltaR;
@@ -117,7 +117,9 @@ struct PixelEvent{
    float phi[MAXPARTICLES];
    int pdg[MAXPARTICLES];
    int chg[MAXPARTICLES];
-   
+   float x[MAXPARTICLES];
+   float y[MAXPARTICLES];
+   float z[MAXPARTICLES];
    int evtType;
 
    vector<math::XYZVector> layer1Hit;
@@ -254,10 +256,10 @@ PixelHitAnalyzer::fillVertices(const edm::Event& iEvent){
       nVertex = vertices->size();
       for (unsigned int i = 0 ; i< vertices->size(); ++i){
 	 daughter = (*vertices)[i].nDaughterTracks();
-	 if( daughter >(*vertices)[greatestvtx].nDaughterTracks()&&fabs((*vertices)[i].position().z())<30) greatestvtx = i;
+	 if( daughter >(*vertices)[greatestvtx].nDaughterTracks()&&fabs((*vertices)[i].position().z())<30000) greatestvtx = i;
       }
       
-      if(vertices->size()>0&&fabs((*vertices)[greatestvtx].position().z())<30){
+      if(vertices->size()>0&&fabs((*vertices)[greatestvtx].position().z())<30000){
 	 pev_.vz[pev_.nv] = (*vertices)[greatestvtx].position().z();
       }else{
 	 pev_.vz[pev_.nv] =  -99; 
@@ -473,7 +475,7 @@ void
 PixelHitAnalyzer::fillParticles(const edm::Event& iEvent){
 
    Handle<HepMCProduct> mc;
-   iEvent.getByLabel("source",mc);
+   iEvent.getByLabel("generator",mc);
    const HepMC::GenEvent* evt = mc->GetEvent();
 
    int evtType = evt->signal_process_id();
@@ -492,7 +494,9 @@ PixelHitAnalyzer::fillParticles(const edm::Event& iEvent){
 	 pev_.pt[pev_.npart] = (*it)->momentum().perp();
 	 const ParticleData * part = pdt->particle(pev_.pdg[pev_.npart]);
 	 pev_.chg[pev_.npart] = (int)part->charge();
-
+         pev_.x[pev_.npart] = (*it)->production_vertex()->position().x();
+         pev_.y[pev_.npart] = (*it)->production_vertex()->position().y();
+         pev_.z[pev_.npart] = (*it)->production_vertex()->position().z();
 	 //	 cout<<" Particle "<<pev_.npart<<" eta : "<<pev_.eta[pev_.npart]<<" phi : "<<pev_.phi[pev_.npart]<<" pt : "<<pev_.pt[pev_.npart]<<endl; 
 
 	 pev_.npart++;
@@ -602,6 +606,9 @@ PixelHitAnalyzer::beginJob(const edm::EventSetup& iSetup)
   pixelTree_->Branch("phi",pev_.phi,"phi[npart]/F");
   pixelTree_->Branch("pdg",pev_.pdg,"pdg[npart]/I");
   pixelTree_->Branch("chg",pev_.chg,"chg[npart]/I");
+  pixelTree_->Branch("x",pev_.x,"x[npart]/F");
+  pixelTree_->Branch("y",pev_.y,"y[npart]/F");
+  pixelTree_->Branch("z",pev_.z,"z[npart]/F");
 
 }
 
