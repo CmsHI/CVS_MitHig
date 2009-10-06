@@ -13,7 +13,7 @@
 //
 // Original Author:  Yilmaz Yetkin, Yen-Jie 
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: PixelHitAnalyzer.cc,v 1.13 2009/09/15 11:27:17 yjlee Exp $
+// $Id: PixelHitAnalyzer.cc,v 1.14 2009/09/28 09:48:05 yjlee Exp $
 //
 //
 
@@ -143,8 +143,8 @@ class PixelHitAnalyzer : public edm::EDAnalyzer {
    void fillPixelTracks(const edm::Event& iEvent);
    void fillTrackletVertex(const edm::Event& iEvent);
 
-   int associateSimhitToTrackingparticle(unsigned int trid );
-   bool checkprimaryparticle(const TrackingParticle* tp);
+//   int associateSimhitToTrackingparticle(unsigned int trid );
+//   bool checkprimaryparticle(const TrackingParticle* tp);
 
       // ----------member data ---------------------------
 
@@ -153,6 +153,7 @@ class PixelHitAnalyzer : public edm::EDAnalyzer {
    //  TrackletCorrections* corrections_;
 
    bool doMC_;
+   bool doTracking_;
    bool doTrackletVtx_;
    vector<string> vertexSrc_;
    edm::InputTag trackSrc_;
@@ -190,6 +191,7 @@ PixelHitAnalyzer::PixelHitAnalyzer(const edm::ParameterSet& iConfig)
 {
    //now do what ever initialization is needed
    doMC_             = iConfig.getUntrackedParameter<bool>  ("doMC",true);
+   doTracking_             = iConfig.getUntrackedParameter<bool>  ("doTracking",false);
    doTrackletVtx_             = iConfig.getUntrackedParameter<bool>  ("doTrackletVtx",false);
    vertexSrc_ = iConfig.getParameter<vector<string> >("vertexSrc");
    etaMult_ = iConfig.getUntrackedParameter<double>  ("nHitsRegion",1.);
@@ -225,20 +227,18 @@ PixelHitAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
 
    pev_.nv = 0;
 
+   cout <<"start!"<<endl;
    fillParticles(iEvent);
+   cout <<"particle!"<<endl;
    fillVertices(iEvent);
+   cout <<"vertice!"<<endl;
    fillHits(iEvent);
+   cout <<"hit!"<<endl;
    fillPixelTracks(iEvent);
    if (doTrackletVtx_) fillTrackletVertex(iEvent);
 
    map<int,int>::iterator begin = tpmap_.begin();
    map<int,int>::iterator end = tpmap_.end();
-
-   /*
-   for(map<int,int>::iterator it = begin; it != end; ++it){
-      cout<<"Barcode : "<<(*it).first<<" Particle : "<<(*it).second<<endl;
-   } 
-   */
 
    pixelTree_->Fill();
 
@@ -251,18 +251,22 @@ PixelHitAnalyzer::fillVertices(const edm::Event& iEvent){
       unsigned int daughter = 0;
       int nVertex = 0;
       int greatestvtx = 0;
-      Handle<TrackingVertexCollection> vertices;
-      iEvent.getByLabel("mergedtruth","MergedTrackTruth", vertices);
-      nVertex = vertices->size();
-      for (unsigned int i = 0 ; i< vertices->size(); ++i){
-	 daughter = (*vertices)[i].nDaughterTracks();
-	 if( daughter >(*vertices)[greatestvtx].nDaughterTracks()&&fabs((*vertices)[i].position().z())<30000) greatestvtx = i;
-      }
+      if (doTracking_) {
+         Handle<TrackingVertexCollection> vertices;
+         iEvent.getByLabel("mergedtruth","MergedTrackTruth", vertices);
+         nVertex = vertices->size();
+         for (unsigned int i = 0 ; i< vertices->size(); ++i){
+   	    daughter = (*vertices)[i].nDaughterTracks();
+   	    if( daughter >(*vertices)[greatestvtx].nDaughterTracks()&&fabs((*vertices)[i].position().z())<30000) greatestvtx = i;
+         }
       
-      if(vertices->size()>0&&fabs((*vertices)[greatestvtx].position().z())<30000){
-	 pev_.vz[pev_.nv] = (*vertices)[greatestvtx].position().z();
-      }else{
-	 pev_.vz[pev_.nv] =  -99; 
+         if(vertices->size()>0&&fabs((*vertices)[greatestvtx].position().z())<30000){
+   	    pev_.vz[pev_.nv] = (*vertices)[greatestvtx].position().z();
+         }else{
+	    pev_.vz[pev_.nv] =  -99; 
+         }
+      } else {
+            pev_.vz[pev_.nv] = -99;
       }
       pev_.nv++;
    } else {
@@ -309,8 +313,7 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
    pev_.layer2Hit.clear();
    pev_.layer3Hit.clear();
    
-   TrackerHitAssociator theHitAssociator(iEvent);
-   if(doMC_)iEvent.getByLabel("mergedtruth","MergedTrackTruth",trackingParticles);
+   //if(doMC_&&doTracking_) iEvent.getByLabel("mergedtruth","MergedTrackTruth",trackingParticles);
    
    const SiPixelRecHitCollection* rechits;
    Handle<SiPixelRecHitCollection> rchts;
@@ -351,7 +354,10 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
          double phi = rechitPos.phi();
          double r   = rechitPos.rho();
 
-         if (doMC_) {
+         /*
+         if (doMC_&&doTracking_) {
+            
+            TrackerHitAssociator theHitAssociator(iEvent);
             vector<PSimHit> simHits1 = theHitAssociator.associateHit(*recHitIterator);
             const PSimHit * bestSimHit1 = 0;
             int simIdx =0;
@@ -414,7 +420,7 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
 
             }
          }
- 	    
+ 	  */  
          int type = -99;
 	 if(isbackground) type = 0;
 	 if(isprimary) type = 1;
@@ -505,10 +511,10 @@ PixelHitAnalyzer::fillParticles(const edm::Event& iEvent){
    }
 }
 
+/*
 int PixelHitAnalyzer::associateSimhitToTrackingparticle(unsigned int trid )
 {
    int ref=-1;
-
    const TrackingParticleCollection* TPCProd = trackingParticles.product();
    for (TrackingParticleCollection::size_type i=0; i<TPCProd->size(); i++){
       const TrackingParticle* tp = &(*TPCProd)[i];
@@ -541,7 +547,7 @@ bool PixelHitAnalyzer::checkprimaryparticle(const TrackingParticle* tp)
    return primarycheck;
 }       
 
-
+*/
 
 // ------------ method called once each job just before starting event loop  ------------
 void 
