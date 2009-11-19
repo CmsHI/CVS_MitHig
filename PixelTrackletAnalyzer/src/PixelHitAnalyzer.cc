@@ -13,7 +13,7 @@
 //
 // Original Author:  Yilmaz Yetkin, Yen-Jie 
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: PixelHitAnalyzer.cc,v 1.16 2009/11/16 18:18:34 frankma Exp $
+// $Id: PixelHitAnalyzer.cc,v 1.17 2009/11/19 09:40:24 yjlee Exp $
 //
 //
 
@@ -121,12 +121,7 @@ struct PixelEvent{
    float y[MAXPARTICLES];
    float z[MAXPARTICLES];
    int evtType;
-
-   vector<math::XYZVector> layer1Hit;
-   vector<math::XYZVector> layer2Hit;
-   vector<math::XYZVector> layer3Hit;
 };
-
 
 class PixelHitAnalyzer : public edm::EDAnalyzer {
    public:
@@ -137,37 +132,34 @@ class PixelHitAnalyzer : public edm::EDAnalyzer {
       virtual void beginJob(const edm::EventSetup&) ;
       virtual void analyze(const edm::Event&, const edm::EventSetup&);
       virtual void endJob() ;
+
    void fillVertices(const edm::Event& iEvent);
    void fillHits(const edm::Event& iEvent);
    void fillParticles(const edm::Event& iEvent);
    void fillPixelTracks(const edm::Event& iEvent);
-   void fillTrackletVertex(const edm::Event& iEvent);
 
-//   int associateSimhitToTrackingparticle(unsigned int trid );
-//   bool checkprimaryparticle(const TrackingParticle* tp);
+   int associateSimhitToTrackingparticle(unsigned int trid );
+   bool checkprimaryparticle(const TrackingParticle* tp);
 
       // ----------member data ---------------------------
 
-   //  const char* betafile;
-   //  TrackletFinder* finder_;
-   //  TrackletCorrections* corrections_;
-
    bool doMC_;
-   bool doTracking_;
-   bool doTrackletVtx_;
+   bool doTrackingParticle_;
+
    vector<string> vertexSrc_;
    edm::InputTag trackSrc_;
    
    double etaMult_;
 
-  const TrackerGeometry* geo_;
-  edm::Service<TFileService> fs;           
-  edm::ESHandle < ParticleDataTable > pdt;
-  edm::Handle<TrackingParticleCollection> trackingParticles;
+   const TrackerGeometry* geo_;
+   edm::Service<TFileService> fs;           
+   edm::ESHandle < ParticleDataTable > pdt;
+   edm::Handle<TrackingParticleCollection> trackingParticles;
 
-  map<int,int> tpmap_;
+   map<int,int> tpmap_;
 
-  TTree* pixelTree_;
+   // Root object
+   TTree* pixelTree_;
    TNtuple* nt;
    TNtuple* nt2;
 
@@ -175,37 +167,23 @@ class PixelHitAnalyzer : public edm::EDAnalyzer {
 
 };
 
-//
-// constants, enums and typedefs
-//
-
-//
-// static data member definitions
-//
-
-//
-// constructors and destructor
-//
 PixelHitAnalyzer::PixelHitAnalyzer(const edm::ParameterSet& iConfig)
 
 {
-   //now do what ever initialization is needed
    doMC_             = iConfig.getUntrackedParameter<bool>  ("doMC",true);
-   doTracking_             = iConfig.getUntrackedParameter<bool>  ("doTracking",false);
-   doTrackletVtx_             = iConfig.getUntrackedParameter<bool>  ("doTrackletVtx",false);
+   doTrackingParticle_             = iConfig.getUntrackedParameter<bool>  ("doTrackingParticle",false);
    vertexSrc_ = iConfig.getParameter<vector<string> >("vertexSrc");
    etaMult_ = iConfig.getUntrackedParameter<double>  ("nHitsRegion",1.);
    trackSrc_ = iConfig.getParameter<edm::InputTag>("trackSrc");
+   
+   // if it's not MC, don't do TrackingParticle
+   if (doMC_ == false) doTrackingParticle_ = false;
+   
 }
 
 PixelHitAnalyzer::~PixelHitAnalyzer()
 {
- 
-   // do anything here that needs to be done at desctruction time
-   // (e.g. close files, deallocate resources etc.)
-
 }
-
 
 //
 // member functions
@@ -231,23 +209,22 @@ PixelHitAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
    fillVertices(iEvent);
    fillHits(iEvent);
    fillPixelTracks(iEvent);
-   if (doTrackletVtx_) fillTrackletVertex(iEvent);
 
    map<int,int>::iterator begin = tpmap_.begin();
    map<int,int>::iterator end = tpmap_.end();
 
    pixelTree_->Fill();
-
 }
 
 void
 PixelHitAnalyzer::fillVertices(const edm::Event& iEvent){
-
+   // Vertex 0 : pev_vz[0] MC information from TrackingVertexCollection
+   // Vertex 1 - n : Reconstructed Vertex from various of algorithms
    if(doMC_){
       unsigned int daughter = 0;
       int nVertex = 0;
       int greatestvtx = 0;
-      if (doTracking_) {
+      if (doTrackingParticle_) {
          Handle<TrackingVertexCollection> vertices;
          iEvent.getByLabel("mergedtruth","MergedTrackTruth", vertices);
          nVertex = vertices->size();
@@ -271,6 +248,7 @@ PixelHitAnalyzer::fillVertices(const edm::Event& iEvent){
       pev_.nv++;
    }
    
+   // Fill reconstructed vertices.   
    for(unsigned int iv = 0; iv < vertexSrc_.size(); ++iv){
       const reco::VertexCollection * recoVertices;
       edm::Handle<reco::VertexCollection> vertexCollection;
@@ -292,7 +270,6 @@ PixelHitAnalyzer::fillVertices(const edm::Event& iEvent){
       }else{
 	 pev_.vz[pev_.nv] =  -99;
       }
-      //      cout <<"==>Primary Vertex: "<<pev_.vz[pev_.nv]<<" "<<greatestvtx<<" "<<endl;
       pev_.nv++;
    }
 
@@ -304,12 +281,7 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
    double matchEtaMax = 0.005;
    double matchPhiMax = 0.01;
 
-
-   pev_.layer1Hit.clear();
-   pev_.layer2Hit.clear();
-   pev_.layer3Hit.clear();
-   
-   //if(doMC_&&doTracking_) iEvent.getByLabel("mergedtruth","MergedTrackTruth",trackingParticles);
+   if(doMC_&&doTrackingParticle_) iEvent.getByLabel("mergedtruth","MergedTrackTruth",trackingParticles);
    
    const SiPixelRecHitCollection* rechits;
    Handle<SiPixelRecHitCollection> rchts;
@@ -350,8 +322,7 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
          double phi = rechitPos.phi();
          double r   = rechitPos.rho();
 
-         /*
-         if (doMC_&&doTracking_) {
+         if (doMC_&&doTrackingParticle_) {
             
             TrackerHitAssociator theHitAssociator(iEvent);
             vector<PSimHit> simHits1 = theHitAssociator.associateHit(*recHitIterator);
@@ -416,7 +387,7 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
 
             }
          }
- 	  */  
+
          int type = -99;
 	 if(isbackground) type = 0;
 	 if(isprimary) type = 1;
@@ -435,7 +406,6 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
 	    pev_.type1[pev_.nhits1] = type;
 	    pev_.nhits1++;
 	    if(fabs(gpos.eta()) < etaMult_ ) pev_.mult++;
-	    pev_.layer1Hit.push_back(rechitPos);
 	 }
 	 
 	 if(layer == 2){
@@ -448,7 +418,6 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
 	    pev_.gp2[pev_.nhits2] = gpid;
 	    pev_.type2[pev_.nhits2] = type;
 	    pev_.nhits2++;
-	    pev_.layer2Hit.push_back(rechitPos);
 	 } 
 
 	 if(layer == 3){
@@ -461,21 +430,14 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
 	    pev_.gp3[pev_.nhits3] = gpid;
 	    pev_.type3[pev_.nhits3] = type;
 	    pev_.nhits3++;
-	    pev_.layer3Hit.push_back(rechitPos);
 	 } 
-         	 
-
       }
    }
-
-
-
-
 }
 
 void
-PixelHitAnalyzer::fillParticles(const edm::Event& iEvent){
-
+PixelHitAnalyzer::fillParticles(const edm::Event& iEvent)
+{
    Handle<HepMCProduct> mc;
    iEvent.getByLabel("generator",mc);
    const HepMC::GenEvent* evt = mc->GetEvent();
@@ -484,7 +446,6 @@ PixelHitAnalyzer::fillParticles(const edm::Event& iEvent){
    
    pev_.evtType = evtType;
    
-   int all = evt->particles_size();
    HepMC::GenEvent::particle_const_iterator begin = evt->particles_begin();
    HepMC::GenEvent::particle_const_iterator end = evt->particles_end();
    for(HepMC::GenEvent::particle_const_iterator it = begin; it != end; ++it){
@@ -499,15 +460,12 @@ PixelHitAnalyzer::fillParticles(const edm::Event& iEvent){
          pev_.x[pev_.npart] = (*it)->production_vertex()->position().x();
          pev_.y[pev_.npart] = (*it)->production_vertex()->position().y();
          pev_.z[pev_.npart] = (*it)->production_vertex()->position().z();
-	 //	 cout<<" Particle "<<pev_.npart<<" eta : "<<pev_.eta[pev_.npart]<<" phi : "<<pev_.phi[pev_.npart]<<" pt : "<<pev_.pt[pev_.npart]<<endl; 
 
 	 pev_.npart++;
-
-
    }
 }
 
-/*
+
 int PixelHitAnalyzer::associateSimhitToTrackingparticle(unsigned int trid )
 {
    int ref=-1;
@@ -543,17 +501,12 @@ bool PixelHitAnalyzer::checkprimaryparticle(const TrackingParticle* tp)
    return primarycheck;
 }       
 
-*/
+
 
 // ------------ method called once each job just before starting event loop  ------------
 void 
 PixelHitAnalyzer::beginJob(const edm::EventSetup& iSetup)
 {
-  
-  //  TFile* infile = new TFile(betafile,"read");
-  //  corrections_  = new TrackletCorrections(infile);
-   //  corrections_  = new TrackletCorrections(1,1,1);
-
   edm::ESHandle<TrackerGeometry> tGeo;
   iSetup.get<TrackerDigiGeometryRecord>().get(tGeo);
   geo_ = tGeo.product();
@@ -618,7 +571,7 @@ void
 PixelHitAnalyzer::fillPixelTracks(const edm::Event& iEvent){
   // First fish the pixel tracks out of the event
   edm::Handle<reco::TrackCollection> trackCollection;
-  edm::InputTag trackCollName = trackSrc_; //conf_.getParameter<edm::InputTag>("TrackCollection");
+  edm::InputTag trackCollName = trackSrc_; 
   iEvent.getByLabel(trackCollName,trackCollection);
   const reco::TrackCollection tracks = *(trackCollection.product());
   reco::TrackRefVector trks;
@@ -630,85 +583,6 @@ PixelHitAnalyzer::fillPixelTracks(const edm::Event& iEvent){
   pev_.ntrks = tracks.size();  
 }
 
-void
-PixelHitAnalyzer::fillTrackletVertex(const edm::Event& iEvent){
-
-   double Vz = -99;
-   double minDeltaR=10;
-   double dz1=0.1;
-   
-   double Vz2 = -99;
-   double minDeltaR2=10;
-   double dz2=0.1;
-
-   for (double zpos=-20; zpos<=20; zpos+=dz1) {
-      math::XYZVector vertexPos(0,0,zpos);
-      double deltaR=0;
-      for (int i=0; i< (int)pev_.layer1Hit.size(); i++) {
-         math::XYZVector hit1Pos= pev_.layer1Hit[i]-vertexPos;
-         double eta1=hit1Pos.theta();
-         double phi1=hit1Pos.phi();
-	 double minDR=10;
-	 for (int j=0; j< (int)pev_.layer2Hit.size(); j++) {
-            math::XYZVector hit2Pos= pev_.layer2Hit[j]-vertexPos;
-            double eta2=hit2Pos.theta();
-            double phi2=hit2Pos.phi();
-	    double dR=fabs(eta1-eta2);
-	    double dPhi=fabs(phi1-phi2);
-	    if (dR<minDR&&dPhi<1) minDR=dR;	 
-	 }
-	 deltaR+=minDR;
-      }
-   
-      cout <<zpos<<" "<<deltaR<<endl;
-      if (deltaR<minDeltaR) {
-         minDeltaR=deltaR;
-         Vz = zpos;
-      }
-//      if (deltaR>minDeltaR) {
-//         zpos -=dz1;
-//         dz1/=2.;
-//         if (dz1<0.01) zpos=20;
-//      }
-   }
-
-   for (double zpos=-20; zpos<=20; zpos+=dz2) {
-      math::XYZVector vertexPos(0,0,zpos);
-      double deltaR=0;
-      for (int i=0; i< (int)pev_.layer2Hit.size(); i++) {
-         math::XYZVector hit1Pos= pev_.layer2Hit[i]-vertexPos;
-         double eta1=hit1Pos.theta();
-         double phi1=hit1Pos.phi();
-	 double minDR=10;
-	 for (int j=0; j< (int)pev_.layer3Hit.size(); j++) {
-            math::XYZVector hit2Pos= pev_.layer3Hit[j]-vertexPos;
-            double eta2=hit2Pos.theta();
-            double phi2=hit2Pos.phi();
-	    double dR=fabs(eta1-eta2);
-	    double dPhi=fabs(phi1-phi2);
-	    if (dR<minDR) minDR=dR;	 
-	 }
-	 deltaR+=minDR;
-      }
-   
-      cout <<zpos<<" "<<deltaR<<endl;
-      if (deltaR<minDeltaR2) {
-         minDeltaR2=deltaR;
-         Vz2 = zpos;
-      }
-//      if (deltaR>minDeltaR2) {
-//         zpos -=dz2;
-//         dz2/=2.;
-//         if (dz2<0.01) zpos=20;
-//      }
-   }
-
-   
-   pev_.vz[pev_.nv] = (Vz+Vz2)/2.0;
-   pev_.vzMinDeltaR = Vz-Vz2;
-   pev_.nv++;
-   
-}
 
 // ------------ method called once each job just after ending the event loop  ------------
 void 
