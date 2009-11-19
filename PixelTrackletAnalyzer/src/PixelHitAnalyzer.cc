@@ -13,7 +13,7 @@
 //
 // Original Author:  Yilmaz Yetkin, Yen-Jie 
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: PixelHitAnalyzer.cc,v 1.15 2009/10/06 08:53:51 yjlee Exp $
+// $Id: PixelHitAnalyzer.cc,v 1.16 2009/11/16 18:18:34 frankma Exp $
 //
 //
 
@@ -227,13 +227,9 @@ PixelHitAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
 
    pev_.nv = 0;
 
-   cout <<"start!"<<endl;
    if (doMC_) fillParticles(iEvent);
-   cout <<"particle!"<<endl;
    fillVertices(iEvent);
-   cout <<"vertice!"<<endl;
    fillHits(iEvent);
-   cout <<"hit!"<<endl;
    fillPixelTracks(iEvent);
    if (doTrackletVtx_) fillTrackletVertex(iEvent);
 

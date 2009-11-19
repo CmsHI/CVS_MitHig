@@ -12,7 +12,6 @@
 <use name=FWCore/ServiceRegistry>
 <use name=FWCore/PluginManager>
 <use name=FWCore/ParameterSet>
-<use name=MitHig/PixelTracklet>
 <use name=PhysicsTools/UtilAlgos>
 <use name=SimDataFormats/Vertex>
 <use name=SimDataFormats/HepMCProduct>
