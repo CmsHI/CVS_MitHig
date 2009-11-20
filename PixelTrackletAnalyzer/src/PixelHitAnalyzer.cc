@@ -13,7 +13,7 @@
 //
 // Original Author:  Yilmaz Yetkin, Yen-Jie 
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: PixelHitAnalyzer.cc,v 1.17 2009/11/19 09:40:24 yjlee Exp $
+// $Id: PixelHitAnalyzer.cc,v 1.18 2009/11/19 21:22:15 yjlee Exp $
 //
 //
 
@@ -29,6 +29,7 @@
 #include "DataFormats/Common/interface/DetSetAlgorithm.h"
 #include "DataFormats/GeometryVector/interface/GlobalPoint.h"
 #include "DataFormats/SiPixelDetId/interface/PXBDetId.h"
+#include "DataFormats/Common/interface/TriggerResults.h"
 #include "DataFormats/VertexReco/interface/Vertex.h"
 #include "DataFormats/VertexReco/interface/VertexFwd.h"
 #include "DataFormats/TrackerRecHit2D/interface/SiPixelRecHitCollection.h"
@@ -44,6 +45,7 @@
 #include "Geometry/TrackerGeometryBuilder/interface/PixelGeomDetUnit.h"
 #include "Geometry/TrackerGeometryBuilder/interface/TrackerGeometry.h"
 #include "Geometry/TrackerGeometryBuilder/interface/TrackerLayerIdAccessor.h"
+#include "HLTrigger/HLTcore/interface/HLTConfigProvider.h"
 #include "PhysicsTools/UtilAlgos/interface/TFileService.h"
 #include "SimDataFormats/TrackingAnalysis/interface/TrackingVertex.h"
 #include "SimDataFormats/TrackingAnalysis/interface/TrackingVertexContainer.h"
@@ -51,6 +53,7 @@
 #include "SimDataFormats/TrackingHit/interface/PSimHit.h"
 #include "SimGeneral/HepPDTRecord/interface/ParticleDataTable.h"
 #include "SimTracker/TrackerHitAssociation/interface/TrackerHitAssociator.h"
+
 
 // Root include files
 #include "TTree.h"
@@ -69,8 +72,10 @@ using namespace reco;
 #define MAXPARTICLES 500000
 #define MAXHITS 50000
 #define MAXVTX 100
+#define MAXHLTBITS 100
 
 struct PixelEvent{
+
    int nhits1;
    int nhits2;
    int nhits3;
@@ -78,8 +83,6 @@ struct PixelEvent{
    int ntrksCut;
    
    int mult;
-   //   int mult2;
-   int npart;
    
    int nv;
    float vz[MAXVTX];
@@ -112,6 +115,8 @@ struct PixelEvent{
    int gp3[MAXHITS];
    int type3[MAXHITS];
 
+   // genparticle
+   int nparticle;
    float pt[MAXPARTICLES];
    float eta[MAXPARTICLES];
    float phi[MAXPARTICLES];
@@ -121,6 +126,10 @@ struct PixelEvent{
    float y[MAXPARTICLES];
    float z[MAXPARTICLES];
    int evtType;
+   
+   // hlt
+   int nHltBit;
+   bool hltBit[MAXHLTBITS];
 };
 
 class PixelHitAnalyzer : public edm::EDAnalyzer {
@@ -137,6 +146,13 @@ class PixelHitAnalyzer : public edm::EDAnalyzer {
    void fillHits(const edm::Event& iEvent);
    void fillParticles(const edm::Event& iEvent);
    void fillPixelTracks(const edm::Event& iEvent);
+   void fillHltBits(const edm::Event& iEvent);
+   template <typename TYPE>
+   void                          getProduct(const std::string name, edm::Handle<TYPE> &prod,
+                                            const edm::Event &event) const;    
+   template <typename TYPE>
+   bool                          getProductSafe(const std::string name, edm::Handle<TYPE> &prod,
+                                                const edm::Event &event) const;
 
    int associateSimhitToTrackingparticle(unsigned int trid );
    bool checkprimaryparticle(const TrackingParticle* tp);
@@ -158,15 +174,25 @@ class PixelHitAnalyzer : public edm::EDAnalyzer {
 
    map<int,int> tpmap_;
 
+   std::string                   hltResName_;         //HLT trigger results name
+   std::vector<std::string>      hltProcNames_;       //HLT process name(s)
+   std::vector<std::string>      hltTrgNames_;        //HLT trigger name(s)
+
+   std::vector<int>              hltTrgBits_;         //HLT trigger bit(s)
+   std::vector<bool>             hltTrgDeci_;         //HLT trigger descision(s)
+   std::vector<std::string>      hltTrgUsedNames_;    //HLT used trigger name(s)
+   std::string                   hltUsedResName_;     //used HLT trigger results name
+
    // Root object
    TTree* pixelTree_;
    TNtuple* nt;
    TNtuple* nt2;
 
-  PixelEvent pev_;
+   PixelEvent pev_;
 
 };
 
+//--------------------------------------------------------------------------------------------------
 PixelHitAnalyzer::PixelHitAnalyzer(const edm::ParameterSet& iConfig)
 
 {
@@ -175,21 +201,29 @@ PixelHitAnalyzer::PixelHitAnalyzer(const edm::ParameterSet& iConfig)
    vertexSrc_ = iConfig.getParameter<vector<string> >("vertexSrc");
    etaMult_ = iConfig.getUntrackedParameter<double>  ("nHitsRegion",1.);
    trackSrc_ = iConfig.getParameter<edm::InputTag>("trackSrc");
+   hltResName_ = iConfig.getUntrackedParameter<string>("hltTrgResults","TriggerResults");
    
    // if it's not MC, don't do TrackingParticle
    if (doMC_ == false) doTrackingParticle_ = false;
+   if (iConfig.exists("hltTrgNames"))
+    hltTrgNames_ = iConfig.getUntrackedParameter<vector<string> >("hltTrgNames");
+
+   if (iConfig.exists("hltProcNames"))
+      hltProcNames_ = iConfig.getUntrackedParameter<vector<string> >("hltProcNames");
+   else {
+      hltProcNames_.push_back("FU");
+      hltProcNames_.push_back("HLT");
+   }
+
    
 }
 
+//--------------------------------------------------------------------------------------------------
 PixelHitAnalyzer::~PixelHitAnalyzer()
 {
 }
 
-//
-// member functions
-//
-
-// ------------ method called to for each event  ------------
+//--------------------------------------------------------------------------------------------------
 void
 PixelHitAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
@@ -201,7 +235,7 @@ PixelHitAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
    pev_.ntrks = 0;
    pev_.ntrksCut = 0;
    pev_.mult = 0;
-   pev_.npart = 0;
+   pev_.nparticle = 0;
 
    pev_.nv = 0;
 
@@ -209,13 +243,14 @@ PixelHitAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
    fillVertices(iEvent);
    fillHits(iEvent);
    fillPixelTracks(iEvent);
-
+   fillHltBits(iEvent);
    map<int,int>::iterator begin = tpmap_.begin();
    map<int,int>::iterator end = tpmap_.end();
 
    pixelTree_->Fill();
 }
 
+//--------------------------------------------------------------------------------------------------
 void
 PixelHitAnalyzer::fillVertices(const edm::Event& iEvent){
    // Vertex 0 : pev_vz[0] MC information from TrackingVertexCollection
@@ -275,6 +310,7 @@ PixelHitAnalyzer::fillVertices(const edm::Event& iEvent){
 
 }
 
+//--------------------------------------------------------------------------------------------------
 void
 PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
 
@@ -435,6 +471,7 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
    }
 }
 
+//--------------------------------------------------------------------------------------------------
 void
 PixelHitAnalyzer::fillParticles(const edm::Event& iEvent)
 {
@@ -450,22 +487,22 @@ PixelHitAnalyzer::fillParticles(const edm::Event& iEvent)
    HepMC::GenEvent::particle_const_iterator end = evt->particles_end();
    for(HepMC::GenEvent::particle_const_iterator it = begin; it != end; ++it){
       if((*it)->status() != 1) continue;
-	 tpmap_[(*it)->barcode()] = pev_.npart;
-	 pev_.pdg[pev_.npart] = (*it)->pdg_id();
-	 pev_.eta[pev_.npart] = (*it)->momentum().eta();
-         pev_.phi[pev_.npart] = (*it)->momentum().phi();
-	 pev_.pt[pev_.npart] = (*it)->momentum().perp();
-	 const ParticleData * part = pdt->particle(pev_.pdg[pev_.npart]);
-	 pev_.chg[pev_.npart] = (int)part->charge();
-         pev_.x[pev_.npart] = (*it)->production_vertex()->position().x();
-         pev_.y[pev_.npart] = (*it)->production_vertex()->position().y();
-         pev_.z[pev_.npart] = (*it)->production_vertex()->position().z();
+	 tpmap_[(*it)->barcode()] = pev_.nparticle;
+	 pev_.pdg[pev_.nparticle] = (*it)->pdg_id();
+	 pev_.eta[pev_.nparticle] = (*it)->momentum().eta();
+         pev_.phi[pev_.nparticle] = (*it)->momentum().phi();
+	 pev_.pt[pev_.nparticle] = (*it)->momentum().perp();
+	 const ParticleData * part = pdt->particle(pev_.pdg[pev_.nparticle]);
+	 pev_.chg[pev_.nparticle] = (int)part->charge();
+         pev_.x[pev_.nparticle] = (*it)->production_vertex()->position().x();
+         pev_.y[pev_.nparticle] = (*it)->production_vertex()->position().y();
+         pev_.z[pev_.nparticle] = (*it)->production_vertex()->position().z();
 
-	 pev_.npart++;
+	 pev_.nparticle++;
    }
 }
 
-
+//--------------------------------------------------------------------------------------------------
 int PixelHitAnalyzer::associateSimhitToTrackingparticle(unsigned int trid )
 {
    int ref=-1;
@@ -487,7 +524,8 @@ int PixelHitAnalyzer::associateSimhitToTrackingparticle(unsigned int trid )
 
    return ref;
 }
-   
+
+//--------------------------------------------------------------------------------------------------   
 bool PixelHitAnalyzer::checkprimaryparticle(const TrackingParticle* tp)
 {
    int primarycheck=2;
@@ -555,7 +593,7 @@ PixelHitAnalyzer::beginJob(const edm::EventSetup& iSetup)
   pixelTree_->Branch("type3",pev_.type3,"type3[nhits3]/I");
 
   pixelTree_->Branch("evtType",&pev_.evtType,"evtType/I");
-  pixelTree_->Branch("npart",&pev_.npart,"npart/I");
+  pixelTree_->Branch("npart",&pev_.nparticle,"npart/I");
   pixelTree_->Branch("pt",pev_.pt,"pt[npart]/F");
   pixelTree_->Branch("eta",pev_.eta,"eta[npart]/F");
   pixelTree_->Branch("phi",pev_.phi,"phi[npart]/F");
@@ -565,8 +603,73 @@ PixelHitAnalyzer::beginJob(const edm::EventSetup& iSetup)
   pixelTree_->Branch("y",pev_.y,"y[npart]/F");
   pixelTree_->Branch("z",pev_.z,"z[npart]/F");
 
+  pixelTree_->Branch("nHltBit",&pev_.nHltBit,"nHltBit/I");
+  pixelTree_->Branch("hltBit",pev_.hltBit,"hltBit[nHltBit]/O");
+
+
+  HLTConfigProvider hltConfig;
+
+  cout <<"Configure hlt"<<endl;
+  bool isinit = false;
+  string teststr;
+  for(size_t i=0; i<hltProcNames_.size(); ++i) {
+    if (i>0) 
+      teststr += ", ";
+    teststr += hltProcNames_.at(i);
+    cout <<hltProcNames_.at(i)<<endl;
+    if (hltConfig.init(hltProcNames_.at(i))) {
+      isinit = true;
+      hltUsedResName_ = hltResName_;
+      if (hltResName_.find(':')==string::npos)
+        hltUsedResName_ += "::";
+      else 
+        hltUsedResName_ += ":";
+      hltUsedResName_ += hltProcNames_.at(i);
+      break;
+    }
+  }
+
+  // setup "Any" bit
+  hltTrgBits_.clear();
+  hltTrgBits_.push_back(-1);
+  hltTrgDeci_.clear();
+  hltTrgDeci_.push_back(true);
+  hltTrgUsedNames_.clear();
+  hltTrgUsedNames_.push_back("Any");
+
+  // figure out relation of trigger name to trigger bit and store used trigger names/bits
+  for(size_t i=0;i<hltTrgNames_.size();++i) {
+    const string &n1(hltTrgNames_.at(i));
+    bool found = 0;
+    for(size_t j=0;j<hltConfig.size();++j) {
+      const string &n2(hltConfig.triggerName(j));
+      if (n2==n1) {
+        hltTrgBits_.push_back(j);
+        hltTrgUsedNames_.push_back(n1);
+        hltTrgDeci_.push_back(false);
+        cout <<Form("Added trigger %d with name %s for bit %d", 
+                     hltTrgBits_.size()-1, n1.c_str(), j)<<endl;
+        found = 1;
+        break;
+      }
+    }      
+    if (!found) {
+      cout <<Form("Could not find trigger bit for %s", n1.c_str())<<endl;
+    }
+  }
+
+  // ensure that trigger collections are of same size
+  if (hltTrgBits_.size()!=hltTrgUsedNames_.size())
+    cout <<Form("Size of trigger bits not equal used names: %d %d",
+                 hltTrgBits_.size(), hltTrgUsedNames_.size())<<endl;
+  if (hltTrgDeci_.size()!=hltTrgUsedNames_.size())
+    cout <<Form("Size of decision bits not equal names: %d %d",
+                 hltTrgDeci_.size(), hltTrgUsedNames_.size())<<endl;
+
+  
 }
 
+//--------------------------------------------------------------------------------------------------
 void
 PixelHitAnalyzer::fillPixelTracks(const edm::Event& iEvent){
   // First fish the pixel tracks out of the event
@@ -583,6 +686,71 @@ PixelHitAnalyzer::fillPixelTracks(const edm::Event& iEvent){
   pev_.ntrks = tracks.size();  
 }
 
+//--------------------------------------------------------------------------------------------------
+void PixelHitAnalyzer::fillHltBits(const edm::Event &iEvent)
+{
+  // Fill HLT trigger bits.
+
+  Handle<TriggerResults> triggerResultsHLT;
+  
+  getProduct(hltUsedResName_, triggerResultsHLT, iEvent);
+
+  for(size_t i=0;i<hltTrgBits_.size();++i) {
+    if (hltTrgBits_.at(i)<0) 
+      continue; //ignore unknown trigger 
+    size_t tbit = hltTrgBits_.at(i);
+    if (tbit<triggerResultsHLT->size()) {
+      hltTrgDeci_[i] = triggerResultsHLT->accept(tbit);
+    } else {
+      cout << Form("Problem slot %i for bit %i for %s",
+                   i, tbit, triggerResultsHLT->size(), hltTrgUsedNames_.at(i).c_str())<<endl;
+    }
+  }
+  
+  pev_.nHltBit = hltTrgBits_.size();
+  
+  // fill correlation histogram
+  for(size_t i=0;i<hltTrgBits_.size();++i) {
+    pev_.hltBit[i]=false;
+    if (hltTrgDeci_.at(i)) pev_.hltBit[i]=true;
+  }
+}
+
+
+//--------------------------------------------------------------------------------------------------
+template <typename TYPE>
+inline void PixelHitAnalyzer::getProduct(const std::string name, edm::Handle<TYPE> &prod,
+                                    const edm::Event &event) const
+{
+  // Try to access data collection from EDM file. We check if we really get just one
+  // product with the given name. If not we throw an exception.
+
+  event.getByLabel(edm::InputTag(name),prod);
+  if (!prod.isValid()) 
+    throw edm::Exception(edm::errors::Configuration, "PixelHitAnalyzer::GetProduct()\n")
+      << "Collection with label '" << name << "' is not valid" <<  std::endl;
+}
+
+//--------------------------------------------------------------------------------------------------
+template <typename TYPE>
+inline bool PixelHitAnalyzer::getProductSafe(const std::string name, edm::Handle<TYPE> &prod,
+                                        const edm::Event &event) const
+{
+  // Try to safely access data collection from EDM file. We check if we really get just one
+  // product with the given name. If not, we return false.
+
+  if (name.size()==0)
+    return false;
+
+  try {
+    event.getByLabel(edm::InputTag(name),prod);
+    if (!prod.isValid()) 
+      return false;
+  } catch (...) {
+    return false;
+  }
+  return true;
+}
 
 // ------------ method called once each job just after ending the event loop  ------------
 void 
