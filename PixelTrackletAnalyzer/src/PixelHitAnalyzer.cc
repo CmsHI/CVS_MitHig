@@ -13,7 +13,7 @@
 //
 // Original Author:  Yilmaz Yetkin, Yen-Jie 
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: PixelHitAnalyzer.cc,v 1.18 2009/11/19 21:22:15 yjlee Exp $
+// $Id: PixelHitAnalyzer.cc,v 1.19 2009/11/20 15:17:05 yjlee Exp $
 //
 //
 
@@ -57,7 +57,6 @@
 
 // Root include files
 #include "TTree.h"
-#include "TNtuple.h"
 
 using namespace std;
 using namespace edm;
@@ -147,6 +146,7 @@ class PixelHitAnalyzer : public edm::EDAnalyzer {
    void fillParticles(const edm::Event& iEvent);
    void fillPixelTracks(const edm::Event& iEvent);
    void fillHltBits(const edm::Event& iEvent);
+   
    template <typename TYPE>
    void                          getProduct(const std::string name, edm::Handle<TYPE> &prod,
                                             const edm::Event &event) const;    
@@ -185,8 +185,6 @@ class PixelHitAnalyzer : public edm::EDAnalyzer {
 
    // Root object
    TTree* pixelTree_;
-   TNtuple* nt;
-   TNtuple* nt2;
 
    PixelEvent pev_;
 
@@ -253,6 +251,7 @@ PixelHitAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
 //--------------------------------------------------------------------------------------------------
 void
 PixelHitAnalyzer::fillVertices(const edm::Event& iEvent){
+
    // Vertex 0 : pev_vz[0] MC information from TrackingVertexCollection
    // Vertex 1 - n : Reconstructed Vertex from various of algorithms
    if(doMC_){
@@ -378,8 +377,6 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
                if(fabs(simhitPos.eta()-eta)>matchEtaMax) continue;
                if(simrecdeltaphi>matchPhiMax) continue;
 
-               nt2->Fill(eta,phi,simpos.eta(),simpos.phi(),ptype); 
-
 	       int associatedTPID = associateSimhitToTrackingparticle((*simHit1).trackId());
 	       ptype = (&(*simHit1))->processType();
 
@@ -417,10 +414,6 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
 	       trid = bestSimHit1->trackId();  
 
                GlobalPoint simpos = pixelLayer->toGlobal((*bestSimHit1).localPosition());
-	       nt->Fill(eta,phi,simpos.eta(),simpos.phi(),0);
- 
-	       //  	    cout<<" trid : "<<trid<<endl;
-
             }
          }
 
@@ -550,10 +543,6 @@ PixelHitAnalyzer::beginJob(const edm::EventSetup& iSetup)
   geo_ = tGeo.product();
   iSetup.getData(pdt);
 
-  //  finder_ = new TrackletFinder(corrections_,trGeo,true);
-  nt = fs->make<TNtuple>("nt","Debug Ntuple","receta:recphi:simeta:simphi:process");
-  nt2 = fs->make<TNtuple>("nt2","Debug Ntuple All SimHits","receta:recphi:simeta:simphi:process");
-
   pixelTree_ = fs->make<TTree>("PixelTree","Tree of Pixel Hits");
   pixelTree_->Branch("nhits1",&pev_.nhits1,"nhits1/I");
   pixelTree_->Branch("nhits2",&pev_.nhits2,"nhits2/I");
@@ -561,7 +550,6 @@ PixelHitAnalyzer::beginJob(const edm::EventSetup& iSetup)
   pixelTree_->Branch("ntrks",&pev_.ntrks,"ntrks/I");
   pixelTree_->Branch("ntrksCut",&pev_.ntrksCut,"ntrksCut/I");
   pixelTree_->Branch("mult",&pev_.mult,"mult/I");
-  //  pixelTree_->Branch("mult2",&pev_.mult2,"mult2/I");
   pixelTree_->Branch("nv",&pev_.nv,"nv/I");
   pixelTree_->Branch("vz",pev_.vz,"vz[nv]/F");
   pixelTree_->Branch("vzMinDeltaR",&pev_.vzMinDeltaR,"vzMinDeltaR/F");
