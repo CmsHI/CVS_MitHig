@@ -13,7 +13,7 @@
 //
 // Original Author:  Yilmaz Yetkin, Yen-Jie 
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: PixelHitAnalyzer.cc,v 1.20 2009/11/30 11:36:40 yjlee Exp $
+// $Id: PixelHitAnalyzer.cc,v 1.21 2010/03/28 21:31:58 yjlee Exp $
 //
 //
 
@@ -55,6 +55,10 @@
 #include "SimTracker/TrackerHitAssociation/interface/TrackerHitAssociator.h"
 
 
+// Heavyion
+#include "DataFormats/HeavyIonEvent/interface/Centrality.h"
+
+
 // Root include files
 #include "TTree.h"
 
@@ -69,12 +73,17 @@ using namespace reco;
 #define PI 3.14159265358979
 
 #define MAXPARTICLES 500000
-#define MAXHITS 50000
+#define MAXHITS 500000
 #define MAXVTX 100
 #define MAXHLTBITS 100
 
 struct PixelEvent{
 
+   int nRun;
+   int nEv;
+   int nLumi;
+   int nBX;
+   
    int nhits1;
    int nhits2;
    int nhits3;
@@ -129,6 +138,25 @@ struct PixelEvent{
    // hlt
    int nHltBit;
    bool hltBit[MAXHLTBITS];
+
+   // HI
+   int cBin;
+   int nbins;
+   int binsize;
+   float hf;
+   float hftp;
+   float hftm;
+   float eb;
+   float eep;
+   float eem;
+   float nparti;
+   float npartiSigma;
+   float ncoll;
+   float ncollSigma;
+   float nhard;
+   float nhardSigma;
+   float b;
+   float bSigma;
 };
 
 class PixelHitAnalyzer : public edm::EDAnalyzer {
@@ -137,7 +165,7 @@ class PixelHitAnalyzer : public edm::EDAnalyzer {
       ~PixelHitAnalyzer();
 
    private:
-      virtual void beginJob(const edm::EventSetup&) ;
+      virtual void beginJob() ;
       virtual void analyze(const edm::Event&, const edm::EventSetup&);
       virtual void endJob() ;
 
@@ -146,6 +174,7 @@ class PixelHitAnalyzer : public edm::EDAnalyzer {
    void fillParticles(const edm::Event& iEvent);
    void fillPixelTracks(const edm::Event& iEvent);
    void fillHltBits(const edm::Event& iEvent);
+   void fillCentrality(const edm::Event& iEvent, const edm::EventSetup& iSetup);
    
    template <typename TYPE>
    void                          getProduct(const std::string name, edm::Handle<TYPE> &prod,
@@ -225,6 +254,10 @@ PixelHitAnalyzer::~PixelHitAnalyzer()
 void
 PixelHitAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
+   edm::ESHandle<TrackerGeometry> tGeo;
+   iSetup.get<TrackerDigiGeometryRecord>().get(tGeo);
+   geo_ = tGeo.product();
+   iSetup.getData(pdt);
 
    tpmap_.clear();
    pev_.nhits1 = 0;
@@ -234,14 +267,25 @@ PixelHitAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
    pev_.ntrksCut = 0;
    pev_.mult = 0;
    pev_.nparticle = 0;
+   pev_.nEv = (int)iEvent.id().event();
+   pev_.nRun = (int)iEvent.id().run();
+   pev_.nLumi = (int)iEvent.luminosityBlock();
+   pev_.nBX = (int)iEvent.bunchCrossing();
 
    pev_.nv = 0;
-
+   cout <<"Fill MC"<<endl;
    if (doMC_) fillParticles(iEvent);
+   cout <<"Fill Vtx"<<endl;
    fillVertices(iEvent);
+   cout <<"Fill Hits"<<endl;
    fillHits(iEvent);
-   fillPixelTracks(iEvent);
+//   fillPixelTracks(iEvent);
+   cout <<"Fill L1"<<endl;
    fillHltBits(iEvent);
+   cout <<"Fill HLT"<<endl;
+   fillHltBits(iEvent);
+   cout <<"Fill Centrality"<<endl;
+   fillCentrality(iEvent, iSetup);
    map<int,int>::iterator begin = tpmap_.begin();
    map<int,int>::iterator end = tpmap_.end();
 
@@ -490,7 +534,8 @@ PixelHitAnalyzer::fillParticles(const edm::Event& iEvent)
          pev_.x[pev_.nparticle] = (*it)->production_vertex()->position().x();
          pev_.y[pev_.nparticle] = (*it)->production_vertex()->position().y();
          pev_.z[pev_.nparticle] = (*it)->production_vertex()->position().z();
-
+         if (pev_.chg[pev_.nparticle]==0) continue;
+         if (fabs(pev_.eta[pev_.nparticle])>3) continue;
 	 pev_.nparticle++;
    }
 }
@@ -536,14 +581,15 @@ bool PixelHitAnalyzer::checkprimaryparticle(const TrackingParticle* tp)
 
 // ------------ method called once each job just before starting event loop  ------------
 void 
-PixelHitAnalyzer::beginJob(const edm::EventSetup& iSetup)
+PixelHitAnalyzer::beginJob()
 {
-  edm::ESHandle<TrackerGeometry> tGeo;
-  iSetup.get<TrackerDigiGeometryRecord>().get(tGeo);
-  geo_ = tGeo.product();
-  iSetup.getData(pdt);
 
   pixelTree_ = fs->make<TTree>("PixelTree","Tree of Pixel Hits");
+  pixelTree_->Branch("nEv",&pev_.nEv,"nEv/I");
+  pixelTree_->Branch("nLumi",&pev_.nLumi,"nLumi/I");
+  pixelTree_->Branch("nBX",&pev_.nBX,"nBX/I");
+  pixelTree_->Branch("nRun",&pev_.nRun,"nRun/I");
+  
   pixelTree_->Branch("nhits1",&pev_.nhits1,"nhits1/I");
   pixelTree_->Branch("nhits2",&pev_.nhits2,"nhits2/I");
   pixelTree_->Branch("nhits3",&pev_.nhits3,"nhits3/I");
@@ -587,13 +633,34 @@ PixelHitAnalyzer::beginJob(const edm::EventSetup& iSetup)
   pixelTree_->Branch("phi",pev_.phi,"phi[npart]/F");
   pixelTree_->Branch("pdg",pev_.pdg,"pdg[npart]/I");
   pixelTree_->Branch("chg",pev_.chg,"chg[npart]/I");
+
+  /* Not needed anymore 
   pixelTree_->Branch("x",pev_.x,"x[npart]/F");
   pixelTree_->Branch("y",pev_.y,"y[npart]/F");
   pixelTree_->Branch("z",pev_.z,"z[npart]/F");
+  */
 
   pixelTree_->Branch("nHltBit",&pev_.nHltBit,"nHltBit/I");
   pixelTree_->Branch("hltBit",pev_.hltBit,"hltBit[nHltBit]/O");
 
+  // HI related
+  pixelTree_->Branch("hf",&pev_.hf,"hf/F");
+  pixelTree_->Branch("hftp",&pev_.hftp,"hftp/F");
+  pixelTree_->Branch("hftm",&pev_.hftm,"hftm/F");
+  pixelTree_->Branch("eb",&pev_.eb,"eb/F");
+  pixelTree_->Branch("eep",&pev_.eep,"eep/F");
+  pixelTree_->Branch("eem",&pev_.eem,"eem/F");
+  pixelTree_->Branch("cBin",&pev_.cBin,"cBin/I");
+  pixelTree_->Branch("nbins",&pev_.nbins,"nbins/I"); 
+  pixelTree_->Branch("binsize",&pev_.binsize,"binsize/I");
+  pixelTree_->Branch("nparti",&pev_.nparti,"nparti/F");
+  pixelTree_->Branch("npartiSigma",&pev_.npartiSigma,"npartiSigma/F");
+  pixelTree_->Branch("ncoll",&pev_.ncoll,"ncoll/F");
+  pixelTree_->Branch("ncollSigma",&pev_.ncollSigma,"ncollSigma/F");
+  pixelTree_->Branch("nhard",&pev_.nhard,"nhard/F");
+  pixelTree_->Branch("nhardSigma",&pev_.nhardSigma,"nhardSigma/F");
+  pixelTree_->Branch("b",&pev_.b,"b/F");
+  pixelTree_->Branch("bSigma",&pev_.bSigma,"bSigma/F");
 
   HLTConfigProvider hltConfig;
 
@@ -674,7 +741,6 @@ PixelHitAnalyzer::fillPixelTracks(const edm::Event& iEvent){
   pev_.ntrks = tracks.size();  
 }
 
-//--------------------------------------------------------------------------------------------------
 void PixelHitAnalyzer::fillHltBits(const edm::Event &iEvent)
 {
   // Fill HLT trigger bits.
@@ -702,6 +768,38 @@ void PixelHitAnalyzer::fillHltBits(const edm::Event &iEvent)
     pev_.hltBit[i]=false;
     if (hltTrgDeci_.at(i)) pev_.hltBit[i]=true;
   }
+}
+
+//--------------------------------------------------------------------------------------------------
+void PixelHitAnalyzer::fillCentrality(const edm::Event& iEvent, const edm::EventSetup& iSetup)
+{
+  const CentralityBins * cbins_;
+  cbins_ = getCentralityBinsFromDB(iSetup);
+
+  edm::Handle<reco::Centrality> cent;
+  iEvent.getByLabel(edm::InputTag("hiCentrality"),cent);
+ 
+
+  double hf = cent->EtHFhitSum();
+  cout <<hf<<endl;
+  pev_.hf = hf;
+  pev_.hftp = (double)cent->EtHFtowerSumPlus();
+  pev_.hftm = (double)cent->EtHFtowerSumMinus();
+  pev_.eb = (double)cent->EtEBSum();
+  pev_.eep = (double)cent->EtEESumPlus();
+  pev_.eem = (double)cent->EtEESumMinus();
+  pev_.cBin = (int)cbins_->getBin(hf);
+  pev_.nbins = (int)cbins_->getNbins(); 
+  pev_.binsize = (int)(100/cbins_->getNbins() );
+  pev_.nparti = (double)cbins_->NpartMean(hf);
+  pev_.npartiSigma = (double)cbins_->NpartSigma(hf);
+  pev_.ncoll = (double)cbins_->NcollMean(hf);
+  pev_.ncollSigma = (double)cbins_->NcollSigma(hf);
+  pev_.nhard = (double)cbins_->NhardMean(hf);
+  pev_.nhardSigma = (double)cbins_->NhardSigma(hf);
+  pev_.b = (double)cbins_->bMean(hf);
+  pev_.bSigma = (double)cbins_->bSigma(hf);
+  
 }
 
 

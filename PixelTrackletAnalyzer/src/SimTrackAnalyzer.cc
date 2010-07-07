@@ -13,7 +13,7 @@
 //
 // Original Author:  Arya Tafvizi, Yen-Jie Lee
 //         Created:  Tue Jul 22 07:59:06 EDT 2008
-// $Id: SimTrackAnalyzer.cc,v 1.3 2009/09/03 16:33:10 yjlee Exp $
+// $Id: SimTrackAnalyzer.cc,v 1.4 2010/03/28 21:31:58 yjlee Exp $
 //
 //
 
@@ -34,7 +34,7 @@
 #include "FWCore/Framework/interface/MakerMacros.h"
 
 #include "FWCore/ParameterSet/interface/ParameterSet.h"
-#include "FWCore/ParameterSet/interface/InputTag.h"
+#include "FWCore/Utilities/interface/InputTag.h"
 
 #include "DataFormats/TrackerRecHit2D/interface/SiPixelRecHitCollection.h"
 
