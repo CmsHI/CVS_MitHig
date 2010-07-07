@@ -13,7 +13,7 @@
 //
 // Original Author:  Yilmaz Yetkin, Yen-Jie 
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: PixelHitAnalyzer.cc,v 1.21 2010/03/28 21:31:58 yjlee Exp $
+// $Id: PixelHitAnalyzer.cc,v 1.22 2010/07/07 09:23:58 yjlee Exp $
 //
 //
 
@@ -157,6 +157,7 @@ struct PixelEvent{
    float nhardSigma;
    float b;
    float bSigma;
+   float pixel;
 };
 
 class PixelHitAnalyzer : public edm::EDAnalyzer {
@@ -661,6 +662,7 @@ PixelHitAnalyzer::beginJob()
   pixelTree_->Branch("nhardSigma",&pev_.nhardSigma,"nhardSigma/F");
   pixelTree_->Branch("b",&pev_.b,"b/F");
   pixelTree_->Branch("bSigma",&pev_.bSigma,"bSigma/F");
+  pixelTree_->Branch("pixel",&pev_.pixel,"pixel/F");
 
   HLTConfigProvider hltConfig;
 
@@ -799,6 +801,7 @@ void PixelHitAnalyzer::fillCentrality(const edm::Event& iEvent, const edm::Event
   pev_.nhardSigma = (double)cbins_->NhardSigma(hf);
   pev_.b = (double)cbins_->bMean(hf);
   pev_.bSigma = (double)cbins_->bSigma(hf);
+  pev_.pixel = (double)cent->multiplicityPixel();
   
 }
 
