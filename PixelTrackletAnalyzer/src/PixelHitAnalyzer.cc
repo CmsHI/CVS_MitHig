@@ -13,7 +13,7 @@
 //
 // Original Author:  Yilmaz Yetkin, Yen-Jie 
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: PixelHitAnalyzer.cc,v 1.22 2010/07/07 09:23:58 yjlee Exp $
+// $Id: PixelHitAnalyzer.cc,v 1.23 2010/07/07 15:53:19 yjlee Exp $
 //
 //
 
@@ -54,6 +54,11 @@
 #include "SimGeneral/HepPDTRecord/interface/ParticleDataTable.h"
 #include "SimTracker/TrackerHitAssociation/interface/TrackerHitAssociator.h"
 
+#include "DataFormats/L1GlobalTrigger/interface/L1GlobalTriggerReadoutSetup.h"
+#include "DataFormats/L1GlobalTrigger/interface/L1GlobalTriggerReadoutRecord.h"
+#include "DataFormats/L1GlobalTrigger/interface/L1GlobalTriggerObjectMapRecord.h"
+#include "DataFormats/L1GlobalTrigger/interface/L1GlobalTriggerObjectMap.h"
+#include "L1Trigger/GlobalTrigger/interface/L1GlobalTrigger.h"
 
 // Heavyion
 #include "DataFormats/HeavyIonEvent/interface/Centrality.h"
@@ -136,8 +141,14 @@ struct PixelEvent{
    int evtType;
    
    // hlt
-   int nHltBit;
+   int nHLTBit;
    bool hltBit[MAXHLTBITS];
+
+   // l1
+   int nL1TBit;
+   bool l1TBit[MAXHLTBITS];
+   int nL1ABit;
+   bool l1ABit[MAXHLTBITS];
 
    // HI
    int cBin;
@@ -174,7 +185,8 @@ class PixelHitAnalyzer : public edm::EDAnalyzer {
    void fillHits(const edm::Event& iEvent);
    void fillParticles(const edm::Event& iEvent);
    void fillPixelTracks(const edm::Event& iEvent);
-   void fillHltBits(const edm::Event& iEvent);
+   void fillL1Bits(const edm::Event& iEvent);
+   void fillHLTBits(const edm::Event& iEvent);
    void fillCentrality(const edm::Event& iEvent, const edm::EventSetup& iSetup);
    
    template <typename TYPE>
@@ -191,10 +203,11 @@ class PixelHitAnalyzer : public edm::EDAnalyzer {
 
    bool doMC_;
    bool doTrackingParticle_;
+   bool doCentrality_;
 
    vector<string> vertexSrc_;
    edm::InputTag trackSrc_;
-   
+   edm::InputTag L1gtReadout_; 
    double etaMult_;
 
    const TrackerGeometry* geo_;
@@ -226,9 +239,11 @@ PixelHitAnalyzer::PixelHitAnalyzer(const edm::ParameterSet& iConfig)
 {
    doMC_             = iConfig.getUntrackedParameter<bool>  ("doMC",true);
    doTrackingParticle_             = iConfig.getUntrackedParameter<bool>  ("doTrackingParticle",false);
+   doCentrality_             = iConfig.getUntrackedParameter<bool>  ("doCentrality",true);
    vertexSrc_ = iConfig.getParameter<vector<string> >("vertexSrc");
    etaMult_ = iConfig.getUntrackedParameter<double>  ("nHitsRegion",1.);
    trackSrc_ = iConfig.getParameter<edm::InputTag>("trackSrc");
+   L1gtReadout_ = iConfig.getParameter<edm::InputTag>("L1gtReadout");
    hltResName_ = iConfig.getUntrackedParameter<string>("hltTrgResults","TriggerResults");
    
    // if it's not MC, don't do TrackingParticle
@@ -282,11 +297,11 @@ PixelHitAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
    fillHits(iEvent);
 //   fillPixelTracks(iEvent);
    cout <<"Fill L1"<<endl;
-   fillHltBits(iEvent);
+   fillL1Bits(iEvent);
    cout <<"Fill HLT"<<endl;
-   fillHltBits(iEvent);
+   //fillHLTBits(iEvent);
    cout <<"Fill Centrality"<<endl;
-   fillCentrality(iEvent, iSetup);
+   if (doCentrality_) fillCentrality(iEvent, iSetup);
    map<int,int>::iterator begin = tpmap_.begin();
    map<int,int>::iterator end = tpmap_.end();
 
@@ -641,8 +656,14 @@ PixelHitAnalyzer::beginJob()
   pixelTree_->Branch("z",pev_.z,"z[npart]/F");
   */
 
-  pixelTree_->Branch("nHltBit",&pev_.nHltBit,"nHltBit/I");
-  pixelTree_->Branch("hltBit",pev_.hltBit,"hltBit[nHltBit]/O");
+  pixelTree_->Branch("nHLTBit",&pev_.nHLTBit,"nHLTBit/I");
+  pixelTree_->Branch("hltBit",pev_.hltBit,"hltBit[nHLTBit]/O");
+
+  pixelTree_->Branch("nL1TBit",&pev_.nL1TBit,"nL1TBit/I");
+  pixelTree_->Branch("l1TBit",pev_.l1TBit,"l1TBit[nL1TBit]/O");
+
+  pixelTree_->Branch("nL1ABit",&pev_.nL1ABit,"nL1ABit/I");
+  pixelTree_->Branch("l1ABit",pev_.l1ABit,"l1ABit[nL1ABit]/O");
 
   // HI related
   pixelTree_->Branch("hf",&pev_.hf,"hf/F");
@@ -669,22 +690,6 @@ PixelHitAnalyzer::beginJob()
   cout <<"Configure hlt"<<endl;
   bool isinit = false;
   string teststr;
-  for(size_t i=0; i<hltProcNames_.size(); ++i) {
-    if (i>0) 
-      teststr += ", ";
-    teststr += hltProcNames_.at(i);
-    cout <<hltProcNames_.at(i)<<endl;
-    if (hltConfig.init(hltProcNames_.at(i))) {
-      isinit = true;
-      hltUsedResName_ = hltResName_;
-      if (hltResName_.find(':')==string::npos)
-        hltUsedResName_ += "::";
-      else 
-        hltUsedResName_ += ":";
-      hltUsedResName_ += hltProcNames_.at(i);
-      break;
-    }
-  }
 
   // setup "Any" bit
   hltTrgBits_.clear();
@@ -743,7 +748,21 @@ PixelHitAnalyzer::fillPixelTracks(const edm::Event& iEvent){
   pev_.ntrks = tracks.size();  
 }
 
-void PixelHitAnalyzer::fillHltBits(const edm::Event &iEvent)
+void PixelHitAnalyzer::fillL1Bits(const edm::Event &iEvent)
+{
+  edm::Handle< L1GlobalTriggerReadoutRecord >  L1GlobalTrigger;
+
+  iEvent.getByLabel(L1gtReadout_, L1GlobalTrigger); 
+  const TechnicalTriggerWord&  technicalTriggerWordBeforeMask = L1GlobalTrigger->technicalTriggerWord();
+
+  for (int i=0; i<64;i++)
+  {
+    pev_.l1TBit[i] = technicalTriggerWordBeforeMask.at(i);
+  }
+  pev_.nL1TBit = 64;
+}
+
+void PixelHitAnalyzer::fillHLTBits(const edm::Event &iEvent)
 {
   // Fill HLT trigger bits.
 
@@ -763,7 +782,7 @@ void PixelHitAnalyzer::fillHltBits(const edm::Event &iEvent)
     }
   }
   
-  pev_.nHltBit = hltTrgBits_.size();
+  pev_.nHLTBit = hltTrgBits_.size();
   
   // fill correlation histogram
   for(size_t i=0;i<hltTrgBits_.size();++i) {
