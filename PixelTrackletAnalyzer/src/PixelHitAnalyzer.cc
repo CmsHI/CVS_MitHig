@@ -13,7 +13,7 @@
 //
 // Original Author:  Yilmaz Yetkin, Yen-Jie 
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: PixelHitAnalyzer.cc,v 1.23 2010/07/07 15:53:19 yjlee Exp $
+// $Id: PixelHitAnalyzer.cc,v 1.24 2010/08/15 17:38:06 yjlee Exp $
 //
 //
 
@@ -659,11 +659,11 @@ PixelHitAnalyzer::beginJob()
   pixelTree_->Branch("nHLTBit",&pev_.nHLTBit,"nHLTBit/I");
   pixelTree_->Branch("hltBit",pev_.hltBit,"hltBit[nHLTBit]/O");
 
-  pixelTree_->Branch("nL1TBit",&pev_.nL1TBit,"nL1TBit/I");
-  pixelTree_->Branch("l1TBit",pev_.l1TBit,"l1TBit[nL1TBit]/O");
+  pixelTree_->Branch("nL1T",&pev_.nL1TBit,"nL1T/I");
+  pixelTree_->Branch("L1T",pev_.l1TBit,"L1T[nL1T]/O");
 
-  pixelTree_->Branch("nL1ABit",&pev_.nL1ABit,"nL1ABit/I");
-  pixelTree_->Branch("l1ABit",pev_.l1ABit,"l1ABit[nL1ABit]/O");
+  pixelTree_->Branch("nL1A",&pev_.nL1ABit,"nL1A/I");
+  pixelTree_->Branch("L1A",pev_.l1ABit,"L1A[nL1A]/O");
 
   // HI related
   pixelTree_->Branch("hf",&pev_.hf,"hf/F");
