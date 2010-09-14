@@ -13,7 +13,7 @@
 //
 // Original Author:  Yilmaz Yetkin, Yen-Jie 
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.25 2010/09/07 13:08:52 yjlee Exp $
+// $Id: TrackAnalyzer.cc,v 1.1 2010/09/12 15:33:05 yjlee Exp $
 //
 //
 
@@ -102,6 +102,8 @@ struct PixelEvent{
    
    // vertex
    int nv;
+   float vx[MAXVTX];
+   float vy[MAXVTX];
    float vz[MAXVTX];
    float vzMinDeltaR;
 
@@ -177,6 +179,9 @@ struct PixelEvent{
    float trkVx[MAXHITS];
    float trkVy[MAXHITS];
    float trkVz[MAXHITS];
+   float trkExpHit1Eta[MAXHITS];
+   float trkExpHit2Eta[MAXHITS];
+   float trkExpHit3Eta[MAXHITS];
 
    // hlt
    int nHLTBit;
@@ -243,8 +248,11 @@ class TrackAnalyzer : public edm::EDAnalyzer {
    bool doMC_;
    bool doCentrality_;
    bool doTrackingParticle_;
+   bool doTrack_;
+   bool doTrackExtra_;
    bool doPixel_;
 
+   double trackPtMin_;
    vector<string> vertexSrc_;
    edm::InputTag trackSrc_;
    edm::InputTag L1gtReadout_; 
@@ -281,6 +289,10 @@ TrackAnalyzer::TrackAnalyzer(const edm::ParameterSet& iConfig)
    doCentrality_             = iConfig.getUntrackedParameter<bool>  ("doCentrality",true);
    doTrackingParticle_             = iConfig.getUntrackedParameter<bool>  ("doTrackingParticle",false);
    doPixel_             = iConfig.getUntrackedParameter<bool>  ("doPixel",false);
+   doTrack_             = iConfig.getUntrackedParameter<bool>  ("doTrack",true);
+   doTrackExtra_             = iConfig.getUntrackedParameter<bool>  ("doTrackExtra",false);
+   trackPtMin_             = iConfig.getUntrackedParameter<double>  ("trackPtMin",0.4);
+   doTrack_             = iConfig.getUntrackedParameter<bool>  ("doTrack",true);
    vertexSrc_ = iConfig.getParameter<vector<string> >("vertexSrc");
    etaMult_ = iConfig.getUntrackedParameter<double>  ("nHitsRegion",1.);
    trackSrc_ = iConfig.getParameter<edm::InputTag>("trackSrc");
@@ -339,7 +351,7 @@ TrackAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
    cout <<"Fill Hits"<<endl;
    if (doPixel_) fillHits(iEvent);
    cout <<"Fill Tracks"<<endl;
-   fillTracks(iEvent);
+   if (doTrack_) fillTracks(iEvent);
 //   fillPixelTracks(iEvent);
    cout <<"Fill L1"<<endl;
    fillL1Bits(iEvent);
@@ -373,6 +385,8 @@ TrackAnalyzer::fillVertices(const edm::Event& iEvent){
          }
       
          if(vertices->size()>0&&fabs((*vertices)[greatestvtx].position().z())<30000){
+   	    pev_.vx[pev_.nv] = (*vertices)[greatestvtx].position().x();
+   	    pev_.vy[pev_.nv] = (*vertices)[greatestvtx].position().y();
    	    pev_.vz[pev_.nv] = (*vertices)[greatestvtx].position().z();
          }else{
 	    pev_.vz[pev_.nv] =  -99; 
@@ -395,21 +409,43 @@ TrackAnalyzer::fillVertices(const edm::Event& iEvent){
       recoVertices = vertexCollection.product();
       unsigned int daughter = 0;
       int nVertex = 0;
-      int greatestvtx = 0;
+      int greatestvtx = -1;
+      int secondGreatestvtx = -1;
       
       nVertex = recoVertices->size();
       for (unsigned int i = 0 ; i< recoVertices->size(); ++i){
 	 daughter = (*recoVertices)[i].tracksSize();
-	 if( daughter > (*recoVertices)[greatestvtx].tracksSize()) greatestvtx = i;
-	 //         cout <<"Vertex: "<< (*recoVertices)[i].position().z()<<" "<<daughter<<endl;
+	 if( daughter > (*recoVertices)[greatestvtx].tracksSize()) {
+            secondGreatestvtx = greatestvtx;
+            greatestvtx = i;
+         }
       }
       
       if(recoVertices->size()>0){
+	 pev_.vx[pev_.nv] = (*recoVertices)[greatestvtx].position().x();
+	 pev_.vy[pev_.nv] = (*recoVertices)[greatestvtx].position().y();
 	 pev_.vz[pev_.nv] = (*recoVertices)[greatestvtx].position().z();
+	 pev_.nv++;
+         if (secondGreatestvtx!=-1) {
+            pev_.vx[pev_.nv] = (*recoVertices)[greatestvtx].position().x();
+	    pev_.vy[pev_.nv] = (*recoVertices)[greatestvtx].position().y();
+   	    pev_.vz[pev_.nv] = (*recoVertices)[greatestvtx].position().z();
+         } else {
+            pev_.vx[pev_.nv] =  -99;
+  	    pev_.vy[pev_.nv] =  -99;
+	    pev_.vz[pev_.nv] =  -99;
+         }
+         pev_.nv++;
       }else{
+	 pev_.vx[pev_.nv] =  -99;
+	 pev_.vy[pev_.nv] =  -99;
 	 pev_.vz[pev_.nv] =  -99;
+         pev_.nv++;
+	 pev_.vx[pev_.nv] =  -99;
+	 pev_.vy[pev_.nv] =  -99;
+	 pev_.vz[pev_.nv] =  -99;
+         pev_.nv++;
       }
-      pev_.nv++;
    }
 
 }
@@ -423,6 +459,7 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent){
       pev_.nTrk=0;
       for(unsigned it=0; it<etracks->size(); ++it){
 	 const reco::Track & etrk = (*etracks)[it];
+         if (etrk.pt()<trackPtMin_) continue;
          pev_.trkQual[pev_.nTrk]=0;
 	 if(etrk.quality(reco::TrackBase::qualityByName(qualityString))) pev_.trkQual[pev_.nTrk]=1;
 	 //if(fabs(etrk.eta())<etaCut_evtSel && etrk.pt()>ptMin_) mult++;
@@ -438,6 +475,34 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent){
          pev_.trkVy[pev_.nTrk]=etrk.vy();
          pev_.trkVz[pev_.nTrk]=etrk.vz();
 
+         double r = 4.4; // averaged first layer rho
+         double x = r*cos(etrk.phi())+etrk.vx();
+         double y = r*sin(etrk.eta())+etrk.vy();
+         double z = r/tan(atan(exp(-etrk.eta()))*2)+etrk.vz();
+         ROOT::Math::XYZVector tmpVector(x-pev_.vx[1],y-pev_.vy[1],z-pev_.vz[1]);
+         double eta1 = tmpVector.eta();
+         double phi1 = etrk.phi();
+
+         double r2 = 7.29; // averaged 2nd layer rho
+         x = r2*cos(etrk.phi())+etrk.vx();
+         y = r2*sin(etrk.eta())+etrk.vy();
+         z = r2/tan(atan(exp(-etrk.eta()))*2)+etrk.vz();
+         ROOT::Math::XYZVector tmpVector2(x-pev_.vx[1],y-pev_.vy[1],z-pev_.vz[1]);
+         double eta2 = tmpVector2.eta();
+
+
+         double r3 = 10.16; // averaged 3rd layer rho
+         x = r3*cos(etrk.phi())+etrk.vx();
+         y = r3*sin(etrk.eta())+etrk.vy();
+         z = r3/tan(atan(exp(-etrk.eta()))*2)+etrk.vz();
+         ROOT::Math::XYZVector tmpVector3(x-pev_.vx[1],y-pev_.vy[1],z-pev_.vz[1]);
+         double eta3 = tmpVector3.eta();
+
+         if (doTrackExtra_) {
+            pev_.trkExpHit1Eta[pev_.nTrk]=eta1;
+            pev_.trkExpHit2Eta[pev_.nTrk]=eta2;
+            pev_.trkExpHit3Eta[pev_.nTrk]=eta3;
+         }
          //pev_.trkNhit[pev_.nTrk]=tr.numberOfValidHits();
          pev_.nTrk++;
       }
@@ -486,7 +551,7 @@ TrackAnalyzer::fillHits(const edm::Event& iEvent){
 
          const PixelGeomDetUnit* pixelLayer = dynamic_cast<const PixelGeomDetUnit*> (geo_->idToDet(recHit->geographicalId()));
          GlobalPoint gpos = pixelLayer->toGlobal(recHit->localPosition());
-         math::XYZVector rechitPos(gpos.x(),gpos.y(),gpos.z()-pev_.vz[1]);
+         math::XYZVector rechitPos(gpos.x()-pev_.vx[1],gpos.y()-pev_.vy[1],gpos.z()-pev_.vz[1]);
 
          // position
          double eta = rechitPos.eta();
@@ -688,6 +753,8 @@ TrackAnalyzer::beginJob()
   pixelTree_->Branch("ntrksCut",&pev_.ntrksCut,"ntrksCut/I");
   pixelTree_->Branch("mult",&pev_.mult,"mult/I");
   pixelTree_->Branch("nv",&pev_.nv,"nv/I");
+  pixelTree_->Branch("vx",pev_.vx,"vx[nv]/F");
+  pixelTree_->Branch("vy",pev_.vy,"vy[nv]/F");
   pixelTree_->Branch("vz",pev_.vz,"vz[nv]/F");
   pixelTree_->Branch("vzMinDeltaR",&pev_.vzMinDeltaR,"vzMinDeltaR/F");
   pixelTree_->Branch("eta1",pev_.eta1,"eta1[nhits1]/F");
@@ -771,7 +838,12 @@ TrackAnalyzer::beginJob()
   pixelTree_->Branch("trkVx",&pev_.trkVx,"trkVx[nTrk]/F");
   pixelTree_->Branch("trkVy",&pev_.trkVy,"trkVy[nTrk]/F");
   pixelTree_->Branch("trkVz",&pev_.trkVz,"trkVz[nTrk]/F");
-
+  // Track Extra
+  if (doTrackExtra_) {
+     pixelTree_->Branch("trkExpHit1Eta",&pev_.trkExpHit1Eta,"trkExpHit1Eta[nTrk]/F");
+     pixelTree_->Branch("trkExpHit2Eta",&pev_.trkExpHit2Eta,"trkExpHit2Eta[nTrk]/F");
+     pixelTree_->Branch("trkExpHit3Eta",&pev_.trkExpHit3Eta,"trkExpHit3Eta[nTrk]/F");
+  }
   // HI related
   pixelTree_->Branch("hf",&pev_.hf,"hf/F");
   pixelTree_->Branch("hftp",&pev_.hftp,"hftp/F");
