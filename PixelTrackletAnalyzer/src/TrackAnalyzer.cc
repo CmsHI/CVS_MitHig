@@ -13,7 +13,7 @@
 //
 // Original Author:  Yilmaz Yetkin, Yen-Jie 
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.1 2010/09/12 15:33:05 yjlee Exp $
+// $Id: TrackAnalyzer.cc,v 1.2 2010/09/14 10:42:00 yjlee Exp $
 //
 //
 
@@ -60,6 +60,8 @@
 #include "DataFormats/L1GlobalTrigger/interface/L1GlobalTriggerObjectMapRecord.h"
 #include "DataFormats/L1GlobalTrigger/interface/L1GlobalTriggerObjectMap.h"
 #include "L1Trigger/GlobalTrigger/interface/L1GlobalTrigger.h"
+
+#include "DataFormats/Math/interface/Point3D.h"
 
 // Heavyion
 #include "DataFormats/HeavyIonEvent/interface/Centrality.h"
@@ -176,6 +178,13 @@ struct PixelEvent{
    float trkNdof[MAXHITS];
    float trkD0[MAXHITS];
    float trkDz[MAXHITS];
+   float trkDzError[MAXHITS];
+   float trkDxy[MAXHITS];
+   float trkDxy1[MAXHITS];
+   float trkDxy2[MAXHITS];
+   float trkDxyError[MAXHITS];
+   float trkDz1[MAXHITS];
+   float trkDz2[MAXHITS];
    float trkVx[MAXHITS];
    float trkVy[MAXHITS];
    float trkVz[MAXHITS];
@@ -253,6 +262,7 @@ class TrackAnalyzer : public edm::EDAnalyzer {
    bool doPixel_;
 
    double trackPtMin_;
+   double genTrackPtMin_;
    vector<string> vertexSrc_;
    edm::InputTag trackSrc_;
    edm::InputTag L1gtReadout_; 
@@ -292,6 +302,7 @@ TrackAnalyzer::TrackAnalyzer(const edm::ParameterSet& iConfig)
    doTrack_             = iConfig.getUntrackedParameter<bool>  ("doTrack",true);
    doTrackExtra_             = iConfig.getUntrackedParameter<bool>  ("doTrackExtra",false);
    trackPtMin_             = iConfig.getUntrackedParameter<double>  ("trackPtMin",0.4);
+   genTrackPtMin_             = iConfig.getUntrackedParameter<double>  ("genTrackPtMin",0.4);
    doTrack_             = iConfig.getUntrackedParameter<bool>  ("doTrack",true);
    vertexSrc_ = iConfig.getParameter<vector<string> >("vertexSrc");
    etaMult_ = iConfig.getUntrackedParameter<double>  ("nHitsRegion",1.);
@@ -409,27 +420,38 @@ TrackAnalyzer::fillVertices(const edm::Event& iEvent){
       recoVertices = vertexCollection.product();
       unsigned int daughter = 0;
       int nVertex = 0;
-      int greatestvtx = -1;
-      int secondGreatestvtx = -1;
+      unsigned int greatestvtx = 0;
+      unsigned int secondGreatestvtx = 1;
       
       nVertex = recoVertices->size();
+
       for (unsigned int i = 0 ; i< recoVertices->size(); ++i){
 	 daughter = (*recoVertices)[i].tracksSize();
 	 if( daughter > (*recoVertices)[greatestvtx].tracksSize()) {
-            secondGreatestvtx = greatestvtx;
             greatestvtx = i;
          }
       }
-      
+
+     if (greatestvtx==1) secondGreatestvtx=0;
+     for (unsigned int i = 0 ; i< recoVertices->size(); ++i){
+	 daughter = (*recoVertices)[i].tracksSize();
+	 if( daughter > (*recoVertices)[secondGreatestvtx].tracksSize()&&i!=greatestvtx) {
+            secondGreatestvtx = i;
+         }
+      }
+
+ 
+    
+      cout <<recoVertices->size()<<endl;
       if(recoVertices->size()>0){
 	 pev_.vx[pev_.nv] = (*recoVertices)[greatestvtx].position().x();
 	 pev_.vy[pev_.nv] = (*recoVertices)[greatestvtx].position().y();
 	 pev_.vz[pev_.nv] = (*recoVertices)[greatestvtx].position().z();
 	 pev_.nv++;
-         if (secondGreatestvtx!=-1) {
-            pev_.vx[pev_.nv] = (*recoVertices)[greatestvtx].position().x();
-	    pev_.vy[pev_.nv] = (*recoVertices)[greatestvtx].position().y();
-   	    pev_.vz[pev_.nv] = (*recoVertices)[greatestvtx].position().z();
+         if (recoVertices->size()>1) {
+            pev_.vx[pev_.nv] = (*recoVertices)[secondGreatestvtx].position().x();
+	    pev_.vy[pev_.nv] = (*recoVertices)[secondGreatestvtx].position().y();
+   	    pev_.vz[pev_.nv] = (*recoVertices)[secondGreatestvtx].position().z();
          } else {
             pev_.vx[pev_.nv] =  -99;
   	    pev_.vy[pev_.nv] =  -99;
@@ -460,6 +482,8 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent){
       for(unsigned it=0; it<etracks->size(); ++it){
 	 const reco::Track & etrk = (*etracks)[it];
          if (etrk.pt()<trackPtMin_) continue;
+         if (etrk.ptError()/etrk.pt()>0.1) continue;
+
          pev_.trkQual[pev_.nTrk]=0;
 	 if(etrk.quality(reco::TrackBase::qualityByName(qualityString))) pev_.trkQual[pev_.nTrk]=1;
 	 //if(fabs(etrk.eta())<etaCut_evtSel && etrk.pt()>ptMin_) mult++;
@@ -468,13 +492,23 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent){
          pev_.trkPt[pev_.nTrk]=etrk.pt();
          pev_.trkNHit[pev_.nTrk]=etrk.numberOfValidHits();
          pev_.trkD0[pev_.nTrk]=etrk.d0();
+         pev_.trkDxy[pev_.nTrk]=etrk.dxy();
+         pev_.trkDxyError[pev_.nTrk]=etrk.dxyError();
          pev_.trkDz[pev_.nTrk]=etrk.dz();
+         pev_.trkDzError[pev_.nTrk]=etrk.dzError();
          pev_.trkChi2[pev_.nTrk]=etrk.chi2();
          pev_.trkNdof[pev_.nTrk]=etrk.ndof();
          pev_.trkVx[pev_.nTrk]=etrk.vx();
          pev_.trkVy[pev_.nTrk]=etrk.vy();
          pev_.trkVz[pev_.nTrk]=etrk.vz();
 
+         math::XYZPoint v1(pev_.vx[1],pev_.vy[1], pev_.vz[1]);
+         pev_.trkDz1[pev_.nTrk]=etrk.dz(v1);
+         pev_.trkDxy1[pev_.nTrk]=etrk.dxy(v1);
+         math::XYZPoint v2(pev_.vx[2],pev_.vy[2], pev_.vz[2]);
+         pev_.trkDz2[pev_.nTrk]=etrk.dz(v2);
+         pev_.trkDxy2[pev_.nTrk]=etrk.dxy(v2);
+ 
          double r = 4.4; // averaged first layer rho
          double x = r*cos(etrk.phi())+etrk.vx();
          double y = r*sin(etrk.eta())+etrk.vy();
@@ -690,6 +724,7 @@ TrackAnalyzer::fillParticles(const edm::Event& iEvent)
          pev_.z[pev_.nparticle] = (*it)->production_vertex()->position().z();
          if (pev_.chg[pev_.nparticle]==0) continue;
          if (fabs(pev_.eta[pev_.nparticle])>3) continue;
+         if (fabs(pev_.pt[pev_.nparticle])>genTrackPtMin_) continue;
 	 pev_.nparticle++;
    }
 }
@@ -835,6 +870,13 @@ TrackAnalyzer::beginJob()
   pixelTree_->Branch("trkNdof",&pev_.trkNdof,"trkNdof[nTrk]/F");
   pixelTree_->Branch("trkD0",&pev_.trkD0,"trkD0[nTrk]/F");
   pixelTree_->Branch("trkDz",&pev_.trkDz,"trkDz[nTrk]/F");
+  pixelTree_->Branch("trkDzError",&pev_.trkDzError,"trkDzError[nTrk]/F");
+  pixelTree_->Branch("trkDxy",&pev_.trkDxy,"trkDxy[nTrk]/F");
+  pixelTree_->Branch("trkDxy1",&pev_.trkDxy1,"trkDxy1[nTrk]/F");
+  pixelTree_->Branch("trkDxy2",&pev_.trkDxy2,"trkDxy2[nTrk]/F");
+  pixelTree_->Branch("trkDxyError",&pev_.trkDxyError,"trkDxyError[nTrk]/F");
+  pixelTree_->Branch("trkDz1",&pev_.trkDz1,"trkDz1[nTrk]/F");
+  pixelTree_->Branch("trkDz2",&pev_.trkDz2,"trkDz2[nTrk]/F");
   pixelTree_->Branch("trkVx",&pev_.trkVx,"trkVx[nTrk]/F");
   pixelTree_->Branch("trkVy",&pev_.trkVy,"trkVy[nTrk]/F");
   pixelTree_->Branch("trkVz",&pev_.trkVz,"trkVz[nTrk]/F");
