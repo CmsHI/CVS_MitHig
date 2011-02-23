@@ -13,7 +13,7 @@
 //
 // Original Author:  Yilmaz Yetkin, Yen-Jie 
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: PixelHitAnalyzer.cc,v 1.27 2010/11/03 20:54:43 yjlee Exp $
+// $Id: PixelHitAnalyzer.cc,v 1.28 2010/11/09 00:14:40 yjlee Exp $
 //
 //
 
@@ -51,6 +51,9 @@
 #include "SimDataFormats/TrackingAnalysis/interface/TrackingVertex.h"
 #include "SimDataFormats/TrackingAnalysis/interface/TrackingVertexContainer.h"
 #include "SimDataFormats/TrackingAnalysis/interface/TrackingParticle.h"
+#include "SimDataFormats/Vertex/interface/SimVertex.h"
+#include "SimDataFormats/Vertex/interface/SimVertexContainer.h"
+
 #include "SimDataFormats/TrackingHit/interface/PSimHit.h"
 #include "SimGeneral/HepPDTRecord/interface/ParticleDataTable.h"
 #include "SimTracker/TrackerHitAssociation/interface/TrackerHitAssociator.h"
@@ -59,6 +62,8 @@
 #include "DataFormats/L1GlobalTrigger/interface/L1GlobalTriggerReadoutRecord.h"
 #include "DataFormats/L1GlobalTrigger/interface/L1GlobalTriggerObjectMapRecord.h"
 #include "DataFormats/L1GlobalTrigger/interface/L1GlobalTriggerObjectMap.h"
+#include "DataFormats/BeamSpot/interface/BeamSpot.h"
+
 #include "L1Trigger/GlobalTrigger/interface/L1GlobalTrigger.h"
 
 #include "DataFormats/CaloTowers/interface/CaloTower.h"
@@ -110,6 +115,10 @@ struct PixelEvent{
    float vx[MAXVTX];
    float vy[MAXVTX];
    float vz[MAXVTX];
+
+   float beamSpotX;
+   float beamSpotY;
+   float beamSpotZ;
 
    // First layer hit
    float eta1[MAXHITS];
@@ -200,6 +209,7 @@ class PixelHitAnalyzer : public edm::EDAnalyzer {
       virtual void endJob() ;
 
    void fillVertices(const edm::Event& iEvent);
+   void fillBeamSpot(const edm::Event& iEvent);
    void fillHits(const edm::Event& iEvent);
    void fillParticles(const edm::Event& iEvent);
    void fillPixelTracks(const edm::Event& iEvent);
@@ -225,10 +235,12 @@ class PixelHitAnalyzer : public edm::EDAnalyzer {
    bool doCentrality_;
    bool doTrackingParticle_;
    bool doPixel_;
+   bool doBeamSpot_;
 
    vector<string> vertexSrc_;
    edm::InputTag trackSrc_;
    edm::InputTag TowerSrc_;  // > 2.87 for HF
+   edm::InputTag beamSpotProducer_;
 
    edm::InputTag L1gtReadout_; 
    double etaMult_;
@@ -240,7 +252,7 @@ class PixelHitAnalyzer : public edm::EDAnalyzer {
 
    map<int,int> tpmap_;
 
-   std::string                   hltResName_;         //HLT trigger results name
+   edm::InputTag                 hltResName_;         //HLT trigger results name
    std::vector<std::string>      hltProcNames_;       //HLT process name(s)
    std::vector<std::string>      hltTrgNames_;        //HLT trigger name(s)
 
@@ -267,13 +279,15 @@ PixelHitAnalyzer::PixelHitAnalyzer(const edm::ParameterSet& iConfig)
    doHF_             = iConfig.getUntrackedParameter<bool>  ("doHF",true);
    doTrackingParticle_             = iConfig.getUntrackedParameter<bool>  ("doTrackingParticle",false);
    doPixel_             = iConfig.getUntrackedParameter<bool>  ("doPixel",true);
+   doBeamSpot_             = iConfig.getUntrackedParameter<bool>  ("doBeamSpot",true);
    vertexSrc_ = iConfig.getParameter<vector<string> >("vertexSrc");
    etaMult_ = iConfig.getUntrackedParameter<double>  ("nHitsRegion",1.);
    trackSrc_ = iConfig.getParameter<edm::InputTag>("trackSrc");
    L1gtReadout_ = iConfig.getParameter<edm::InputTag>("L1gtReadout");
-   TowerSrc_ = iConfig.getUntrackedParameter<edm::InputTag>("towersSrc",edm::InputTag("towerMaker"));
-   hltResName_ = iConfig.getUntrackedParameter<string>("hltTrgResults","TriggerResults::HLT");
-   
+   TowerSrc_ =   iConfig.getUntrackedParameter<edm::InputTag>("towersSrc",edm::InputTag("towerMaker"));
+   hltResName_ = iConfig.getUntrackedParameter<edm::InputTag>("hltTrgResults",edm::InputTag("TriggerResults"));
+   beamSpotProducer_  = iConfig.getUntrackedParameter<edm::InputTag>("towersSrc",edm::InputTag("offlineBeamSpot"));   
+
    // if it's not MC, don't do TrackingParticle
    if (doMC_ == false) doTrackingParticle_ = false;
    if (iConfig.exists("hltTrgNames"))
@@ -317,10 +331,12 @@ PixelHitAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetu
    pev_.nBX = (int)iEvent.bunchCrossing();
 
    pev_.nv = 0;
-   cout <<"Fill MC"<<endl;
+
    if (doMC_) fillParticles(iEvent);
    cout <<"Fill Vtx"<<endl;
    fillVertices(iEvent);
+   cout <<"Fill BeamSpot"<<endl;
+   fillBeamSpot(iEvent);
    cout <<"Fill Hits"<<endl;
    if (doPixel_) fillHits(iEvent);
 //   fillPixelTracks(iEvent);
@@ -348,6 +364,9 @@ PixelHitAnalyzer::fillVertices(const edm::Event& iEvent){
       unsigned int daughter = 0;
       int nVertex = 0;
       int greatestvtx = 0;
+      edm::Handle<SimVertexContainer> SimVtx;
+      iEvent.getByLabel("g4SimHits",SimVtx);
+ 
       if (doTrackingParticle_) {
          Handle<TrackingVertexCollection> vertices;
          iEvent.getByLabel("mergedtruth","MergedTrackTruth", vertices);
@@ -365,6 +384,7 @@ PixelHitAnalyzer::fillVertices(const edm::Event& iEvent){
       } else {
             pev_.vz[pev_.nv] = -99;
       }
+
       pev_.nv++;
    } else {
       // Fill a dummy MC information
@@ -402,6 +422,23 @@ PixelHitAnalyzer::fillVertices(const edm::Event& iEvent){
    }
 
 }
+
+//--------------------------------------------------------------------------------------------------
+void
+PixelHitAnalyzer::fillBeamSpot(const edm::Event& iEvent){
+
+  // Get the Beam Spot
+  reco::BeamSpot beamSpot;
+  edm::Handle<reco::BeamSpot> recoBeamSpotHandle;
+  iEvent.getByLabel(beamSpotProducer_,recoBeamSpotHandle);
+  beamSpot = *recoBeamSpotHandle;
+
+  pev_.beamSpotX = beamSpot.x0();
+  pev_.beamSpotY = beamSpot.y0();
+  pev_.beamSpotZ = beamSpot.z0();
+
+}
+
 
 //--------------------------------------------------------------------------------------------------
 void
@@ -450,7 +487,7 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
          double eta = rechitPos.eta();
          double phi = rechitPos.phi();
          double r   = rechitPos.rho();
-
+         /*
          if (doMC_&&doTrackingParticle_) {
             
             TrackerHitAssociator theHitAssociator(iEvent);
@@ -510,7 +547,7 @@ PixelHitAnalyzer::fillHits(const edm::Event& iEvent){
                GlobalPoint simpos = pixelLayer->toGlobal((*bestSimHit1).localPosition());
             }
          }
-
+         */
          int type = -99;
 	 if(isbackground) type = 0;
 	 if(isprimary) type = 1;
@@ -639,7 +676,12 @@ PixelHitAnalyzer::beginJob()
   pixelTree_->Branch("nLumi",&pev_.nLumi,"nLumi/I");
   pixelTree_->Branch("nBX",&pev_.nBX,"nBX/I");
   pixelTree_->Branch("nRun",&pev_.nRun,"nRun/I");
-  
+
+  // Beam spot  
+  pixelTree_->Branch("beamSpotX",&pev_.beamSpotX,"beamSpotX/F");
+  pixelTree_->Branch("beamSpotY",&pev_.beamSpotY,"beamSpotY/F");
+  pixelTree_->Branch("beamSpotZ",&pev_.beamSpotZ,"beamSpotZ/F");
+
   pixelTree_->Branch("nhits1",&pev_.nhits1,"nhits1/I");
   pixelTree_->Branch("nhits2",&pev_.nhits2,"nhits2/I");
   pixelTree_->Branch("nhits3",&pev_.nhits3,"nhits3/I");
@@ -817,7 +859,8 @@ void PixelHitAnalyzer::fillHLTBits(const edm::Event &iEvent)
 {
   // Fill HLT trigger bits.
   Handle<TriggerResults> triggerResultsHLT;
-  getProduct(hltResName_, triggerResultsHLT, iEvent);
+  iEvent.getByLabel(hltResName_,triggerResultsHLT);
+//  getProduct(hltResName_, triggerResultsHLT, iEvent);
 
   const TriggerResults *hltResults = triggerResultsHLT.product();
   const TriggerNames & triggerNames = iEvent.triggerNames(*hltResults);
