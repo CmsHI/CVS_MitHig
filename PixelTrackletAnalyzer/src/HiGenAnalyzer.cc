@@ -13,7 +13,7 @@ Implementation:
 //
 // Original Author:  Yetkin Yilmaz, Frank Ma
 //         Created:  Tue Dec 18 09:44:41 EST 2007
-// $Id: HiGenAnalyzer.cc,v 1.24 2011/01/21 15:45:18 yilmaz Exp $
+// $Id: HiGenAnalyzer.cc,v 1.1 2011/03/31 16:28:58 frankma Exp $
 //
 //
 
@@ -85,6 +85,7 @@ struct HydjetEvent{
   Float_t phi[MAXPARTICLES];
   Int_t pdg[MAXPARTICLES];
   Int_t chg[MAXPARTICLES];
+  Int_t sube[MAXPARTICLES];
 
   Float_t vx;
   Float_t vy;
@@ -331,6 +332,7 @@ HiGenAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
       hev_.phi[hev_.mult] = p.phi();
       hev_.pdg[hev_.mult] = p.pdgId();
       hev_.chg[hev_.mult] = p.charge();
+      hev_.sube[hev_.mult] = p.collisionId();
       Double_t eta = fabs(p.eta());
 
       Int_t etabin = 0;
@@ -412,7 +414,7 @@ HiGenAnalyzer::beginJob()
   if(doAnalysis_){
     nt = f->make<TNtuple>("nt","Mixing Analysis","mix:np:src:sig");
 
-    hydjetTree_ = f->make<TTree>("hi","Tree of Hydjet Events");
+    hydjetTree_ = f->make<TTree>("hi","Tree of Hi gen Event");
     hydjetTree_->Branch("event",&hev_.event,"event/I");
     hydjetTree_->Branch("b",&hev_.b,"b/F");
     hydjetTree_->Branch("npart",&hev_.npart,"npart/F");
@@ -432,6 +434,7 @@ HiGenAnalyzer::beginJob()
       hydjetTree_->Branch("phi",hev_.phi,"phi[mult]/F");
       hydjetTree_->Branch("pdg",hev_.pdg,"pdg[mult]/I");
       hydjetTree_->Branch("chg",hev_.chg,"chg[mult]/I");
+      hydjetTree_->Branch("sube",hev_.sube,"sube[mult]/I");
 
       hydjetTree_->Branch("vx",&hev_.vx,"vx/F");
       hydjetTree_->Branch("vy",&hev_.vy,"vy/F");
