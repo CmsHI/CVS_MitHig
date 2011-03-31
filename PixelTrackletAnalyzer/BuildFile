@@ -15,11 +15,10 @@
 <use name=FWCore/ParameterSet>
 <use name=PhysicsTools/UtilAlgos>
 <use name=SimDataFormats/Vertex>
-<use name=SimDataFormats/HepMCProduct>
+<use name=SimDataFormats/GeneratorProducts>
 <use name=SimDataFormats/TrackingAnalysis>
 <use name=SimGeneral/HepPDTRecord>
 <use name=SimTracker/TrackerHitAssociation>
-<use name=Geometry/CaloEventSetup>
 <use name=Geometry/CaloGeometry>
 <use name=Geometry/CommonDetUnit>
 <use name=Geometry/TrackerGeometryBuilder>
