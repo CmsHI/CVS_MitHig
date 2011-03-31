@@ -13,7 +13,7 @@
 //
 // Original Author:  Yilmaz Yetkin, Yen-Jie 
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.3 2010/09/19 16:03:18 yjlee Exp $
+// $Id: TrackAnalyzer.cc,v 1.4 2010/11/09 00:14:42 yjlee Exp $
 //
 //
 
@@ -103,6 +103,7 @@ struct TrackEvent{
    float trkEta[MAXTRACKS];
    float trkPhi[MAXTRACKS];
    float trkPt[MAXTRACKS];
+   float trkPtError[MAXTRACKS];
    int trkNHit[MAXTRACKS];
    int trkQual[MAXTRACKS];
    float trkChi2[MAXTRACKS];
@@ -203,9 +204,9 @@ TrackAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 
    pev_.nv = 0;
 
-   cout <<"Fill Vtx"<<endl;
+   //cout <<"Fill Vtx"<<endl;
    fillVertices(iEvent);
-   cout <<"Fill Tracks"<<endl;
+   //cout <<"Fill Tracks"<<endl;
    if (doTrack_) fillTracks(iEvent);
    trackTree_->Fill();
 }
@@ -260,7 +261,6 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent){
       for(unsigned it=0; it<etracks->size(); ++it){
 	 const reco::Track & etrk = (*etracks)[it];
          if (etrk.pt()<trackPtMin_) continue;
-         if (etrk.ptError()/etrk.pt()>0.1) continue;
 
          pev_.trkQual[pev_.nTrk]=0;
 	 if(etrk.quality(reco::TrackBase::qualityByName(qualityString))) pev_.trkQual[pev_.nTrk]=1;
@@ -268,6 +268,7 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent){
          pev_.trkEta[pev_.nTrk]=etrk.eta();
          pev_.trkPhi[pev_.nTrk]=etrk.phi();
          pev_.trkPt[pev_.nTrk]=etrk.pt();
+         pev_.trkPtError[pev_.nTrk]=etrk.ptError();
          pev_.trkNHit[pev_.nTrk]=etrk.numberOfValidHits();
          pev_.trkD0[pev_.nTrk]=etrk.d0();
          pev_.trkDxy[pev_.nTrk]=etrk.dxy();
@@ -321,8 +322,6 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent){
       
 }
 
-
-
 // ------------ method called once each job just before starting event loop  ------------
 void 
 TrackAnalyzer::beginJob()
@@ -345,6 +344,7 @@ TrackAnalyzer::beginJob()
   // Tracks
   trackTree_->Branch("nTrk",&pev_.nTrk,"nTrk/I");
   trackTree_->Branch("trkPt",&pev_.trkPt,"trkPt[nTrk]/F");
+  trackTree_->Branch("trkPtError",&pev_.trkPtError,"trkPtError[nTrk]/F");
   trackTree_->Branch("trkNHit",&pev_.trkNHit,"trkNHit[nTrk]/I");
   trackTree_->Branch("trkEta",&pev_.trkEta,"trkEta[nTrk]/F");
   trackTree_->Branch("trkPhi",&pev_.trkPhi,"trkPhi[nTrk]/F");
