@@ -12,8 +12,9 @@
 */
 //
 // Original Author:  Yilmaz Yetkin, Yen-Jie 
+// Updated: Frank Ma
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.4 2010/11/09 00:14:42 yjlee Exp $
+// $Id: TrackAnalyzer.cc,v 1.5 2011/03/31 12:16:56 frankma Exp $
 //
 //
 
@@ -54,6 +55,7 @@
 #include "SimDataFormats/TrackingHit/interface/PSimHit.h"
 #include "SimGeneral/HepPDTRecord/interface/ParticleDataTable.h"
 #include "SimTracker/TrackerHitAssociation/interface/TrackerHitAssociator.h"
+#include "DataFormats/SiPixelDetId/interface/PixelEndcapName.h"
 
 #include "DataFormats/L1GlobalTrigger/interface/L1GlobalTriggerReadoutSetup.h"
 #include "DataFormats/L1GlobalTrigger/interface/L1GlobalTriggerReadoutRecord.h"
@@ -137,6 +139,7 @@ class TrackAnalyzer : public edm::EDAnalyzer {
 
    void fillVertices(const edm::Event& iEvent);
    void fillTracks(const edm::Event& iEvent);
+   bool hitDeadPXF(const reco::Track& tr);
    
    template <typename TYPE>
    void                          getProduct(const std::string name, edm::Handle<TYPE> &prod,
@@ -155,6 +158,7 @@ class TrackAnalyzer : public edm::EDAnalyzer {
 
    double trackPtMin_;
    double genTrackPtMin_;
+   bool fiducialCut_;
    edm::InputTag trackSrc_;
 
    vector<string> vertexSrc_;
@@ -178,9 +182,9 @@ TrackAnalyzer::TrackAnalyzer(const edm::ParameterSet& iConfig)
    doTrack_             = iConfig.getUntrackedParameter<bool>  ("doTrack",true);
    doTrackExtra_             = iConfig.getUntrackedParameter<bool>  ("doTrackExtra",false);
    trackPtMin_             = iConfig.getUntrackedParameter<double>  ("trackPtMin",0.4);
+   fiducialCut_ = (iConfig.getUntrackedParameter<bool>("fiducialCut",false));
    trackSrc_ = iConfig.getParameter<edm::InputTag>("trackSrc");
    vertexSrc_ = iConfig.getParameter<vector<string> >("vertexSrc");
-
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -192,6 +196,7 @@ TrackAnalyzer::~TrackAnalyzer()
 void
 TrackAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
+  // Get tracker geometry
    edm::ESHandle<TrackerGeometry> tGeo;
    iSetup.get<TrackerDigiGeometryRecord>().get(tGeo);
    geo_ = tGeo.product();
@@ -261,6 +266,7 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent){
       for(unsigned it=0; it<etracks->size(); ++it){
 	 const reco::Track & etrk = (*etracks)[it];
          if (etrk.pt()<trackPtMin_) continue;
+	 if(fiducialCut_ && hitDeadPXF(etrk)) continue; // if track hits the dead region, igonore it;
 
          pev_.trkQual[pev_.nTrk]=0;
 	 if(etrk.quality(reco::TrackBase::qualityByName(qualityString))) pev_.trkQual[pev_.nTrk]=1;
@@ -320,6 +326,46 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent){
          pev_.nTrk++;
       }
       
+}
+
+// ---------------
+bool
+TrackAnalyzer::hitDeadPXF(const reco::Track& tr){
+
+   //-----------------------------------------------
+   // For a given track, check whether this contains 
+   // hits on the dead region in the forward pixel 
+   //-----------------------------------------------
+
+   bool hitDeadRegion = false;
+
+   for(trackingRecHit_iterator recHit = tr.recHitsBegin();recHit!= tr.recHitsEnd(); recHit++){
+
+      if((*recHit)->isValid()){
+
+	 DetId detId = (*recHit)->geographicalId();
+	 if(!geo_->idToDet(detId)) continue;
+
+	 Int_t diskLayerNum=0, bladeLayerNum=0, hcylLayerNum=0;
+	 
+	 unsigned int subdetId = static_cast<unsigned int>(detId.subdetId());
+
+	 if (subdetId == PixelSubdetector::PixelEndcap){
+	    
+	    PixelEndcapName pxfname(detId.rawId());
+	    diskLayerNum = pxfname.diskName();
+	    bladeLayerNum = pxfname.bladeName();
+	    hcylLayerNum = pxfname.halfCylinder();
+	    
+	    // hard-coded now based on /UserCode/Appeltel/PixelFiducialRemover/pixelfiducialremover_cfg.py
+	    if((bladeLayerNum==4 || bladeLayerNum==5 || bladeLayerNum==6) &&
+	       (diskLayerNum==2) && (hcylLayerNum==4)) hitDeadRegion = true;
+	 }
+	 
+      }// end of isValid
+   }
+
+   return hitDeadRegion;
 }
 
 // ------------ method called once each job just before starting event loop  ------------
