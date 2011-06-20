@@ -14,7 +14,7 @@ process.load("RecoVertex.BeamSpotProducer.BeamSpot_cfi")
 # Timing service
 process.Timing = cms.Service("Timing") 
 
-process.GlobalTag.globaltag = 'STARTUP31X_V4::All'
+process.GlobalTag.globaltag = 'START311_V2::All'
 
 process.pixelVertexFromClusters = cms.EDProducer('PixelVertexProducerClusters')
 
@@ -23,7 +23,7 @@ process.maxEvents = cms.untracked.PSet( input = cms.untracked.int32(10000) )
 process.source = cms.Source("PoolSource",
     # replace 'myfile.root' with the source file you want to use
     fileNames = cms.untracked.vstring(
-    'file:RelValMinBias_314_STARTUP31X_V2-v1-Reco.root'
+    'dcache:/pnfs/cmsaf.mit.edu/t2bat/cms/store/user/kimy/AllPhysics2760/ppRun_2760GeV_photon10Trig_promptRECO-v3/dd648448e93dc1238d7d4e1d0b5a9841/___outf_edm____99_1_rCe.root'
     )
 )
 
@@ -47,7 +47,9 @@ process.RandomNumberGeneratorService = cms.Service("RandomNumberGeneratorService
 process.ana = cms.EDAnalyzer('PixelHitAnalyzer',
                              vertexSrc = cms.vstring('pixelVertices'),
                              trackSrc = cms.InputTag('pixelTracks'),
-                             doTracking = cms.untracked.bool(False)
+                             doTracking = cms.untracked.bool(False),
+                             doMC = cms.untracked.bool(False),
+                             L1gtReadout = cms.InputTag('gtDigis'),
                              )
 
 process.TFileService = cms.Service('TFileService',
