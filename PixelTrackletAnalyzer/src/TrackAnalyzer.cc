@@ -8,13 +8,13 @@
  Description: <one line class summary>
 
  Implementation:
-     Prepare the Hit Tree for analysis
+     Prepare the Treack Tree for analysis
 */
 //
-// Original Author:  Yilmaz Yetkin, Yen-Jie 
+// Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.5 2011/03/31 12:16:56 frankma Exp $
+// $Id: TrackAnalyzer.cc,v 1.6 2011/04/01 13:35:45 frankma Exp $
 //
 //
 
@@ -64,6 +64,13 @@
 #include "L1Trigger/GlobalTrigger/interface/L1GlobalTrigger.h"
 
 #include "DataFormats/Math/interface/Point3D.h"
+#include "DataFormats/BeamSpot/interface/BeamSpot.h"
+
+#include "SimDataFormats/TrackingAnalysis/interface/TrackingParticle.h"
+#include "SimDataFormats/TrackingAnalysis/interface/TrackingParticleFwd.h"
+#include "SimTracker/Records/interface/TrackAssociatorRecord.h"
+#include "DataFormats/RecoCandidate/interface/TrackAssociation.h"
+#include "SimTracker/TrackAssociation/interface/TrackAssociatorByHits.h"
 
 // Heavyion
 #include "DataFormats/HeavyIonEvent/interface/Centrality.h"
@@ -98,6 +105,9 @@ struct TrackEvent{
    float vx[MAXVTX];
    float vy[MAXVTX];
    float vz[MAXVTX];
+   float vxError[MAXVTX];
+   float vyError[MAXVTX];
+   float vzError[MAXVTX];
 
 
    // track
@@ -107,21 +117,31 @@ struct TrackEvent{
    float trkPt[MAXTRACKS];
    float trkPtError[MAXTRACKS];
    int trkNHit[MAXTRACKS];
+   int trkNlayer[MAXTRACKS];
+   int trkNlayer3D[MAXTRACKS];
    int trkQual[MAXTRACKS];
    float trkChi2[MAXTRACKS];
+   float trkChi2hit1D[MAXTRACKS];
    float trkNdof[MAXTRACKS];
-   float trkD0[MAXTRACKS];
    float trkDz[MAXTRACKS];
+   float trkDz1[MAXTRACKS];               // dZ to the first vertex
+   float trkDz2[MAXTRACKS];               // dZ to the second vertex
    float trkDzError[MAXTRACKS];
+   float trkDzError1[MAXTRACKS];          
+   float trkDzError2[MAXTRACKS];          
    float trkDxy[MAXTRACKS];
-   float trkDxy1[MAXTRACKS];
-   float trkDxy2[MAXTRACKS];
-   float trkDxyError[MAXTRACKS];
-   float trkDz1[MAXTRACKS];
-   float trkDz2[MAXTRACKS];
+   float trkDxyBS[MAXTRACKS];
+   float trkDxy1[MAXTRACKS];              // d0 to the first vertex
+   float trkDxy2[MAXTRACKS];              // d0 to the second vertex
+   float trkDxyError[MAXTRACKS];          
+   float trkDxyErrorBS[MAXTRACKS];          
+   float trkDxyError1[MAXTRACKS];          
+   float trkDxyError2[MAXTRACKS];          
    float trkVx[MAXTRACKS];
    float trkVy[MAXTRACKS];
    float trkVz[MAXTRACKS];
+   bool  trkFake[MAXTRACKS];
+
    float trkExpHit1Eta[MAXTRACKS];
    float trkExpHit2Eta[MAXTRACKS];
    float trkExpHit3Eta[MAXTRACKS];
@@ -138,7 +158,7 @@ class TrackAnalyzer : public edm::EDAnalyzer {
       virtual void endJob() ;
 
    void fillVertices(const edm::Event& iEvent);
-   void fillTracks(const edm::Event& iEvent);
+   void fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetup);
    bool hitDeadPXF(const reco::Track& tr);
    
    template <typename TYPE>
@@ -155,11 +175,13 @@ class TrackAnalyzer : public edm::EDAnalyzer {
 
    bool doTrack_;
    bool doTrackExtra_;
+   bool doSimTrack_;
 
    double trackPtMin_;
    double genTrackPtMin_;
    bool fiducialCut_;
    edm::InputTag trackSrc_;
+   edm::InputTag tpFakeSrc_;
 
    vector<string> vertexSrc_;
 
@@ -167,6 +189,7 @@ class TrackAnalyzer : public edm::EDAnalyzer {
    edm::Service<TFileService> fs;           
    edm::ESHandle < ParticleDataTable > pdt;
    edm::Handle<TrackingParticleCollection> trackingParticles;
+   edm::InputTag beamSpotProducer_;
 
    // Root object
    TTree* trackTree_;
@@ -181,10 +204,14 @@ TrackAnalyzer::TrackAnalyzer(const edm::ParameterSet& iConfig)
 {
    doTrack_             = iConfig.getUntrackedParameter<bool>  ("doTrack",true);
    doTrackExtra_             = iConfig.getUntrackedParameter<bool>  ("doTrackExtra",false);
+   doSimTrack_             = iConfig.getUntrackedParameter<bool>  ("doSimTrack",false);
    trackPtMin_             = iConfig.getUntrackedParameter<double>  ("trackPtMin",0.4);
    fiducialCut_ = (iConfig.getUntrackedParameter<bool>("fiducialCut",false));
    trackSrc_ = iConfig.getParameter<edm::InputTag>("trackSrc");
+   tpFakeSrc_ =  iConfig.getUntrackedParameter<edm::InputTag>("tpFakeSrc",edm::InputTag("cutsTPForFak"));
    vertexSrc_ = iConfig.getParameter<vector<string> >("vertexSrc");
+   beamSpotProducer_  = iConfig.getUntrackedParameter<edm::InputTag>("towersSrc",edm::InputTag("offlineBeamSpot"));   
+
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -211,8 +238,9 @@ TrackAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 
    //cout <<"Fill Vtx"<<endl;
    fillVertices(iEvent);
+
    //cout <<"Fill Tracks"<<endl;
-   if (doTrack_) fillTracks(iEvent);
+   if (doTrack_) fillTracks(iEvent, iSetup);
    trackTree_->Fill();
 }
 
@@ -222,11 +250,18 @@ TrackAnalyzer::fillVertices(const edm::Event& iEvent){
 
    // Vertex 0 : pev_vz[0] MC information from TrackingVertexCollection
    // Vertex 1 - n : Reconstructed Vertex from various of algorithms
-   
+   pev_.vx[0]=0;
+   pev_.vy[0]=0;
+   pev_.vz[0]=0;
+   pev_.vxError[0]=0;
+   pev_.vyError[0]=0;
+   pev_.vzError[0]=0;
+   pev_.nv++;
    // Fill reconstructed vertices.   
    for(unsigned int iv = 0; iv < vertexSrc_.size(); ++iv){
       const reco::VertexCollection * recoVertices;
       edm::Handle<reco::VertexCollection> vertexCollection;
+      cout <<vertexSrc_[iv]<<endl;
       iEvent.getByLabel(vertexSrc_[iv],vertexCollection);
       recoVertices = vertexCollection.product();
       unsigned int daughter = 0;
@@ -244,12 +279,20 @@ TrackAnalyzer::fillVertices(const edm::Event& iEvent){
 	 pev_.vx[pev_.nv] = (*recoVertices)[greatestvtx].position().x();
 	 pev_.vy[pev_.nv] = (*recoVertices)[greatestvtx].position().y();
 	 pev_.vz[pev_.nv] = (*recoVertices)[greatestvtx].position().z();
+	 pev_.vxError[pev_.nv] = (*recoVertices)[greatestvtx].xError();
+	 pev_.vyError[pev_.nv] = (*recoVertices)[greatestvtx].yError();
+	 pev_.vzError[pev_.nv] = (*recoVertices)[greatestvtx].zError();
+
       }else{
 	 pev_.vx[pev_.nv] =  -99;
 	 pev_.vy[pev_.nv] =  -99;
 	 pev_.vz[pev_.nv] =  -99;
+	 pev_.vxError[pev_.nv] =  -99;
+	 pev_.vyError[pev_.nv] =  -99;
+	 pev_.vzError[pev_.nv] =  -99;
       }
       pev_.nv++;
+      cout <<pev_.nv<<endl;
    }
 
 }
@@ -258,10 +301,32 @@ TrackAnalyzer::fillVertices(const edm::Event& iEvent){
 
 //--------------------------------------------------------------------------------------------------
 void
-TrackAnalyzer::fillTracks(const edm::Event& iEvent){
+TrackAnalyzer::fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetup){
       Handle<vector<Track> > etracks;
       iEvent.getByLabel(trackSrc_, etracks);
       const string qualityString = "highPurity";
+      reco::BeamSpot beamSpot;
+      edm::Handle<reco::BeamSpot> recoBeamSpotHandle;
+      iEvent.getByLabel(beamSpotProducer_,recoBeamSpotHandle);
+      beamSpot = *recoBeamSpotHandle;
+
+      // do reco-to-sim association
+      Handle<TrackingParticleCollection>  TPCollectionHfake;
+      Handle<edm::View<reco::Track> >  trackCollection;
+      iEvent.getByLabel(trackSrc_, trackCollection);
+      ESHandle<TrackAssociatorBase> theAssociator;
+      const TrackAssociatorByHits *theAssociatorByHits;
+      reco::RecoToSimCollection recSimColl;
+  
+      if(doSimTrack_) {
+        iEvent.getByLabel(tpFakeSrc_,TPCollectionHfake);
+        iSetup.get<TrackAssociatorRecord>().get("TrackAssociatorByHits",theAssociator);
+        theAssociatorByHits = (const TrackAssociatorByHits*) theAssociator.product();
+      
+ //       simRecColl= theAssociatorByHits->associateSimToReco(trackCollection,TPCollectionHeff,&iEvent);
+        recSimColl= theAssociatorByHits->associateRecoToSim(trackCollection,TPCollectionHfake,&iEvent);
+      }
+
       pev_.nTrk=0;
       for(unsigned it=0; it<etracks->size(); ++it){
 	 const reco::Track & etrk = (*etracks)[it];
@@ -270,30 +335,58 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent){
 
          pev_.trkQual[pev_.nTrk]=0;
 	 if(etrk.quality(reco::TrackBase::qualityByName(qualityString))) pev_.trkQual[pev_.nTrk]=1;
-	 //if(fabs(etrk.eta())<etaCut_evtSel && etrk.pt()>ptMin_) mult++;
+
+         trackingRecHit_iterator edh = etrk.recHitsEnd();
+         int count1dhits=0;
+         for (trackingRecHit_iterator ith = etrk.recHitsBegin(); ith != edh; ++ith) {
+           const TrackingRecHit * hit = ith->get();
+           DetId detid = hit->geographicalId();
+           if (hit->isValid()) {
+            if (typeid(*hit) == typeid(SiStripRecHit1D)) ++count1dhits;
+           }
+         }
          pev_.trkEta[pev_.nTrk]=etrk.eta();
          pev_.trkPhi[pev_.nTrk]=etrk.phi();
          pev_.trkPt[pev_.nTrk]=etrk.pt();
          pev_.trkPtError[pev_.nTrk]=etrk.ptError();
          pev_.trkNHit[pev_.nTrk]=etrk.numberOfValidHits();
-         pev_.trkD0[pev_.nTrk]=etrk.d0();
          pev_.trkDxy[pev_.nTrk]=etrk.dxy();
          pev_.trkDxyError[pev_.nTrk]=etrk.dxyError();
          pev_.trkDz[pev_.nTrk]=etrk.dz();
          pev_.trkDzError[pev_.nTrk]=etrk.dzError();
          pev_.trkChi2[pev_.nTrk]=etrk.chi2();
          pev_.trkNdof[pev_.nTrk]=etrk.ndof();
+         pev_.trkChi2hit1D[pev_.nTrk]=(etrk.chi2()+count1dhits)/double(etrk.ndof()+count1dhits);
          pev_.trkVx[pev_.nTrk]=etrk.vx();
          pev_.trkVy[pev_.nTrk]=etrk.vy();
          pev_.trkVz[pev_.nTrk]=etrk.vz();
 
          math::XYZPoint v1(pev_.vx[1],pev_.vy[1], pev_.vz[1]);
          pev_.trkDz1[pev_.nTrk]=etrk.dz(v1);
+         pev_.trkDzError1[pev_.nTrk]=sqrt(etrk.dzError()*etrk.dzError()+pev_.vzError[1]*pev_.vzError[1]);
          pev_.trkDxy1[pev_.nTrk]=etrk.dxy(v1);
+         pev_.trkDxyError1[pev_.nTrk]=sqrt(etrk.dxyError()*etrk.dxyError()+pev_.vxError[1]*pev_.vyError[1]);
+
          math::XYZPoint v2(pev_.vx[2],pev_.vy[2], pev_.vz[2]);
          pev_.trkDz2[pev_.nTrk]=etrk.dz(v2);
+         pev_.trkDzError2[pev_.nTrk]=sqrt(etrk.dzError()*etrk.dzError()+pev_.vzError[2]*pev_.vzError[2]);
          pev_.trkDxy2[pev_.nTrk]=etrk.dxy(v2);
+         pev_.trkDxyError2[pev_.nTrk]=sqrt(etrk.dxyError()*etrk.dxyError()+pev_.vxError[2]*pev_.vyError[2]);
+
+         pev_.trkDxyBS[pev_.nTrk]=etrk.dxy(beamSpot.position());
+         pev_.trkDxyErrorBS[pev_.nTrk]=sqrt(etrk.dxyError()*etrk.dxyError()+beamSpot.BeamWidthX()*beamSpot.BeamWidthY());
  
+         pev_.trkNlayer[pev_.nTrk] = etrk.hitPattern().trackerLayersWithMeasurement();
+         pev_.trkNlayer3D[pev_.nTrk] = etrk.hitPattern().pixelLayersWithMeasurement() + etrk.hitPattern().numberOfValidStripLayersWithMonoAndStereo();
+
+         //
+         if (doSimTrack_) {
+             reco::TrackRef trackRef=reco::TrackRef(etracks,it);
+             if(recSimColl.find(edm::RefToBase<reco::Track>(trackRef)) == recSimColl.end())
+	     pev_.trkFake[pev_.nTrk]=1;
+         }
+
+         // Very rough estimation of the expected position of the Pixel Hit
          double r = 4.4; // averaged first layer rho
          double x = r*cos(etrk.phi())+etrk.vx();
          double y = r*sin(etrk.eta())+etrk.vy();
@@ -392,23 +485,32 @@ TrackAnalyzer::beginJob()
   trackTree_->Branch("trkPt",&pev_.trkPt,"trkPt[nTrk]/F");
   trackTree_->Branch("trkPtError",&pev_.trkPtError,"trkPtError[nTrk]/F");
   trackTree_->Branch("trkNHit",&pev_.trkNHit,"trkNHit[nTrk]/I");
+  trackTree_->Branch("trkNlayer",&pev_.trkNlayer,"trkNlayer[nTrk]/I");
+  trackTree_->Branch("trkNlayer3D",&pev_.trkNlayer3D,"trkNlayer3D[nTrk]/I");
   trackTree_->Branch("trkEta",&pev_.trkEta,"trkEta[nTrk]/F");
   trackTree_->Branch("trkPhi",&pev_.trkPhi,"trkPhi[nTrk]/F");
   trackTree_->Branch("trkQual",&pev_.trkQual,"trkQual[nTrk]/I");
   trackTree_->Branch("trkChi2",&pev_.trkChi2,"trkChi2[nTrk]/F");
+  trackTree_->Branch("trkChi2hit1D",&pev_.trkChi2hit1D,"trkChi2hit1D[nTrk]/F");
   trackTree_->Branch("trkNdof",&pev_.trkNdof,"trkNdof[nTrk]/F");
-  trackTree_->Branch("trkD0",&pev_.trkD0,"trkD0[nTrk]/F");
   trackTree_->Branch("trkDz",&pev_.trkDz,"trkDz[nTrk]/F");
   trackTree_->Branch("trkDzError",&pev_.trkDzError,"trkDzError[nTrk]/F");
+  trackTree_->Branch("trkDzError1",&pev_.trkDzError1,"trkDzError1[nTrk]/F");
+  trackTree_->Branch("trkDzError2",&pev_.trkDzError2,"trkDzError2[nTrk]/F");
   trackTree_->Branch("trkDxy",&pev_.trkDxy,"trkDxy[nTrk]/F");
+  trackTree_->Branch("trkDxyBS",&pev_.trkDxyBS,"trkDxyBS[nTrk]/F");
   trackTree_->Branch("trkDxy1",&pev_.trkDxy1,"trkDxy1[nTrk]/F");
   trackTree_->Branch("trkDxy2",&pev_.trkDxy2,"trkDxy2[nTrk]/F");
   trackTree_->Branch("trkDxyError",&pev_.trkDxyError,"trkDxyError[nTrk]/F");
+  trackTree_->Branch("trkDxyErrorBS",&pev_.trkDxyErrorBS,"trkDxyErrorBS[nTrk]/F");
+  trackTree_->Branch("trkDxyError1",&pev_.trkDxyError1,"trkDxyError1[nTrk]/F");
+  trackTree_->Branch("trkDxyError2",&pev_.trkDxyError2,"trkDxyError2[nTrk]/F");
   trackTree_->Branch("trkDz1",&pev_.trkDz1,"trkDz1[nTrk]/F");
   trackTree_->Branch("trkDz2",&pev_.trkDz2,"trkDz2[nTrk]/F");
   trackTree_->Branch("trkVx",&pev_.trkVx,"trkVx[nTrk]/F");
   trackTree_->Branch("trkVy",&pev_.trkVy,"trkVy[nTrk]/F");
   trackTree_->Branch("trkVz",&pev_.trkVz,"trkVz[nTrk]/F");
+  trackTree_->Branch("trkFake",&pev_.trkFake,"trkFake[nTrk]/O");
 
   // Track Extra
   if (doTrackExtra_) {
