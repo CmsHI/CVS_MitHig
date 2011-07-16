@@ -9,7 +9,6 @@
 <use   name="DataFormats/SiPixelDigi"/>
 <use   name="DataFormats/TrackingRecHit"/>
 <use   name="DataFormats/VertexReco"/>
-<use   name="DataFormats/BeamSpot"/>
 <use   name="FWCore/Framework"/>
 <use   name="FWCore/ServiceRegistry"/>
 <use   name="FWCore/PluginManager"/>
@@ -20,6 +19,8 @@
 <use   name="SimDataFormats/TrackingAnalysis"/>
 <use   name="SimGeneral/HepPDTRecord"/>
 <use   name="SimTracker/TrackerHitAssociation"/>
+<use   name="SimTracker/TrackAssociation"/>
+<use   name="SimTracker/Records"/>
 <use   name="Geometry/CaloGeometry"/>
 <use   name="Geometry/CommonDetUnit"/>
 <use   name="Geometry/TrackerGeometryBuilder"/>
@@ -28,5 +29,4 @@
 <use   name="HLTrigger/HLTcore"/>
 <flags   EDM_PLUGIN="1"/>
 <export>
-  <lib   name="1"/>
 </export>
