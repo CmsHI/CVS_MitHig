@@ -14,7 +14,7 @@
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.8 2011/07/17 01:11:05 frankma Exp $
+// $Id: TrackAnalyzer.cc,v 1.9 2011/07/17 01:17:27 frankma Exp $
 //
 //
 
@@ -503,20 +503,22 @@ TrackAnalyzer::fillSimTracks(const edm::Event& iEvent, const edm::EventSetup& iS
     // remove the association if the track hits the bed region in FPIX
     // nrec>0 since we don't need it for nrec=0 case 
     if(fiducialCut_ && nrec>0 && hitDeadPXF(*mtrk)) nrec=0;
+    //cout << "simtrk: " << tp->pdgId() << " pt: " << tp->pt() << " nrec: " << nrec << endl;
     
     // Fill matched rec track info
     pev_.pNRec[pev_.nParticle] = nrec;
-    if (nrec==0) continue;
-    pev_.mtrkPt[pev_.nParticle] = mtrk->pt();
-    pev_.mtrkPtError[pev_.nParticle] = mtrk->ptError();
-    pev_.mtrkNHit[pev_.nParticle] = mtrk->numberOfValidHits();
-    if (mtrk->quality(reco::TrackBase::qualityByName(qualityString_))) pev_.mtrkQual[pev_.nParticle] = 1;
-    math::XYZPoint v1(pev_.vx[1],pev_.vy[1], pev_.vz[1]);
-    pev_.mtrkDz[pev_.nParticle] = mtrk->dz(v1);
-    pev_.mtrkDzError[pev_.nParticle] = sqrt(mtrk->dzError()*mtrk->dzError()+pev_.vzError[1]*pev_.vzError[1]);
-    pev_.mtrkDxy[pev_.nParticle] = mtrk->dxy(v1);
-    pev_.mtrkDxyError[pev_.nParticle] = sqrt(mtrk->dxyError()*mtrk->dxyError()+pev_.vxError[1]*pev_.vyError[1]);
-    pev_.mtrkAlgo[pev_.nParticle] = mtrk->algo();
+    if (nrec>0) {
+      pev_.mtrkPt[pev_.nParticle] = mtrk->pt();
+      pev_.mtrkPtError[pev_.nParticle] = mtrk->ptError();
+      pev_.mtrkNHit[pev_.nParticle] = mtrk->numberOfValidHits();
+      if (mtrk->quality(reco::TrackBase::qualityByName(qualityString_))) pev_.mtrkQual[pev_.nParticle] = 1;
+      math::XYZPoint v1(pev_.vx[1],pev_.vy[1], pev_.vz[1]);
+      pev_.mtrkDz[pev_.nParticle] = mtrk->dz(v1);
+      pev_.mtrkDzError[pev_.nParticle] = sqrt(mtrk->dzError()*mtrk->dzError()+pev_.vzError[1]*pev_.vzError[1]);
+      pev_.mtrkDxy[pev_.nParticle] = mtrk->dxy(v1);
+      pev_.mtrkDxyError[pev_.nParticle] = sqrt(mtrk->dxyError()*mtrk->dxyError()+pev_.vxError[1]*pev_.vyError[1]);
+      pev_.mtrkAlgo[pev_.nParticle] = mtrk->algo();
+    }
     
     ++pev_.nParticle;
   }
