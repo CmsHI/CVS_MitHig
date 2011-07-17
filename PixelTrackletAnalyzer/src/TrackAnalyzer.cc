@@ -14,7 +14,7 @@
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.7 2011/07/16 10:22:18 yjlee Exp $
+// $Id: TrackAnalyzer.cc,v 1.8 2011/07/17 01:11:05 frankma Exp $
 //
 //
 
@@ -517,6 +517,8 @@ TrackAnalyzer::fillSimTracks(const edm::Event& iEvent, const edm::EventSetup& iS
     pev_.mtrkDxy[pev_.nParticle] = mtrk->dxy(v1);
     pev_.mtrkDxyError[pev_.nParticle] = sqrt(mtrk->dxyError()*mtrk->dxyError()+pev_.vxError[1]*pev_.vyError[1]);
     pev_.mtrkAlgo[pev_.nParticle] = mtrk->algo();
+    
+    ++pev_.nParticle;
   }
 }
 
