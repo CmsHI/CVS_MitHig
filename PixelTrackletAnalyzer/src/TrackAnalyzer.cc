@@ -14,7 +14,7 @@
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.6 2011/04/01 13:35:45 frankma Exp $
+// $Id: TrackAnalyzer.cc,v 1.7 2011/07/16 10:22:18 yjlee Exp $
 //
 //
 
@@ -145,6 +145,27 @@ struct TrackEvent{
    float trkExpHit1Eta[MAXTRACKS];
    float trkExpHit2Eta[MAXTRACKS];
    float trkExpHit3Eta[MAXTRACKS];
+
+   // sim track
+   int   nParticle;
+   float pStatus[MAXTRACKS];
+   float pPId[MAXTRACKS];
+   float pEta[MAXTRACKS];
+   float pPhi[MAXTRACKS];
+   float pPt[MAXTRACKS];
+   float pAcc[MAXTRACKS];
+   float pNRec[MAXTRACKS];
+   int   pNHit[MAXTRACKS];
+   // matched track info (if matched)
+   float mtrkPt[MAXTRACKS];
+   float mtrkPtError[MAXTRACKS];
+   int   mtrkNHit[MAXTRACKS];
+   int   mtrkQual[MAXTRACKS];
+   float mtrkDz[MAXTRACKS];
+   float mtrkDzError[MAXTRACKS];
+   float mtrkDxy[MAXTRACKS];
+   float mtrkDxyError[MAXTRACKS];          
+   float mtrkAlgo[MAXTRACKS];
 };
 
 class TrackAnalyzer : public edm::EDAnalyzer {
@@ -159,6 +180,9 @@ class TrackAnalyzer : public edm::EDAnalyzer {
 
    void fillVertices(const edm::Event& iEvent);
    void fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetup);
+   void fillSimTracks(const edm::Event& iEvent, const edm::EventSetup& iSetup);
+   std::pair<bool,bool> isAccepted(TrackingParticle & tp);
+   int getLayerId(const PSimHit&);
    bool hitDeadPXF(const reco::Track& tr);
    
    template <typename TYPE>
@@ -178,17 +202,20 @@ class TrackAnalyzer : public edm::EDAnalyzer {
    bool doSimTrack_;
 
    double trackPtMin_;
-   double genTrackPtMin_;
+   std::string qualityString_;
+   double simTrackPtMin_;
    bool fiducialCut_;
    edm::InputTag trackSrc_;
    edm::InputTag tpFakeSrc_;
-
+   edm::InputTag tpEffSrc_;
+  
    vector<string> vertexSrc_;
 
    const TrackerGeometry* geo_;
    edm::Service<TFileService> fs;           
    edm::ESHandle < ParticleDataTable > pdt;
    edm::Handle<TrackingParticleCollection> trackingParticles;
+  
    edm::InputTag beamSpotProducer_;
 
    // Root object
@@ -196,6 +223,11 @@ class TrackAnalyzer : public edm::EDAnalyzer {
 
    TrackEvent pev_;
 
+   // Acceptance
+   enum { BPix1=0, BPix2=1, BPix3=2,
+     FPix1_neg=3, FPix2_neg=4,
+     FPix1_pos=5, FPix2_pos=6,
+     nLayers=7};
 };
 
 //--------------------------------------------------------------------------------------------------
@@ -206,9 +238,12 @@ TrackAnalyzer::TrackAnalyzer(const edm::ParameterSet& iConfig)
    doTrackExtra_             = iConfig.getUntrackedParameter<bool>  ("doTrackExtra",false);
    doSimTrack_             = iConfig.getUntrackedParameter<bool>  ("doSimTrack",false);
    trackPtMin_             = iConfig.getUntrackedParameter<double>  ("trackPtMin",0.4);
+   qualityString_ = iConfig.getUntrackedParameter<std::string>("qualityString","highPurity"),
+   simTrackPtMin_             = iConfig.getUntrackedParameter<double>  ("simTrackPtMin",0.4);
    fiducialCut_ = (iConfig.getUntrackedParameter<bool>("fiducialCut",false));
    trackSrc_ = iConfig.getParameter<edm::InputTag>("trackSrc");
    tpFakeSrc_ =  iConfig.getUntrackedParameter<edm::InputTag>("tpFakeSrc",edm::InputTag("cutsTPForFak"));
+   tpEffSrc_ =  iConfig.getUntrackedParameter<edm::InputTag>("tpEffSrc",edm::InputTag("cutsTPForFak"));
    vertexSrc_ = iConfig.getParameter<vector<string> >("vertexSrc");
    beamSpotProducer_  = iConfig.getUntrackedParameter<edm::InputTag>("towersSrc",edm::InputTag("offlineBeamSpot"));   
 
@@ -241,6 +276,7 @@ TrackAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 
    //cout <<"Fill Tracks"<<endl;
    if (doTrack_) fillTracks(iEvent, iSetup);
+   if (doSimTrack_) fillSimTracks(iEvent, iSetup);
    trackTree_->Fill();
 }
 
@@ -304,7 +340,6 @@ void
 TrackAnalyzer::fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetup){
       Handle<vector<Track> > etracks;
       iEvent.getByLabel(trackSrc_, etracks);
-      const string qualityString = "highPurity";
       reco::BeamSpot beamSpot;
       edm::Handle<reco::BeamSpot> recoBeamSpotHandle;
       iEvent.getByLabel(beamSpotProducer_,recoBeamSpotHandle);
@@ -334,7 +369,7 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetu
 	 if(fiducialCut_ && hitDeadPXF(etrk)) continue; // if track hits the dead region, igonore it;
 
          pev_.trkQual[pev_.nTrk]=0;
-	 if(etrk.quality(reco::TrackBase::qualityByName(qualityString))) pev_.trkQual[pev_.nTrk]=1;
+	 if(etrk.quality(reco::TrackBase::qualityByName(qualityString_))) pev_.trkQual[pev_.nTrk]=1;
 
          trackingRecHit_iterator edh = etrk.recHitsEnd();
          int count1dhits=0;
@@ -419,6 +454,136 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetu
          pev_.nTrk++;
       }
       
+}
+
+//--------------------------------------------------------------------------------------------------
+void
+TrackAnalyzer::fillSimTracks(const edm::Event& iEvent, const edm::EventSetup& iSetup)
+{
+  edm::ESHandle<TrackAssociatorBase> theAssociator;
+  edm::Handle<reco::SimToRecoCollection > simtorecoCollectionH;
+  edm::Handle<TrackingParticleCollection>  TPCollectionHeff;
+  edm::Handle<edm::View<reco::Track> >  trackCollection;
+  
+  iEvent.getByLabel(tpEffSrc_,TPCollectionHeff);
+  iEvent.getByLabel(trackSrc_,trackCollection);
+  
+  // Make simtrk-to-rectrk association
+  iSetup.get<TrackAssociatorRecord>().get("TrackAssociatorByHits",theAssociator);
+  const TrackAssociatorByHits * theAssociatorByHits = (const TrackAssociatorByHits*) theAssociator.product();
+  reco::SimToRecoCollection simRecColl = theAssociatorByHits->associateSimToReco(trackCollection,TPCollectionHeff,&iEvent);
+  
+  // Loop through sim tracks
+  pev_.nParticle = 0;
+  for(TrackingParticleCollection::size_type i=0; i<TPCollectionHeff->size(); i++) {
+    TrackingParticleRef tpr(TPCollectionHeff, i);
+    TrackingParticle* tp=const_cast<TrackingParticle*>(tpr.get());
+    
+    if (tp->pt() < simTrackPtMin_) continue;
+    if (tp->status() < 0 || tp->charge()==0) continue; //only charged primaries
+    
+    // Fill sim track info
+    pev_.pStatus[pev_.nParticle] = tp->status();
+    pev_.pPId[pev_.nParticle] = tp->pdgId();
+    pev_.pEta[pev_.nParticle] = tp->eta();
+    pev_.pPhi[pev_.nParticle] = tp->phi();
+    pev_.pPt[pev_.nParticle] = tp->pt();
+    std::pair<bool,bool> acc = isAccepted(*tp);
+    pev_.pAcc[pev_.nParticle] = acc.first; // for HI tracking, only triplet should be taken
+    
+    // Look up association map
+    std::vector<std::pair<edm::RefToBase<reco::Track>, double> > rt;
+    const reco::Track* mtrk=0;
+    size_t nrec=0;
+    if(simRecColl.find(tpr) != simRecColl.end()){
+      rt = (std::vector<std::pair<edm::RefToBase<reco::Track>, double> >) simRecColl[tpr];
+      nrec=rt.size();   
+      if(nrec) mtrk = rt.begin()->first.get();      
+    }
+    // remove the association if the track hits the bed region in FPIX
+    // nrec>0 since we don't need it for nrec=0 case 
+    if(fiducialCut_ && nrec>0 && hitDeadPXF(*mtrk)) nrec=0;
+    
+    // Fill matched rec track info
+    pev_.pNRec[pev_.nParticle] = nrec;
+    if (nrec==0) continue;
+    pev_.mtrkPt[pev_.nParticle] = mtrk->pt();
+    pev_.mtrkPtError[pev_.nParticle] = mtrk->ptError();
+    pev_.mtrkNHit[pev_.nParticle] = mtrk->numberOfValidHits();
+    if (mtrk->quality(reco::TrackBase::qualityByName(qualityString_))) pev_.mtrkQual[pev_.nParticle] = 1;
+    math::XYZPoint v1(pev_.vx[1],pev_.vy[1], pev_.vz[1]);
+    pev_.mtrkDz[pev_.nParticle] = mtrk->dz(v1);
+    pev_.mtrkDzError[pev_.nParticle] = sqrt(mtrk->dzError()*mtrk->dzError()+pev_.vzError[1]*pev_.vzError[1]);
+    pev_.mtrkDxy[pev_.nParticle] = mtrk->dxy(v1);
+    pev_.mtrkDxyError[pev_.nParticle] = sqrt(mtrk->dxyError()*mtrk->dxyError()+pev_.vxError[1]*pev_.vyError[1]);
+    pev_.mtrkAlgo[pev_.nParticle] = mtrk->algo();
+  }
+}
+
+// ------------
+std::pair<bool,bool> 
+TrackAnalyzer::isAccepted(TrackingParticle & tp)
+{
+  std::vector<bool> f(nLayers, false);
+  
+  const std::vector<PSimHit> & simHits = tp.trackPSimHit(DetId::Tracker);
+  
+  for(std::vector<PSimHit>::const_iterator simHit = simHits.begin();
+      simHit!= simHits.end(); simHit++)
+  {
+    int id = getLayerId(*simHit);
+    
+    if(id != -1)
+      f[id] = true;
+  }
+  
+  bool canBeTriplet =
+  ( (f[BPix1] && f[BPix2]     && f[BPix3]) ||
+   (f[BPix1] && f[BPix2]     && f[FPix1_pos]) ||
+   (f[BPix1] && f[BPix2]     && f[FPix1_neg]) ||
+   (f[BPix1] && f[FPix1_pos] && f[FPix2_pos]) ||
+   (f[BPix1] && f[FPix1_neg] && f[FPix2_neg]) );
+  
+  bool canBePair =
+  ( (f[BPix1] && f[BPix2]) ||
+   (f[BPix1] && f[BPix3]) ||
+   (f[BPix2] && f[BPix3]) ||
+   (f[BPix1] && f[FPix1_pos]) ||
+   (f[BPix1] && f[FPix1_neg]) ||
+   (f[BPix1] && f[FPix2_pos]) ||
+   (f[BPix1] && f[FPix2_neg]) ||
+   (f[BPix2] && f[FPix1_pos]) ||
+   (f[BPix2] && f[FPix1_neg]) ||
+   (f[BPix2] && f[FPix2_pos]) ||
+   (f[BPix2] && f[FPix2_neg]) ||
+   (f[FPix2_neg] && f[FPix2_neg]) ||
+   (f[FPix2_pos] && f[FPix2_pos]) );
+  
+  return std::pair<bool,bool>(canBeTriplet, canBePair);
+}
+
+// ------------
+int 
+TrackAnalyzer::getLayerId(const PSimHit & simHit)
+{
+  unsigned int id = simHit.detUnitId();
+  
+  if(geo_->idToDetUnit(id)->subDetector() ==
+     GeomDetEnumerators::PixelBarrel)
+  {
+    PXBDetId pid(id);
+    return pid.layer() - 1; // 0, 1, 2
+  }
+  
+  if(geo_->idToDetUnit(id)->subDetector() ==
+     GeomDetEnumerators::PixelEndcap)
+  {
+    PXFDetId pid(id);
+    return BPix3 + ((pid.side()-1) << 1) + pid.disk(); // 3 -
+  }
+  
+  // strip
+  return -1;
 }
 
 // ---------------
@@ -519,6 +684,27 @@ TrackAnalyzer::beginJob()
      trackTree_->Branch("trkExpHit3Eta",&pev_.trkExpHit3Eta,"trkExpHit3Eta[nTrk]/F");
   }
 
+  // Sim Tracks
+  if (doSimTrack_) {
+    trackTree_->Branch("nParticle",&pev_.nParticle,"nParticle/I");
+    trackTree_->Branch("pStatus",&pev_.pStatus,"pStatus[nParticle]/F");
+    trackTree_->Branch("pPId",&pev_.pPId,"pPId[nParticle]/F");
+    trackTree_->Branch("pEta",&pev_.pEta,"pEta[nParticle]/F");
+    trackTree_->Branch("pPhi",&pev_.pPhi,"pPhi[nParticle]/F");
+    trackTree_->Branch("pPt",&pev_.pPt,"pPt[nParticle]/F");
+    trackTree_->Branch("pAcc",&pev_.pAcc,"pAcc[nParticle]/F");
+    trackTree_->Branch("pNRec",&pev_.pNRec,"pNRec[nParticle]/F");
+    trackTree_->Branch("pNHit",&pev_.pNHit,"pNHit[nParticle]/F");
+    trackTree_->Branch("mtrkPt",&pev_.mtrkPt,"mtrkPt[nParticle]/F");
+    trackTree_->Branch("mtrkPtError",&pev_.mtrkPtError,"mtrkPtError[nParticle]/F");
+    trackTree_->Branch("mtrkNHit",&pev_.mtrkNHit,"mtrkNHit[nParticle]/F");
+    trackTree_->Branch("mtrkQual",&pev_.mtrkQual,"mtrkQual[nParticle]/F");
+    trackTree_->Branch("mtrkDz",&pev_.mtrkDz,"mtrkDz[nParticle]/F");
+    trackTree_->Branch("mtrkDzError",&pev_.mtrkDzError,"mtrkDzError[nParticle]/F");
+    trackTree_->Branch("mtrkDxy",&pev_.mtrkDxy,"mtrkDxy[nParticle]/F");
+    trackTree_->Branch("mtrkDxyError",&pev_.mtrkDxyError,"mtrkDxyError[nParticle]/F");
+    trackTree_->Branch("mtrkAlgo",&pev_.mtrkAlgo,"mtrkAlgo[nParticle]/F");
+  }
   
 }
 
