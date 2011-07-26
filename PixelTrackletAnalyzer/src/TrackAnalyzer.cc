@@ -12,9 +12,9 @@
 */
 //
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
-// Updated: Frank Ma
+// Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.9 2011/07/17 01:17:27 frankma Exp $
+// $Id: TrackAnalyzer.cc,v 1.10 2011/07/17 02:03:36 frankma Exp $
 //
 //
 
@@ -75,6 +75,11 @@
 // Heavyion
 #include "DataFormats/HeavyIonEvent/interface/Centrality.h"
 
+// Particle Flow
+#include "DataFormats/ParticleFlowCandidate/interface/PFCandidate.h"
+#include "DataFormats/ParticleFlowReco/interface/PFBlock.h"
+#include "DataFormats/ParticleFlowReco/interface/PFCluster.h"
+#include "DataFormats/ParticleFlowReco/interface/PFClusterFwd.h"
 
 // Root include files
 #include "TTree.h"
@@ -166,68 +171,78 @@ struct TrackEvent{
    float mtrkDxy[MAXTRACKS];
    float mtrkDxyError[MAXTRACKS];          
    float mtrkAlgo[MAXTRACKS];
+
+  //matched PF Candidate Info
+  int pfType[MAXTRACKS];
+  float pfCandPt[MAXTRACKS];
+  float pfSumEcal[MAXTRACKS];
+  float pfSumHcal[MAXTRACKS];
+
 };
 
 class TrackAnalyzer : public edm::EDAnalyzer {
-   public:
-      explicit TrackAnalyzer(const edm::ParameterSet&);
-      ~TrackAnalyzer();
-
-   private:
-      virtual void beginJob() ;
-      virtual void analyze(const edm::Event&, const edm::EventSetup&);
-      virtual void endJob() ;
-
-   void fillVertices(const edm::Event& iEvent);
-   void fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetup);
-   void fillSimTracks(const edm::Event& iEvent, const edm::EventSetup& iSetup);
-   std::pair<bool,bool> isAccepted(TrackingParticle & tp);
-   int getLayerId(const PSimHit&);
-   bool hitDeadPXF(const reco::Track& tr);
-   
-   template <typename TYPE>
-   void                          getProduct(const std::string name, edm::Handle<TYPE> &prod,
-                                            const edm::Event &event) const;    
-   template <typename TYPE>
-   bool                          getProductSafe(const std::string name, edm::Handle<TYPE> &prod,
-                                                const edm::Event &event) const;
-
-   int associateSimhitToTrackingparticle(unsigned int trid );
-   bool checkprimaryparticle(const TrackingParticle* tp);
-
-      // ----------member data ---------------------------
-
-   bool doTrack_;
-   bool doTrackExtra_;
-   bool doSimTrack_;
-
-   double trackPtMin_;
-   std::string qualityString_;
-   double simTrackPtMin_;
-   bool fiducialCut_;
-   edm::InputTag trackSrc_;
-   edm::InputTag tpFakeSrc_;
-   edm::InputTag tpEffSrc_;
+public:
+  explicit TrackAnalyzer(const edm::ParameterSet&);
+  ~TrackAnalyzer();
   
-   vector<string> vertexSrc_;
-
-   const TrackerGeometry* geo_;
-   edm::Service<TFileService> fs;           
-   edm::ESHandle < ParticleDataTable > pdt;
-   edm::Handle<TrackingParticleCollection> trackingParticles;
+private:
+  virtual void beginJob() ;
+  virtual void analyze(const edm::Event&, const edm::EventSetup&);
+  virtual void endJob() ;
   
-   edm::InputTag beamSpotProducer_;
-
-   // Root object
-   TTree* trackTree_;
-
-   TrackEvent pev_;
-
-   // Acceptance
-   enum { BPix1=0, BPix2=1, BPix3=2,
-     FPix1_neg=3, FPix2_neg=4,
-     FPix1_pos=5, FPix2_pos=6,
-     nLayers=7};
+  void fillVertices(const edm::Event& iEvent);
+  void fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetup);
+  void fillSimTracks(const edm::Event& iEvent, const edm::EventSetup& iSetup);
+  void matchPFCandToTrack(const edm::Event& iEvent, const edm::EventSetup& iSetup, unsigned it);
+  std::pair<bool,bool> isAccepted(TrackingParticle & tp);
+  int getLayerId(const PSimHit&);
+  bool hitDeadPXF(const reco::Track& tr);
+  
+  template <typename TYPE>
+  void                          getProduct(const std::string name, edm::Handle<TYPE> &prod,
+					   const edm::Event &event) const;    
+  template <typename TYPE>
+  bool                          getProductSafe(const std::string name, edm::Handle<TYPE> &prod,
+					       const edm::Event &event) const;
+  
+  int associateSimhitToTrackingparticle(unsigned int trid );
+  bool checkprimaryparticle(const TrackingParticle* tp);
+  
+  // ----------member data ---------------------------
+  
+  bool doTrack_;
+  bool doTrackExtra_;
+  bool doSimTrack_;
+  bool doPFMatching_;
+  
+  double trackPtMin_;
+  std::string qualityString_;
+  double simTrackPtMin_;
+  bool fiducialCut_;
+  edm::InputTag trackSrc_;
+  edm::InputTag tpFakeSrc_;
+  edm::InputTag tpEffSrc_;
+  edm::InputTag pfCandSrc_;
+  
+  vector<string> vertexSrc_;
+  
+  const TrackerGeometry* geo_;
+  edm::Service<TFileService> fs;           
+  edm::ESHandle < ParticleDataTable > pdt;
+  edm::Handle<TrackingParticleCollection> trackingParticles;
+  
+  edm::InputTag beamSpotProducer_;
+  
+  // Root object
+  TTree* trackTree_;
+  
+  TrackEvent pev_;
+  
+  // Acceptance
+  enum { BPix1=0, BPix2=1, BPix3=2,
+	 FPix1_neg=3, FPix2_neg=4,
+	 FPix1_pos=5, FPix2_pos=6,
+	 nLayers=7};
 };
 
 //--------------------------------------------------------------------------------------------------
@@ -237,6 +252,7 @@ TrackAnalyzer::TrackAnalyzer(const edm::ParameterSet& iConfig)
    doTrack_             = iConfig.getUntrackedParameter<bool>  ("doTrack",true);
    doTrackExtra_             = iConfig.getUntrackedParameter<bool>  ("doTrackExtra",false);
    doSimTrack_             = iConfig.getUntrackedParameter<bool>  ("doSimTrack",false);
+   doPFMatching_             = iConfig.getUntrackedParameter<bool>  ("doPFMatching",false);
    trackPtMin_             = iConfig.getUntrackedParameter<double>  ("trackPtMin",0.4);
    qualityString_ = iConfig.getUntrackedParameter<std::string>("qualityString","highPurity"),
    simTrackPtMin_             = iConfig.getUntrackedParameter<double>  ("simTrackPtMin",0.4);
@@ -246,7 +262,7 @@ TrackAnalyzer::TrackAnalyzer(const edm::ParameterSet& iConfig)
    tpEffSrc_ =  iConfig.getUntrackedParameter<edm::InputTag>("tpEffSrc",edm::InputTag("cutsTPForFak"));
    vertexSrc_ = iConfig.getParameter<vector<string> >("vertexSrc");
    beamSpotProducer_  = iConfig.getUntrackedParameter<edm::InputTag>("towersSrc",edm::InputTag("offlineBeamSpot"));   
-
+   pfCandSrc_ = iConfig.getParameter<edm::InputTag>("pfCandSrc");
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -297,7 +313,7 @@ TrackAnalyzer::fillVertices(const edm::Event& iEvent){
    for(unsigned int iv = 0; iv < vertexSrc_.size(); ++iv){
       const reco::VertexCollection * recoVertices;
       edm::Handle<reco::VertexCollection> vertexCollection;
-      cout <<vertexSrc_[iv]<<endl;
+      //cout <<vertexSrc_[iv]<<endl;
       iEvent.getByLabel(vertexSrc_[iv],vertexCollection);
       recoVertices = vertexCollection.product();
       unsigned int daughter = 0;
@@ -328,7 +344,7 @@ TrackAnalyzer::fillVertices(const edm::Event& iEvent){
 	 pev_.vzError[pev_.nv] =  -99;
       }
       pev_.nv++;
-      cout <<pev_.nv<<endl;
+      //cout <<pev_.nv<<endl;
    }
 
 }
@@ -451,6 +467,8 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetu
             pev_.trkExpHit3Eta[pev_.nTrk]=eta3;
          }
          //pev_.trkNhit[pev_.nTrk]=tr.numberOfValidHits();
+	 if(doPFMatching_) matchPFCandToTrack(iEvent, iSetup, it);	 
+	 
          pev_.nTrk++;
       }
       
@@ -523,6 +541,109 @@ TrackAnalyzer::fillSimTracks(const edm::Event& iEvent, const edm::EventSetup& iS
     ++pev_.nParticle;
   }
 }
+
+
+//--------------------------------------------------------------------------------------------------
+void
+TrackAnalyzer::matchPFCandToTrack(const edm::Event& iEvent, const edm::EventSetup& iSetup, unsigned it)
+{
+  
+  // get PF candidates
+  Handle<PFCandidateCollection> pfCandidates;
+  bool isPFThere = iEvent.getByLabel(pfCandSrc_, pfCandidates);
+
+  if (!isPFThere){
+    cout<<" NO PF Candidates Found"<<endl;
+    return;  // if no PFCand in an event, skip it 
+  }
+
+  double sum_ecal=0.0, sum_hcal=0.0;
+  
+  
+  // loop over pfCandidates to find track
+  
+  int cand_index = -999;
+  float cand_pt = -999.0;
+  int cand_type =-1;
+  
+  for( unsigned ic=0; ic<pfCandidates->size(); ic++ ) {
+    
+    const reco::PFCandidate& cand = (*pfCandidates)[ic];
+    
+    int type = cand.particleId();
+    
+    // only charged hadrons and leptons can be asscociated with a track
+    if(!(type == PFCandidate::h ||     //type1
+	 type == PFCandidate::e ||     //type2
+	 type == PFCandidate::mu      //type3
+	 )
+       ) continue;
+    
+    
+    reco::TrackRef trackRef = cand.trackRef();      
+    
+    if(it==trackRef.key()) {
+      cand_index = ic;
+      cand_type = type;
+      cand_pt = cand.pt();
+      break;
+      
+    }
+  }
+  
+  if(cand_index>=0){
+    
+    const reco::PFCandidate& cand = (*pfCandidates)[cand_index];
+    
+    for(unsigned ib=0; ib<cand.elementsInBlocks().size(); ib++) {
+      
+      PFBlockRef blockRef = cand.elementsInBlocks()[ib].first;
+      
+      
+      unsigned indexInBlock = cand.elementsInBlocks()[ib].second;
+      const edm::OwnVector<  reco::PFBlockElement>&  elements = (*blockRef).elements();
+      
+      //This tells you what type of element it is:
+      //cout<<" block type"<<elements[indexInBlock].type()<<endl;
+      
+      switch (elements[indexInBlock].type()) {
+	
+      case PFBlockElement::ECAL: {
+	reco::PFClusterRef clusterRef = elements[indexInBlock].clusterRef();
+	double eet = clusterRef->energy()/cosh(clusterRef->eta());
+	sum_ecal+=eet;
+	break;
+      }
+	
+      case PFBlockElement::HCAL: {
+	reco::PFClusterRef clusterRef = elements[indexInBlock].clusterRef();
+	double eet = clusterRef->energy()/cosh(clusterRef->eta());
+	sum_hcal+=eet;
+	break; 
+      }       
+      case PFBlockElement::TRACK: {
+	//Do nothing since track are not normally linked to other tracks
+	break; 
+      }       
+      default:
+	break;
+      }
+      
+    } // end of elementsInBlocks()
+  }  // end of if(cand_index >= 0)	
+  
+  
+
+
+  pev_.pfType[pev_.nTrk]=cand_type;
+  pev_.pfCandPt[pev_.nTrk]=cand_pt;
+  pev_.pfSumEcal[pev_.nTrk]=sum_ecal;
+  pev_.pfSumHcal[pev_.nTrk]=sum_hcal;
+
+  return;
+  
+}
+
 
 // ------------
 std::pair<bool,bool> 
@@ -709,7 +830,14 @@ TrackAnalyzer::beginJob()
     trackTree_->Branch("mtrkDxyError",&pev_.mtrkDxyError,"mtrkDxyError[nParticle]/F");
     trackTree_->Branch("mtrkAlgo",&pev_.mtrkAlgo,"mtrkAlgo[nParticle]/F");
   }
-  
+
+  if (doPFMatching_) {
+    trackTree_->Branch("pfType",&pev_.pfType,"pfType[nTrk]/I");
+    trackTree_->Branch("pfCandPt",&pev_.pfCandPt,"pfCandPt[nTrk]/F");
+    trackTree_->Branch("pfSumEcal",&pev_.pfSumEcal,"pfSumEcal[nTrk]/F");
+    trackTree_->Branch("pfSumHcal",&pev_.pfSumHcal,"pfSumHcal[nTrk]/F");
+  }  
+
 }
 
 //--------------------------------------------------------------------------------------------------
