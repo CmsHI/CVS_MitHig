@@ -14,7 +14,7 @@
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.11 2011/07/26 20:10:33 mnguyen Exp $
+// $Id: TrackAnalyzer.cc,v 1.12 2011/07/27 11:53:13 mnguyen Exp $
 //
 //
 
@@ -829,11 +829,11 @@ TrackAnalyzer::beginJob()
     trackTree_->Branch("pPt",&pev_.pPt,"pPt[nParticle]/F");
     trackTree_->Branch("pAcc",&pev_.pAcc,"pAcc[nParticle]/F");
     trackTree_->Branch("pNRec",&pev_.pNRec,"pNRec[nParticle]/F");
-    trackTree_->Branch("pNHit",&pev_.pNHit,"pNHit[nParticle]/F");
+    trackTree_->Branch("pNHit",&pev_.pNHit,"pNHit[nParticle]/I");
     trackTree_->Branch("mtrkPt",&pev_.mtrkPt,"mtrkPt[nParticle]/F");
     trackTree_->Branch("mtrkPtError",&pev_.mtrkPtError,"mtrkPtError[nParticle]/F");
-    trackTree_->Branch("mtrkNHit",&pev_.mtrkNHit,"mtrkNHit[nParticle]/F");
-    trackTree_->Branch("mtrkQual",&pev_.mtrkQual,"mtrkQual[nParticle]/F");
+    trackTree_->Branch("mtrkNHit",&pev_.mtrkNHit,"mtrkNHit[nParticle]/I");
+    trackTree_->Branch("mtrkQual",&pev_.mtrkQual,"mtrkQual[nParticle]/I");
     trackTree_->Branch("mtrkDz",&pev_.mtrkDz,"mtrkDz[nParticle]/F");
     trackTree_->Branch("mtrkDzError",&pev_.mtrkDzError,"mtrkDzError[nParticle]/F");
     trackTree_->Branch("mtrkDxy",&pev_.mtrkDxy,"mtrkDxy[nParticle]/F");
