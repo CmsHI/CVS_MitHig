@@ -14,7 +14,7 @@
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.10 2011/07/17 02:03:36 frankma Exp $
+// $Id: TrackAnalyzer.cc,v 1.11 2011/07/26 20:10:33 mnguyen Exp $
 //
 //
 
@@ -146,6 +146,7 @@ struct TrackEvent{
    float trkVy[MAXTRACKS];
    float trkVz[MAXTRACKS];
    bool  trkFake[MAXTRACKS];
+   float trkAlgo[MAXTRACKS];
 
    float trkExpHit1Eta[MAXTRACKS];
    float trkExpHit2Eta[MAXTRACKS];
@@ -430,41 +431,49 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetu
          pev_.trkNlayer[pev_.nTrk] = etrk.hitPattern().trackerLayersWithMeasurement();
          pev_.trkNlayer3D[pev_.nTrk] = etrk.hitPattern().pixelLayersWithMeasurement() + etrk.hitPattern().numberOfValidStripLayersWithMonoAndStereo();
 
+	 pev_.trkAlgo[pev_.nTrk] = etrk.algo();
+
+
+
          //
          if (doSimTrack_) {
-             reco::TrackRef trackRef=reco::TrackRef(etracks,it);
-             if(recSimColl.find(edm::RefToBase<reco::Track>(trackRef)) == recSimColl.end())
+	   pev_.trkFake[pev_.nTrk]=0;
+	   reco::TrackRef trackRef=reco::TrackRef(etracks,it);
+	   if(recSimColl.find(edm::RefToBase<reco::Track>(trackRef)) == recSimColl.end())
 	     pev_.trkFake[pev_.nTrk]=1;
          }
+	 
 
-         // Very rough estimation of the expected position of the Pixel Hit
-         double r = 4.4; // averaged first layer rho
-         double x = r*cos(etrk.phi())+etrk.vx();
-         double y = r*sin(etrk.eta())+etrk.vy();
-         double z = r/tan(atan(exp(-etrk.eta()))*2)+etrk.vz();
-         ROOT::Math::XYZVector tmpVector(x-pev_.vx[1],y-pev_.vy[1],z-pev_.vz[1]);
-         double eta1 = tmpVector.eta();
-         double phi1 = etrk.phi();
-
-         double r2 = 7.29; // averaged 2nd layer rho
-         x = r2*cos(etrk.phi())+etrk.vx();
-         y = r2*sin(etrk.eta())+etrk.vy();
-         z = r2/tan(atan(exp(-etrk.eta()))*2)+etrk.vz();
-         ROOT::Math::XYZVector tmpVector2(x-pev_.vx[1],y-pev_.vy[1],z-pev_.vz[1]);
-         double eta2 = tmpVector2.eta();
-
-
-         double r3 = 10.16; // averaged 3rd layer rho
-         x = r3*cos(etrk.phi())+etrk.vx();
-         y = r3*sin(etrk.eta())+etrk.vy();
-         z = r3/tan(atan(exp(-etrk.eta()))*2)+etrk.vz();
-         ROOT::Math::XYZVector tmpVector3(x-pev_.vx[1],y-pev_.vy[1],z-pev_.vz[1]);
-         double eta3 = tmpVector3.eta();
 
          if (doTrackExtra_) {
-            pev_.trkExpHit1Eta[pev_.nTrk]=eta1;
-            pev_.trkExpHit2Eta[pev_.nTrk]=eta2;
-            pev_.trkExpHit3Eta[pev_.nTrk]=eta3;
+	   // Very rough estimation of the expected position of the Pixel Hit
+	   double r = 4.4; // averaged first layer rho
+	   double x = r*cos(etrk.phi())+etrk.vx();
+	   double y = r*sin(etrk.eta())+etrk.vy();
+	   double z = r/tan(atan(exp(-etrk.eta()))*2)+etrk.vz();
+	   ROOT::Math::XYZVector tmpVector(x-pev_.vx[1],y-pev_.vy[1],z-pev_.vz[1]);
+	   double eta1 = tmpVector.eta();
+	   double phi1 = etrk.phi();
+	   
+	   double r2 = 7.29; // averaged 2nd layer rho
+	   x = r2*cos(etrk.phi())+etrk.vx();
+	   y = r2*sin(etrk.eta())+etrk.vy();
+	   z = r2/tan(atan(exp(-etrk.eta()))*2)+etrk.vz();
+	   ROOT::Math::XYZVector tmpVector2(x-pev_.vx[1],y-pev_.vy[1],z-pev_.vz[1]);
+	   double eta2 = tmpVector2.eta();
+	   
+	   
+	   double r3 = 10.16; // averaged 3rd layer rho
+	   x = r3*cos(etrk.phi())+etrk.vx();
+	   y = r3*sin(etrk.eta())+etrk.vy();
+	   z = r3/tan(atan(exp(-etrk.eta()))*2)+etrk.vz();
+	   ROOT::Math::XYZVector tmpVector3(x-pev_.vx[1],y-pev_.vy[1],z-pev_.vz[1]);
+	   double eta3 = tmpVector3.eta();
+	   
+	   
+	   pev_.trkExpHit1Eta[pev_.nTrk]=eta1;
+	   pev_.trkExpHit2Eta[pev_.nTrk]=eta2;
+	   pev_.trkExpHit3Eta[pev_.nTrk]=eta3;
          }
          //pev_.trkNhit[pev_.nTrk]=tr.numberOfValidHits();
 	 if(doPFMatching_) matchPFCandToTrack(iEvent, iSetup, it);	 
@@ -634,7 +643,7 @@ TrackAnalyzer::matchPFCandToTrack(const edm::Event& iEvent, const edm::EventSetu
   
   
 
-
+  
   pev_.pfType[pev_.nTrk]=cand_type;
   pev_.pfCandPt[pev_.nTrk]=cand_pt;
   pev_.pfSumEcal[pev_.nTrk]=sum_ecal;
@@ -801,6 +810,7 @@ TrackAnalyzer::beginJob()
   trackTree_->Branch("trkVy",&pev_.trkVy,"trkVy[nTrk]/F");
   trackTree_->Branch("trkVz",&pev_.trkVz,"trkVz[nTrk]/F");
   trackTree_->Branch("trkFake",&pev_.trkFake,"trkFake[nTrk]/O");
+  trackTree_->Branch("trkAlgo",&pev_.trkAlgo,"trkAlgo[nTrk]/F");
 
   // Track Extra
   if (doTrackExtra_) {
