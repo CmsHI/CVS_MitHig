@@ -1,3 +1,4 @@
+
 // -*- C++ -*-
 //
 // Package:    TrackAnalyzer
@@ -14,7 +15,7 @@
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.12 2011/07/27 11:53:13 mnguyen Exp $
+// $Id: TrackAnalyzer.cc,v 1.13 2011/07/27 21:19:18 frankma Exp $
 //
 //
 
@@ -115,7 +116,7 @@ struct TrackEvent{
    float vzError[MAXVTX];
 
 
-   // track
+   // -- rec tracks --
    int nTrk;
    float trkEta[MAXTRACKS];
    float trkPhi[MAXTRACKS];
@@ -151,8 +152,14 @@ struct TrackEvent{
    float trkExpHit1Eta[MAXTRACKS];
    float trkExpHit2Eta[MAXTRACKS];
    float trkExpHit3Eta[MAXTRACKS];
-
-   // sim track
+	
+	 //matched PF Candidate Info
+   int pfType[MAXTRACKS];
+   float pfCandPt[MAXTRACKS];
+   float pfSumEcal[MAXTRACKS];
+   float pfSumHcal[MAXTRACKS];
+	
+   // -- sim tracks --
    int   nParticle;
    float pStatus[MAXTRACKS];
    float pPId[MAXTRACKS];
@@ -172,12 +179,9 @@ struct TrackEvent{
    float mtrkDxy[MAXTRACKS];
    float mtrkDxyError[MAXTRACKS];          
    float mtrkAlgo[MAXTRACKS];
-
-  //matched PF Candidate Info
-  int pfType[MAXTRACKS];
-  float pfCandPt[MAXTRACKS];
-  float pfSumEcal[MAXTRACKS];
-  float pfSumHcal[MAXTRACKS];
+	 // calo compatibility
+	 float mtrkPfSumEcal[MAXTRACKS];
+	 float mtrkPfSumHcal[MAXTRACKS];
 
 };
 
@@ -194,7 +198,7 @@ private:
   void fillVertices(const edm::Event& iEvent);
   void fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetup);
   void fillSimTracks(const edm::Event& iEvent, const edm::EventSetup& iSetup);
-  void matchPFCandToTrack(const edm::Event& iEvent, const edm::EventSetup& iSetup, unsigned it);
+  void matchPFCandToTrack(const edm::Event& iEvent, const edm::EventSetup& iSetup, unsigned it, int & cand_type, float & cand_pt, float & mEcalSum, float & mHcalSum);
   std::pair<bool,bool> isAccepted(TrackingParticle & tp);
   int getLayerId(const PSimHit&);
   bool hitDeadPXF(const reco::Track& tr);
@@ -476,7 +480,12 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetu
 	   pev_.trkExpHit3Eta[pev_.nTrk]=eta3;
          }
          //pev_.trkNhit[pev_.nTrk]=tr.numberOfValidHits();
-	 if(doPFMatching_) matchPFCandToTrack(iEvent, iSetup, it);	 
+				if(doPFMatching_) matchPFCandToTrack(iEvent, iSetup, it,
+																						 // output to the following vars
+																						 pev_.pfType[pev_.nTrk],
+																						 pev_.pfCandPt[pev_.nTrk],
+																						 pev_.pfSumEcal[pev_.nTrk],
+																						 pev_.pfSumHcal[pev_.nTrk]);	 
 	 
          pev_.nTrk++;
       }
@@ -545,6 +554,18 @@ TrackAnalyzer::fillSimTracks(const edm::Event& iEvent, const edm::EventSetup& iS
       pev_.mtrkDxy[pev_.nParticle] = mtrk->dxy(v1);
       pev_.mtrkDxyError[pev_.nParticle] = sqrt(mtrk->dxyError()*mtrk->dxyError()+pev_.vxError[1]*pev_.vyError[1]);
       pev_.mtrkAlgo[pev_.nParticle] = mtrk->algo();
+			// calo matching info for the matched track
+			if(doPFMatching_) {
+				size_t mtrkkey = rt.begin()->first.key();
+				int pftype;
+				float pfcandpt;
+				matchPFCandToTrack(iEvent, iSetup, mtrkkey,
+													 // output to the following vars
+													 pftype,
+													 pfcandpt,
+													 pev_.mtrkPfSumEcal[pev_.nParticle],
+													 pev_.mtrkPfSumHcal[pev_.nParticle]);
+			}
     }
     
     ++pev_.nParticle;
@@ -554,7 +575,7 @@ TrackAnalyzer::fillSimTracks(const edm::Event& iEvent, const edm::EventSetup& iS
 
 //--------------------------------------------------------------------------------------------------
 void
-TrackAnalyzer::matchPFCandToTrack(const edm::Event& iEvent, const edm::EventSetup& iSetup, unsigned it)
+TrackAnalyzer::matchPFCandToTrack(const edm::Event& iEvent, const edm::EventSetup& iSetup, unsigned it, int & cand_type, float & cand_pt, float & mEcalSum, float & mHcalSum)
 {
   
   // get PF candidates
@@ -572,8 +593,8 @@ TrackAnalyzer::matchPFCandToTrack(const edm::Event& iEvent, const edm::EventSetu
   // loop over pfCandidates to find track
   
   int cand_index = -999;
-  float cand_pt = -999.0;
-  int cand_type =-1;
+  cand_pt = -999.0;
+  cand_type =-1;
   
   for( unsigned ic=0; ic<pfCandidates->size(); ic++ ) {
     
@@ -643,11 +664,10 @@ TrackAnalyzer::matchPFCandToTrack(const edm::Event& iEvent, const edm::EventSetu
   
   
 
-  
-  pev_.pfType[pev_.nTrk]=cand_type;
-  pev_.pfCandPt[pev_.nTrk]=cand_pt;
-  pev_.pfSumEcal[pev_.nTrk]=sum_ecal;
-  pev_.pfSumHcal[pev_.nTrk]=sum_hcal;
+	cand_type=cand_type;
+  cand_pt=cand_pt;
+  mEcalSum=sum_ecal;
+  mHcalSum=sum_hcal;
 
   return;
   
@@ -812,7 +832,14 @@ TrackAnalyzer::beginJob()
   trackTree_->Branch("trkFake",&pev_.trkFake,"trkFake[nTrk]/O");
   trackTree_->Branch("trkAlgo",&pev_.trkAlgo,"trkAlgo[nTrk]/F");
 
-  // Track Extra
+  if (doPFMatching_) {
+    trackTree_->Branch("pfType",&pev_.pfType,"pfType[nTrk]/I");
+    trackTree_->Branch("pfCandPt",&pev_.pfCandPt,"pfCandPt[nTrk]/F");
+    trackTree_->Branch("pfSumEcal",&pev_.pfSumEcal,"pfSumEcal[nTrk]/F");
+    trackTree_->Branch("pfSumHcal",&pev_.pfSumHcal,"pfSumHcal[nTrk]/F");
+  }
+	
+	// Track Extra
   if (doTrackExtra_) {
      trackTree_->Branch("trkExpHit1Eta",&pev_.trkExpHit1Eta,"trkExpHit1Eta[nTrk]/F");
      trackTree_->Branch("trkExpHit2Eta",&pev_.trkExpHit2Eta,"trkExpHit2Eta[nTrk]/F");
@@ -839,14 +866,12 @@ TrackAnalyzer::beginJob()
     trackTree_->Branch("mtrkDxy",&pev_.mtrkDxy,"mtrkDxy[nParticle]/F");
     trackTree_->Branch("mtrkDxyError",&pev_.mtrkDxyError,"mtrkDxyError[nParticle]/F");
     trackTree_->Branch("mtrkAlgo",&pev_.mtrkAlgo,"mtrkAlgo[nParticle]/F");
+		if (doPFMatching_) {
+			trackTree_->Branch("mtrkPfSumEcal",&pev_.mtrkPfSumEcal,"mtrkPfSumEcal[nParticle]/F");
+			trackTree_->Branch("mtrkPfSumHcal",&pev_.mtrkPfSumHcal,"mtrkPfSumHcal[nParticle]/F");
+		}
   }
 
-  if (doPFMatching_) {
-    trackTree_->Branch("pfType",&pev_.pfType,"pfType[nTrk]/I");
-    trackTree_->Branch("pfCandPt",&pev_.pfCandPt,"pfCandPt[nTrk]/F");
-    trackTree_->Branch("pfSumEcal",&pev_.pfSumEcal,"pfSumEcal[nTrk]/F");
-    trackTree_->Branch("pfSumHcal",&pev_.pfSumHcal,"pfSumHcal[nTrk]/F");
-  }  
 
 }
 
