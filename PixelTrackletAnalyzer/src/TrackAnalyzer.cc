@@ -15,7 +15,7 @@
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.13 2011/07/27 21:19:18 frankma Exp $
+// $Id: TrackAnalyzer.cc,v 1.14 2011/07/28 13:22:03 frankma Exp $
 //
 //
 
@@ -174,6 +174,8 @@ struct TrackEvent{
    float mtrkPtError[MAXTRACKS];
    int   mtrkNHit[MAXTRACKS];
    int   mtrkQual[MAXTRACKS];
+   float mtrkChi2[MAXTRACKS];
+   float mtrkNdof[MAXTRACKS];
    float mtrkDz[MAXTRACKS];
    float mtrkDzError[MAXTRACKS];
    float mtrkDxy[MAXTRACKS];
@@ -548,6 +550,8 @@ TrackAnalyzer::fillSimTracks(const edm::Event& iEvent, const edm::EventSetup& iS
       pev_.mtrkPtError[pev_.nParticle] = mtrk->ptError();
       pev_.mtrkNHit[pev_.nParticle] = mtrk->numberOfValidHits();
       if (mtrk->quality(reco::TrackBase::qualityByName(qualityString_))) pev_.mtrkQual[pev_.nParticle] = 1;
+			pev_.mtrkChi2[pev_.nParticle]=mtrk->chi2();
+			pev_.mtrkNdof[pev_.nParticle]=mtrk->ndof();
       math::XYZPoint v1(pev_.vx[1],pev_.vy[1], pev_.vz[1]);
       pev_.mtrkDz[pev_.nParticle] = mtrk->dz(v1);
       pev_.mtrkDzError[pev_.nParticle] = sqrt(mtrk->dzError()*mtrk->dzError()+pev_.vzError[1]*pev_.vzError[1]);
@@ -861,6 +865,8 @@ TrackAnalyzer::beginJob()
     trackTree_->Branch("mtrkPtError",&pev_.mtrkPtError,"mtrkPtError[nParticle]/F");
     trackTree_->Branch("mtrkNHit",&pev_.mtrkNHit,"mtrkNHit[nParticle]/I");
     trackTree_->Branch("mtrkQual",&pev_.mtrkQual,"mtrkQual[nParticle]/I");
+		trackTree_->Branch("mtrkChi2",&pev_.mtrkChi2,"mtrkChi2[nParticle]/F");
+		trackTree_->Branch("mtrkNdof",&pev_.mtrkNdof,"mtrkNdof[nParticle]/F");
     trackTree_->Branch("mtrkDz",&pev_.mtrkDz,"mtrkDz[nParticle]/F");
     trackTree_->Branch("mtrkDzError",&pev_.mtrkDzError,"mtrkDzError[nParticle]/F");
     trackTree_->Branch("mtrkDxy",&pev_.mtrkDxy,"mtrkDxy[nParticle]/F");
