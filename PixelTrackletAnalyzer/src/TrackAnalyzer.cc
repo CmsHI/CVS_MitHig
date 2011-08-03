@@ -15,7 +15,7 @@
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.14 2011/07/28 13:22:03 frankma Exp $
+// $Id: TrackAnalyzer.cc,v 1.15 2011/08/02 10:38:30 frankma Exp $
 //
 //
 
@@ -182,9 +182,10 @@ struct TrackEvent{
    float mtrkDxyError[MAXTRACKS];          
    float mtrkAlgo[MAXTRACKS];
 	 // calo compatibility
+   int mtrkPfType[MAXTRACKS];
+   float mtrkPfCandPt[MAXTRACKS];
 	 float mtrkPfSumEcal[MAXTRACKS];
 	 float mtrkPfSumHcal[MAXTRACKS];
-
 };
 
 class TrackAnalyzer : public edm::EDAnalyzer {
@@ -561,12 +562,10 @@ TrackAnalyzer::fillSimTracks(const edm::Event& iEvent, const edm::EventSetup& iS
 			// calo matching info for the matched track
 			if(doPFMatching_) {
 				size_t mtrkkey = rt.begin()->first.key();
-				int pftype;
-				float pfcandpt;
 				matchPFCandToTrack(iEvent, iSetup, mtrkkey,
 													 // output to the following vars
-													 pftype,
-													 pfcandpt,
+													 pev_.mtrkPfType[pev_.nParticle],
+													 pev_.mtrkPfCandPt[pev_.nParticle],
 													 pev_.mtrkPfSumEcal[pev_.nParticle],
 													 pev_.mtrkPfSumHcal[pev_.nParticle]);
 			}
@@ -873,6 +872,8 @@ TrackAnalyzer::beginJob()
     trackTree_->Branch("mtrkDxyError",&pev_.mtrkDxyError,"mtrkDxyError[nParticle]/F");
     trackTree_->Branch("mtrkAlgo",&pev_.mtrkAlgo,"mtrkAlgo[nParticle]/F");
 		if (doPFMatching_) {
+      trackTree_->Branch("mtrkPfType",&pev_.mtrkPfType,"mtrkPfType[nTrk]/I");
+      trackTree_->Branch("mtrkPfCandPt",&pev_.mtrkPfCandPt,"mtrkPfCandPt[nTrk]/F");
 			trackTree_->Branch("mtrkPfSumEcal",&pev_.mtrkPfSumEcal,"mtrkPfSumEcal[nParticle]/F");
 			trackTree_->Branch("mtrkPfSumHcal",&pev_.mtrkPfSumHcal,"mtrkPfSumHcal[nParticle]/F");
 		}
