@@ -15,7 +15,7 @@
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.15 2011/08/02 10:38:30 frankma Exp $
+// $Id: TrackAnalyzer.cc,v 1.16 2011/08/03 13:50:01 frankma Exp $
 //
 //
 
@@ -35,6 +35,8 @@
 #include "DataFormats/Common/interface/TriggerResults.h"
 #include "DataFormats/VertexReco/interface/Vertex.h"
 #include "DataFormats/VertexReco/interface/VertexFwd.h"
+#include "DataFormats/HeavyIonEvent/interface/Centrality.h"
+#include "DataFormats/HeavyIonEvent/interface/CentralityProvider.h"
 #include "DataFormats/TrackerRecHit2D/interface/SiPixelRecHitCollection.h"
 #include "FWCore/Framework/interface/Frameworkfwd.h"
 #include "FWCore/Framework/interface/EDAnalyzer.h"
@@ -114,7 +116,9 @@ struct TrackEvent{
    float vxError[MAXVTX];
    float vyError[MAXVTX];
    float vzError[MAXVTX];
-
+	
+	 // centrality
+   int cbin;
 
    // -- rec tracks --
    int nTrk;
@@ -176,10 +180,10 @@ struct TrackEvent{
    int   mtrkQual[MAXTRACKS];
    float mtrkChi2[MAXTRACKS];
    float mtrkNdof[MAXTRACKS];
-   float mtrkDz[MAXTRACKS];
-   float mtrkDzError[MAXTRACKS];
-   float mtrkDxy[MAXTRACKS];
-   float mtrkDxyError[MAXTRACKS];          
+   float mtrkDz1[MAXTRACKS];
+   float mtrkDzError1[MAXTRACKS];
+   float mtrkDxy1[MAXTRACKS];
+   float mtrkDxyError1[MAXTRACKS];          
    float mtrkAlgo[MAXTRACKS];
 	 // calo compatibility
    int mtrkPfType[MAXTRACKS];
@@ -222,6 +226,7 @@ private:
   bool doTrackExtra_;
   bool doSimTrack_;
   bool doPFMatching_;
+	bool useCentrality_;
   
   double trackPtMin_;
   std::string qualityString_;
@@ -238,6 +243,7 @@ private:
   edm::Service<TFileService> fs;           
   edm::ESHandle < ParticleDataTable > pdt;
   edm::Handle<TrackingParticleCollection> trackingParticles;
+	CentralityProvider * centrality_;
   
   edm::InputTag beamSpotProducer_;
   
@@ -261,6 +267,7 @@ TrackAnalyzer::TrackAnalyzer(const edm::ParameterSet& iConfig)
    doTrackExtra_             = iConfig.getUntrackedParameter<bool>  ("doTrackExtra",false);
    doSimTrack_             = iConfig.getUntrackedParameter<bool>  ("doSimTrack",false);
    doPFMatching_             = iConfig.getUntrackedParameter<bool>  ("doPFMatching",false);
+   useCentrality_ = iConfig.getUntrackedParameter<bool>("useCentrality",false);
    trackPtMin_             = iConfig.getUntrackedParameter<double>  ("trackPtMin",0.4);
    qualityString_ = iConfig.getUntrackedParameter<std::string>("qualityString","highPurity"),
    simTrackPtMin_             = iConfig.getUntrackedParameter<double>  ("simTrackPtMin",0.4);
@@ -283,25 +290,31 @@ void
 TrackAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
   // Get tracker geometry
-   edm::ESHandle<TrackerGeometry> tGeo;
-   iSetup.get<TrackerDigiGeometryRecord>().get(tGeo);
-   geo_ = tGeo.product();
-   iSetup.getData(pdt);
-
-   pev_.nEv = (int)iEvent.id().event();
-   pev_.nRun = (int)iEvent.id().run();
-   pev_.nLumi = (int)iEvent.luminosityBlock();
-   pev_.nBX = (int)iEvent.bunchCrossing();
-
-   pev_.nv = 0;
-
-   //cout <<"Fill Vtx"<<endl;
-   fillVertices(iEvent);
-
-   //cout <<"Fill Tracks"<<endl;
-   if (doTrack_) fillTracks(iEvent, iSetup);
-   if (doSimTrack_) fillSimTracks(iEvent, iSetup);
-   trackTree_->Fill();
+	edm::ESHandle<TrackerGeometry> tGeo;
+	iSetup.get<TrackerDigiGeometryRecord>().get(tGeo);
+	geo_ = tGeo.product();
+	iSetup.getData(pdt);
+	
+	pev_.nEv = (int)iEvent.id().event();
+	pev_.nRun = (int)iEvent.id().run();
+	pev_.nLumi = (int)iEvent.luminosityBlock();
+	pev_.nBX = (int)iEvent.bunchCrossing();
+	
+	pev_.nv = 0;
+	
+	//cout <<"Fill Vtx"<<endl;
+	fillVertices(iEvent);
+	
+	if(useCentrality_){
+		if(!centrality_) centrality_ = new CentralityProvider(iSetup);      
+		centrality_->newEvent(iEvent,iSetup); // make sure you do this first in every event
+		pev_.cbin = centrality_->getBin();
+	}
+	
+	//cout <<"Fill Tracks"<<endl;
+	if (doTrack_) fillTracks(iEvent, iSetup);
+	if (doSimTrack_) fillSimTracks(iEvent, iSetup);
+	trackTree_->Fill();
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -554,10 +567,10 @@ TrackAnalyzer::fillSimTracks(const edm::Event& iEvent, const edm::EventSetup& iS
 			pev_.mtrkChi2[pev_.nParticle]=mtrk->chi2();
 			pev_.mtrkNdof[pev_.nParticle]=mtrk->ndof();
       math::XYZPoint v1(pev_.vx[1],pev_.vy[1], pev_.vz[1]);
-      pev_.mtrkDz[pev_.nParticle] = mtrk->dz(v1);
-      pev_.mtrkDzError[pev_.nParticle] = sqrt(mtrk->dzError()*mtrk->dzError()+pev_.vzError[1]*pev_.vzError[1]);
-      pev_.mtrkDxy[pev_.nParticle] = mtrk->dxy(v1);
-      pev_.mtrkDxyError[pev_.nParticle] = sqrt(mtrk->dxyError()*mtrk->dxyError()+pev_.vxError[1]*pev_.vyError[1]);
+      pev_.mtrkDz1[pev_.nParticle] = mtrk->dz(v1);
+      pev_.mtrkDzError1[pev_.nParticle] = sqrt(mtrk->dzError()*mtrk->dzError()+pev_.vzError[1]*pev_.vzError[1]);
+      pev_.mtrkDxy1[pev_.nParticle] = mtrk->dxy(v1);
+      pev_.mtrkDxyError1[pev_.nParticle] = sqrt(mtrk->dxyError()*mtrk->dxyError()+pev_.vxError[1]*pev_.vyError[1]);
       pev_.mtrkAlgo[pev_.nParticle] = mtrk->algo();
 			// calo matching info for the matched track
 			if(doPFMatching_) {
@@ -802,6 +815,9 @@ TrackAnalyzer::beginJob()
   trackTree_->Branch("vy",pev_.vy,"vy[nv]/F");
   trackTree_->Branch("vz",pev_.vz,"vz[nv]/F");
 
+	// centrality
+	if (useCentrality_) trackTree_->Branch("cbin",&pev_.cbin,"cbin/I");
+	
   // Tracks
   trackTree_->Branch("nTrk",&pev_.nTrk,"nTrk/I");
   trackTree_->Branch("trkPt",&pev_.trkPt,"trkPt[nTrk]/F");
@@ -866,10 +882,10 @@ TrackAnalyzer::beginJob()
     trackTree_->Branch("mtrkQual",&pev_.mtrkQual,"mtrkQual[nParticle]/I");
 		trackTree_->Branch("mtrkChi2",&pev_.mtrkChi2,"mtrkChi2[nParticle]/F");
 		trackTree_->Branch("mtrkNdof",&pev_.mtrkNdof,"mtrkNdof[nParticle]/F");
-    trackTree_->Branch("mtrkDz",&pev_.mtrkDz,"mtrkDz[nParticle]/F");
-    trackTree_->Branch("mtrkDzError",&pev_.mtrkDzError,"mtrkDzError[nParticle]/F");
-    trackTree_->Branch("mtrkDxy",&pev_.mtrkDxy,"mtrkDxy[nParticle]/F");
-    trackTree_->Branch("mtrkDxyError",&pev_.mtrkDxyError,"mtrkDxyError[nParticle]/F");
+    trackTree_->Branch("mtrkDz1",&pev_.mtrkDz1,"mtrkDz1[nParticle]/F");
+    trackTree_->Branch("mtrkDzError1",&pev_.mtrkDzError1,"mtrkDzError1[nParticle]/F");
+    trackTree_->Branch("mtrkDxy1",&pev_.mtrkDxy1,"mtrkDxy1[nParticle]/F");
+    trackTree_->Branch("mtrkDxyError1",&pev_.mtrkDxyError1,"mtrkDxyError1[nParticle]/F");
     trackTree_->Branch("mtrkAlgo",&pev_.mtrkAlgo,"mtrkAlgo[nParticle]/F");
 		if (doPFMatching_) {
       trackTree_->Branch("mtrkPfType",&pev_.mtrkPfType,"mtrkPfType[nTrk]/I");
