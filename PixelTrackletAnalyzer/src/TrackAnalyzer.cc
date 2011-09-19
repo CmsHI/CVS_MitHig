@@ -15,7 +15,7 @@
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.16 2011/08/03 13:50:01 frankma Exp $
+// $Id: TrackAnalyzer.cc,v 1.17 2011/08/08 12:57:38 frankma Exp $
 //
 //
 
@@ -170,7 +170,8 @@ struct TrackEvent{
    float pEta[MAXTRACKS];
    float pPhi[MAXTRACKS];
    float pPt[MAXTRACKS];
-   float pAcc[MAXTRACKS];
+   float pAccTriplet[MAXTRACKS];
+	 float pAccPair[MAXTRACKS];
    float pNRec[MAXTRACKS];
    int   pNHit[MAXTRACKS];
    // matched track info (if matched)
@@ -541,8 +542,9 @@ TrackAnalyzer::fillSimTracks(const edm::Event& iEvent, const edm::EventSetup& iS
     pev_.pPhi[pev_.nParticle] = tp->phi();
     pev_.pPt[pev_.nParticle] = tp->pt();
     std::pair<bool,bool> acc = isAccepted(*tp);
-    pev_.pAcc[pev_.nParticle] = acc.first; // for HI tracking, only triplet should be taken
-    
+    pev_.pAccTriplet[pev_.nParticle] = acc.first; // for HI tracking, only triplet should be taken
+		pev_.pAccPair[pev_.nParticle] = acc.second;
+
     // Look up association map
     std::vector<std::pair<edm::RefToBase<reco::Track>, double> > rt;
     const reco::Track* mtrk=0;
@@ -873,7 +875,8 @@ TrackAnalyzer::beginJob()
     trackTree_->Branch("pEta",&pev_.pEta,"pEta[nParticle]/F");
     trackTree_->Branch("pPhi",&pev_.pPhi,"pPhi[nParticle]/F");
     trackTree_->Branch("pPt",&pev_.pPt,"pPt[nParticle]/F");
-    trackTree_->Branch("pAcc",&pev_.pAcc,"pAcc[nParticle]/F");
+    trackTree_->Branch("pAccTriplet",&pev_.pAccTriplet,"pAccTriplet[nParticle]/F");
+    trackTree_->Branch("pAccPair",&pev_.pAccPair,"pAccPair[nParticle]/F");
     trackTree_->Branch("pNRec",&pev_.pNRec,"pNRec[nParticle]/F");
     trackTree_->Branch("pNHit",&pev_.pNHit,"pNHit[nParticle]/I");
     trackTree_->Branch("mtrkPt",&pev_.mtrkPt,"mtrkPt[nParticle]/F");
