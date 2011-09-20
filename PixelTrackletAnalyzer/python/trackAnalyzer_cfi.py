@@ -7,5 +7,6 @@ anaTrack = cms.EDAnalyzer('TrackAnalyzer',
                           trackSrc = cms.InputTag('hiGoodTightTracks'),
                           pfCandSrc = cms.InputTag('particleFlow'),
                           doPFMatching = cms.untracked.bool(False),
-                          doSimTrack = cms.untracked.bool(False)
+                          doSimTrack = cms.untracked.bool(False),
+                          useQuality = cms.untracked.bool(False)
                           )

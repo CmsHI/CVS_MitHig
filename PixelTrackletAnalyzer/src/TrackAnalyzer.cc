@@ -170,8 +170,7 @@ struct TrackEvent{
    float pEta[MAXTRACKS];
    float pPhi[MAXTRACKS];
    float pPt[MAXTRACKS];
-   float pAccTriplet[MAXTRACKS];
-	 float pAccPair[MAXTRACKS];
+   float pAcc[MAXTRACKS];
    float pNRec[MAXTRACKS];
    int   pNHit[MAXTRACKS];
    // matched track info (if matched)
@@ -227,8 +226,9 @@ private:
   bool doTrackExtra_;
   bool doSimTrack_;
   bool doPFMatching_;
-	bool useCentrality_;
-  
+  bool useCentrality_;  
+  bool useQuality_;
+
   double trackPtMin_;
   std::string qualityString_;
   double simTrackPtMin_;
@@ -269,6 +269,8 @@ TrackAnalyzer::TrackAnalyzer(const edm::ParameterSet& iConfig)
    doSimTrack_             = iConfig.getUntrackedParameter<bool>  ("doSimTrack",false);
    doPFMatching_             = iConfig.getUntrackedParameter<bool>  ("doPFMatching",false);
    useCentrality_ = iConfig.getUntrackedParameter<bool>("useCentrality",false);
+   useQuality_ = iConfig.getUntrackedParameter<bool>("useQuality",false);
+
    trackPtMin_             = iConfig.getUntrackedParameter<double>  ("trackPtMin",0.4);
    qualityString_ = iConfig.getUntrackedParameter<std::string>("qualityString","highPurity"),
    simTrackPtMin_             = iConfig.getUntrackedParameter<double>  ("simTrackPtMin",0.4);
@@ -408,6 +410,7 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetu
 
          pev_.trkQual[pev_.nTrk]=0;
 	 if(etrk.quality(reco::TrackBase::qualityByName(qualityString_))) pev_.trkQual[pev_.nTrk]=1;
+	 if(useQuality_ && pev_.trkQual[pev_.nTrk] != 1) continue;
 
          trackingRecHit_iterator edh = etrk.recHitsEnd();
          int count1dhits=0;
@@ -542,9 +545,8 @@ TrackAnalyzer::fillSimTracks(const edm::Event& iEvent, const edm::EventSetup& iS
     pev_.pPhi[pev_.nParticle] = tp->phi();
     pev_.pPt[pev_.nParticle] = tp->pt();
     std::pair<bool,bool> acc = isAccepted(*tp);
-    pev_.pAccTriplet[pev_.nParticle] = acc.first; // for HI tracking, only triplet should be taken
-		pev_.pAccPair[pev_.nParticle] = acc.second;
-
+    pev_.pAcc[pev_.nParticle] = acc.first; // for HI tracking, only triplet should be taken
+    
     // Look up association map
     std::vector<std::pair<edm::RefToBase<reco::Track>, double> > rt;
     const reco::Track* mtrk=0;
@@ -875,8 +877,7 @@ TrackAnalyzer::beginJob()
     trackTree_->Branch("pEta",&pev_.pEta,"pEta[nParticle]/F");
     trackTree_->Branch("pPhi",&pev_.pPhi,"pPhi[nParticle]/F");
     trackTree_->Branch("pPt",&pev_.pPt,"pPt[nParticle]/F");
-    trackTree_->Branch("pAccTriplet",&pev_.pAccTriplet,"pAccTriplet[nParticle]/F");
-    trackTree_->Branch("pAccPair",&pev_.pAccPair,"pAccPair[nParticle]/F");
+    trackTree_->Branch("pAcc",&pev_.pAcc,"pAcc[nParticle]/F");
     trackTree_->Branch("pNRec",&pev_.pNRec,"pNRec[nParticle]/F");
     trackTree_->Branch("pNHit",&pev_.pNHit,"pNHit[nParticle]/I");
     trackTree_->Branch("mtrkPt",&pev_.mtrkPt,"mtrkPt[nParticle]/F");
