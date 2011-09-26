@@ -15,7 +15,7 @@
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.17 2011/08/08 12:57:38 frankma Exp $
+// $Id: TrackAnalyzer.cc,v 1.19 2011/09/20 22:17:54 yilmaz Exp $
 //
 //
 
@@ -126,6 +126,7 @@ struct TrackEvent{
    float trkPhi[MAXTRACKS];
    float trkPt[MAXTRACKS];
    float trkPtError[MAXTRACKS];
+   int trkChg[MAXTRACKS];
    int trkNHit[MAXTRACKS];
    int trkNlayer[MAXTRACKS];
    int trkNlayer3D[MAXTRACKS];
@@ -425,6 +426,7 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetu
          pev_.trkPhi[pev_.nTrk]=etrk.phi();
          pev_.trkPt[pev_.nTrk]=etrk.pt();
          pev_.trkPtError[pev_.nTrk]=etrk.ptError();
+         pev_.trkChg[pev_.nTrk]=etrk.charge();
          pev_.trkNHit[pev_.nTrk]=etrk.numberOfValidHits();
          pev_.trkDxy[pev_.nTrk]=etrk.dxy();
          pev_.trkDxyError[pev_.nTrk]=etrk.dxyError();
@@ -826,6 +828,7 @@ TrackAnalyzer::beginJob()
   trackTree_->Branch("nTrk",&pev_.nTrk,"nTrk/I");
   trackTree_->Branch("trkPt",&pev_.trkPt,"trkPt[nTrk]/F");
   trackTree_->Branch("trkPtError",&pev_.trkPtError,"trkPtError[nTrk]/F");
+  trackTree_->Branch("trkChg",&pev_.trkChg,"trkChg[nTrk]/I");
   trackTree_->Branch("trkNHit",&pev_.trkNHit,"trkNHit[nTrk]/I");
   trackTree_->Branch("trkNlayer",&pev_.trkNlayer,"trkNlayer[nTrk]/I");
   trackTree_->Branch("trkNlayer3D",&pev_.trkNlayer3D,"trkNlayer3D[nTrk]/I");
