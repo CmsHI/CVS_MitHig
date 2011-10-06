@@ -126,7 +126,6 @@ struct TrackEvent{
    float trkPhi[MAXTRACKS];
    float trkPt[MAXTRACKS];
    float trkPtError[MAXTRACKS];
-   int trkChg[MAXTRACKS];
    int trkNHit[MAXTRACKS];
    int trkNlayer[MAXTRACKS];
    int trkNlayer3D[MAXTRACKS];
@@ -240,6 +239,7 @@ private:
   edm::InputTag pfCandSrc_;
   
   vector<string> vertexSrc_;
+   edm::InputTag simVertexSrc_;
   
   const TrackerGeometry* geo_;
   edm::Service<TFileService> fs;           
@@ -278,8 +278,9 @@ TrackAnalyzer::TrackAnalyzer(const edm::ParameterSet& iConfig)
    fiducialCut_ = (iConfig.getUntrackedParameter<bool>("fiducialCut",false));
    trackSrc_ = iConfig.getParameter<edm::InputTag>("trackSrc");
    tpFakeSrc_ =  iConfig.getUntrackedParameter<edm::InputTag>("tpFakeSrc",edm::InputTag("cutsTPForFak"));
-   tpEffSrc_ =  iConfig.getUntrackedParameter<edm::InputTag>("tpEffSrc",edm::InputTag("cutsTPForFak"));
+   tpEffSrc_ =  iConfig.getUntrackedParameter<edm::InputTag>("tpEffSrc",edm::InputTag("cutsTPForEff"));
    vertexSrc_ = iConfig.getParameter<vector<string> >("vertexSrc");
+   simVertexSrc_ =  iConfig.getUntrackedParameter<edm::InputTag>("tpVtxSrc",edm::InputTag("cutsTPForFak"));
    beamSpotProducer_  = iConfig.getUntrackedParameter<edm::InputTag>("towersSrc",edm::InputTag("offlineBeamSpot"));   
    pfCandSrc_ = iConfig.getParameter<edm::InputTag>("pfCandSrc");
 }
@@ -333,6 +334,25 @@ TrackAnalyzer::fillVertices(const edm::Event& iEvent){
    pev_.vxError[0]=0;
    pev_.vyError[0]=0;
    pev_.vzError[0]=0;
+
+   if(doSimTrack_){
+      Handle<TrackingVertexCollection> vertices;
+      iEvent.getByLabel(simVertexSrc_, vertices);
+      int greatestvtx = 0;
+      for (unsigned int i = 0 ; i< vertices->size(); ++i){
+	 unsigned int daughter = (*vertices)[i].nDaughterTracks();
+	 if( daughter >(*vertices)[greatestvtx].nDaughterTracks()&&fabs((*vertices)[i].position().z())<30000) greatestvtx = i;
+      }
+      
+      if(vertices->size()>0&&fabs((*vertices)[greatestvtx].position().z())<30000){
+	 pev_.vz[pev_.nv] = (*vertices)[greatestvtx].position().z();
+      }else{
+	 pev_.vz[pev_.nv] =  -99; 
+      }
+   } else {
+      pev_.vz[pev_.nv] = -99;
+   }
+   
    pev_.nv++;
    // Fill reconstructed vertices.   
    for(unsigned int iv = 0; iv < vertexSrc_.size(); ++iv){
@@ -426,7 +446,6 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetu
          pev_.trkPhi[pev_.nTrk]=etrk.phi();
          pev_.trkPt[pev_.nTrk]=etrk.pt();
          pev_.trkPtError[pev_.nTrk]=etrk.ptError();
-         pev_.trkChg[pev_.nTrk]=etrk.charge();
          pev_.trkNHit[pev_.nTrk]=etrk.numberOfValidHits();
          pev_.trkDxy[pev_.nTrk]=etrk.dxy();
          pev_.trkDxyError[pev_.nTrk]=etrk.dxyError();
@@ -828,7 +847,6 @@ TrackAnalyzer::beginJob()
   trackTree_->Branch("nTrk",&pev_.nTrk,"nTrk/I");
   trackTree_->Branch("trkPt",&pev_.trkPt,"trkPt[nTrk]/F");
   trackTree_->Branch("trkPtError",&pev_.trkPtError,"trkPtError[nTrk]/F");
-  trackTree_->Branch("trkChg",&pev_.trkChg,"trkChg[nTrk]/I");
   trackTree_->Branch("trkNHit",&pev_.trkNHit,"trkNHit[nTrk]/I");
   trackTree_->Branch("trkNlayer",&pev_.trkNlayer,"trkNlayer[nTrk]/I");
   trackTree_->Branch("trkNlayer3D",&pev_.trkNlayer3D,"trkNlayer3D[nTrk]/I");
