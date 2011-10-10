@@ -13,7 +13,7 @@ Implementation:
 //
 // Original Author:  Yetkin Yilmaz, Frank Ma
 //         Created:  Tue Dec 18 09:44:41 EST 2007
-// $Id: HiGenAnalyzer.cc,v 1.1 2011/03/31 16:28:58 frankma Exp $
+// $Id: HiGenAnalyzer.cc,v 1.2 2011/03/31 20:52:13 frankma Exp $
 //
 //
 
@@ -358,12 +358,14 @@ HiGenAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
     Int_t inum = 0;
 
     edm::SimVertexContainer::const_iterator it=simVertices->begin();
-    SimVertex vertex = (*it);
-    cout<<" Vertex position "<< inum <<" " << vertex.position().rho()<<" "<<vertex.position().z()<<endl;
-    vx = vertex.position().x();
-    vy = vertex.position().y();
-    vz = vertex.position().z();
-    vr = vertex.position().rho();
+    if(it != simVertices->end()){
+       SimVertex vertex = (*it);
+       cout<<" Vertex position "<< inum <<" " << vertex.position().rho()<<" "<<vertex.position().z()<<endl;
+       vx = vertex.position().x();
+       vy = vertex.position().y();
+       vz = vertex.position().z();
+       vr = vertex.position().rho();
+    }
   }
 
   for(Int_t i = 0; i<3; ++i){

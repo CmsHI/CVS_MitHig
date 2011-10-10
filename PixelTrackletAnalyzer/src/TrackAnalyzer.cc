@@ -338,13 +338,13 @@ TrackAnalyzer::fillVertices(const edm::Event& iEvent){
    if(doSimTrack_){
       Handle<TrackingVertexCollection> vertices;
       iEvent.getByLabel(simVertexSrc_, vertices);
-      int greatestvtx = 0;
+      int greatestvtx = -1;
       for (unsigned int i = 0 ; i< vertices->size(); ++i){
 	 unsigned int daughter = (*vertices)[i].nDaughterTracks();
 	 if( daughter >(*vertices)[greatestvtx].nDaughterTracks()&&fabs((*vertices)[i].position().z())<30000) greatestvtx = i;
       }
       
-      if(vertices->size()>0&&fabs((*vertices)[greatestvtx].position().z())<30000){
+      if(greatestvtx != -1){
 	 pev_.vz[pev_.nv] = (*vertices)[greatestvtx].position().z();
       }else{
 	 pev_.vz[pev_.nv] =  -99; 
