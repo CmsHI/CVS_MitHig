@@ -15,7 +15,7 @@
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.19 2011/09/20 22:17:54 yilmaz Exp $
+// $Id: TrackAnalyzer.cc,v 1.22 2011/10/10 12:05:36 yilmaz Exp $
 //
 //
 
@@ -281,7 +281,7 @@ TrackAnalyzer::TrackAnalyzer(const edm::ParameterSet& iConfig)
    tpEffSrc_ =  iConfig.getUntrackedParameter<edm::InputTag>("tpEffSrc",edm::InputTag("cutsTPForEff"));
    vertexSrc_ = iConfig.getParameter<vector<string> >("vertexSrc");
    simVertexSrc_ =  iConfig.getUntrackedParameter<edm::InputTag>("tpVtxSrc",edm::InputTag("cutsTPForFak"));
-   beamSpotProducer_  = iConfig.getUntrackedParameter<edm::InputTag>("towersSrc",edm::InputTag("offlineBeamSpot"));   
+   beamSpotProducer_  = iConfig.getUntrackedParameter<edm::InputTag>("beamSpotSrc",edm::InputTag("offlineBeamSpot"));   
    pfCandSrc_ = iConfig.getParameter<edm::InputTag>("pfCandSrc");
 }
 
