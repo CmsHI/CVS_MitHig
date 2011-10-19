@@ -14,7 +14,7 @@
 //
 // Original Author:  Yen-Jie Lee
 //         Created:  Wed 2011/10/19 14:27:00 CEST 2011
-// $Id: METAnalyzer.cc,v 1.17 2011/08/08 12:57:38 frankma Exp $
+// $Id: METAnalyzer.cc,v 1.1 2011/10/19 12:27:49 yjlee Exp $
 //
 //
 
@@ -138,11 +138,10 @@ METAnalyzer::fillMETs(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   pev_.nMET = 0;
   
   for (unsigned it=0; it<mets->size();it++) {
-    pev_.nMET++;
     const reco::MET & met = (*mets)[it];
     pev_.METEt[pev_.nMET] = met.et();
     pev_.METSumEt[pev_.nMET] = met.sumEt();
-       
+    pev_.nMET++;
   }
 }
 
