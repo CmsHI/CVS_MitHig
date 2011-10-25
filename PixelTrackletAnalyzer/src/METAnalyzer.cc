@@ -14,7 +14,7 @@
 //
 // Original Author:  Yen-Jie Lee
 //         Created:  Wed 2011/10/19 14:27:00 CEST 2011
-// $Id: METAnalyzer.cc,v 1.1 2011/10/19 12:27:49 yjlee Exp $
+// $Id: METAnalyzer.cc,v 1.2 2011/10/19 13:08:02 yjlee Exp $
 //
 //
 
@@ -150,7 +150,7 @@ void
 METAnalyzer::beginJob()
 {
 
-  metTree_ = fs->make<TTree>("metTree","Tree of Pixel Hits");
+  metTree_ = fs->make<TTree>("metTree","v1");
 
   // event
   metTree_->Branch("nEv",&pev_.nEv,"nEv/I");

@@ -15,7 +15,7 @@
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.22 2011/10/10 12:05:36 yilmaz Exp $
+// $Id: TrackAnalyzer.cc,v 1.23 2011/10/13 12:43:34 frankma Exp $
 //
 //
 
@@ -826,7 +826,7 @@ void
 TrackAnalyzer::beginJob()
 {
 
-  trackTree_ = fs->make<TTree>("trackTree","Tree of Pixel Hits");
+  trackTree_ = fs->make<TTree>("trackTree","v1");
 
   // event
   trackTree_->Branch("nEv",&pev_.nEv,"nEv/I");

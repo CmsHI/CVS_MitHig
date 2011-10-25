@@ -13,7 +13,7 @@
 //
 // Original Author:  Yilmaz Yetkin, Yen-Jie 
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: PixelHitAnalyzer.cc,v 1.28 2010/11/09 00:14:40 yjlee Exp $
+// $Id: PixelHitAnalyzer.cc,v 1.29 2011/02/23 07:49:31 yjlee Exp $
 //
 //
 
@@ -671,7 +671,7 @@ void
 PixelHitAnalyzer::beginJob()
 {
 
-  pixelTree_ = fs->make<TTree>("PixelTree","Tree of Pixel Hits");
+  pixelTree_ = fs->make<TTree>("PixelTree","v1");
   pixelTree_->Branch("nEv",&pev_.nEv,"nEv/I");
   pixelTree_->Branch("nLumi",&pev_.nLumi,"nLumi/I");
   pixelTree_->Branch("nBX",&pev_.nBX,"nBX/I");
