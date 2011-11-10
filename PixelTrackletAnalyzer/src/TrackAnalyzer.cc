@@ -15,7 +15,7 @@
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.23 2011/10/13 12:43:34 frankma Exp $
+// $Id: TrackAnalyzer.cc,v 1.24 2011/10/25 13:39:15 yjlee Exp $
 //
 //
 
@@ -624,7 +624,7 @@ TrackAnalyzer::matchPFCandToTrack(const edm::Event& iEvent, const edm::EventSetu
   bool isPFThere = iEvent.getByLabel(pfCandSrc_, pfCandidates);
 
   if (!isPFThere){
-    cout<<" NO PF Candidates Found"<<endl;
+    //cout<<" NO PF Candidates Found"<<endl;
     return;  // if no PFCand in an event, skip it 
   }
 
