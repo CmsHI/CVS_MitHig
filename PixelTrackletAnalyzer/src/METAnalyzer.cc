@@ -14,7 +14,7 @@
 //
 // Original Author:  Yen-Jie Lee
 //         Created:  Wed 2011/10/19 14:27:00 CEST 2011
-// $Id: METAnalyzer.cc,v 1.2 2011/10/19 13:08:02 yjlee Exp $
+// $Id: METAnalyzer.cc,v 1.3 2011/10/25 13:39:15 yjlee Exp $
 //
 //
 
@@ -70,6 +70,7 @@ struct METEvent{
 
    int nMET;   
    float METEt[MAXMETS];
+   float METPhi[MAXMETS];
    float METSumEt[MAXMETS];
    
 };
@@ -140,6 +141,7 @@ METAnalyzer::fillMETs(const edm::Event& iEvent, const edm::EventSetup& iSetup){
   for (unsigned it=0; it<mets->size();it++) {
     const reco::MET & met = (*mets)[it];
     pev_.METEt[pev_.nMET] = met.et();
+    pev_.METPhi[pev_.nMET] = met.phi();
     pev_.METSumEt[pev_.nMET] = met.sumEt();
     pev_.nMET++;
   }
@@ -160,6 +162,7 @@ METAnalyzer::beginJob()
   
   metTree_->Branch("nMET",&pev_.nMET,"nMET/I");
   metTree_->Branch("MET",pev_.METEt,"MET[nMET]/F");
+  metTree_->Branch("METPhi",pev_.METPhi,"METPhi[nMET]/F");
   metTree_->Branch("SumEt",pev_.METSumEt,"SumEt[nMET]/F");
   //
 }
