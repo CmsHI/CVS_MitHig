@@ -15,7 +15,7 @@ Prepare the Treack Tree for analysis
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.26 2011/11/30 14:30:49 frankma Exp $
+// $Id: TrackAnalyzer.cc,v 1.27 2012/01/26 20:45:34 mnguyen Exp $
 //
 //
 
@@ -322,6 +322,8 @@ TrackAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   if (doTrack_) fillTracks(iEvent, iSetup);
   if (doSimTrack_) fillSimTracks(iEvent, iSetup);
   trackTree_->Fill();
+  memset(&pev_,0,sizeof pev_);
+
 }
 
 //--------------------------------------------------------------------------------------------------
