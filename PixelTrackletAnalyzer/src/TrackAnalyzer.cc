@@ -15,7 +15,7 @@ Prepare the Treack Tree for analysis
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.25 2011/11/10 18:47:26 yjlee Exp $
+// $Id: TrackAnalyzer.cc,v 1.26 2011/11/30 14:30:49 frankma Exp $
 //
 //
 
@@ -177,6 +177,8 @@ struct TrackEvent{
   float mtrkPt[MAXTRACKS];
   float mtrkPtError[MAXTRACKS];
   int   mtrkNHit[MAXTRACKS];
+  int   mtrkNlayer[MAXTRACKS];
+  int   mtrkNlayer3D[MAXTRACKS];
   int   mtrkQual[MAXTRACKS];
   float mtrkChi2[MAXTRACKS];
   float mtrkNdof[MAXTRACKS];
@@ -498,7 +500,7 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetu
       double z = r/tan(atan(exp(-etrk.eta()))*2)+etrk.vz();
       ROOT::Math::XYZVector tmpVector(x-pev_.vx[1],y-pev_.vy[1],z-pev_.vz[1]);
       double eta1 = tmpVector.eta();
-      double phi1 = etrk.phi();
+      //double phi1 = etrk.phi();
 
       double r2 = 7.29; // averaged 2nd layer rho
       x = r2*cos(etrk.phi())+etrk.vx();
@@ -589,6 +591,8 @@ TrackAnalyzer::fillSimTracks(const edm::Event& iEvent, const edm::EventSetup& iS
       pev_.mtrkPt[pev_.nParticle] = mtrk->pt();
       pev_.mtrkPtError[pev_.nParticle] = mtrk->ptError();
       pev_.mtrkNHit[pev_.nParticle] = mtrk->numberOfValidHits();
+      pev_.mtrkNlayer[pev_.nParticle] = mtrk->hitPattern().trackerLayersWithMeasurement();
+      pev_.mtrkNlayer3D[pev_.nParticle] = mtrk->hitPattern().pixelLayersWithMeasurement() + mtrk->hitPattern().numberOfValidStripLayersWithMonoAndStereo();
       if (mtrk->quality(reco::TrackBase::qualityByName(qualityString_))) pev_.mtrkQual[pev_.nParticle] = 1;
       pev_.mtrkChi2[pev_.nParticle]=mtrk->chi2();
       pev_.mtrkNdof[pev_.nParticle]=mtrk->ndof();
@@ -905,6 +909,8 @@ TrackAnalyzer::beginJob()
     trackTree_->Branch("mtrkPt",&pev_.mtrkPt,"mtrkPt[nParticle]/F");
     trackTree_->Branch("mtrkPtError",&pev_.mtrkPtError,"mtrkPtError[nParticle]/F");
     trackTree_->Branch("mtrkNHit",&pev_.mtrkNHit,"mtrkNHit[nParticle]/I");
+    trackTree_->Branch("mtrkNlayer",&pev_.mtrkNlayer,"mtrkNlayer[nParticle]/I");
+    trackTree_->Branch("mtrkNlayer3D",&pev_.mtrkNlayer3D,"mtrkNlayer3D[nParticle]/I");
     trackTree_->Branch("mtrkQual",&pev_.mtrkQual,"mtrkQual[nParticle]/I");
     trackTree_->Branch("mtrkChi2",&pev_.mtrkChi2,"mtrkChi2[nParticle]/F");
     trackTree_->Branch("mtrkNdof",&pev_.mtrkNdof,"mtrkNdof[nParticle]/F");
@@ -914,8 +920,8 @@ TrackAnalyzer::beginJob()
     trackTree_->Branch("mtrkDxyError1",&pev_.mtrkDxyError1,"mtrkDxyError1[nParticle]/F");
     trackTree_->Branch("mtrkAlgo",&pev_.mtrkAlgo,"mtrkAlgo[nParticle]/F");
     if (doPFMatching_) {
-      trackTree_->Branch("mtrkPfType",&pev_.mtrkPfType,"mtrkPfType[nTrk]/I");
-      trackTree_->Branch("mtrkPfCandPt",&pev_.mtrkPfCandPt,"mtrkPfCandPt[nTrk]/F");
+      trackTree_->Branch("mtrkPfType",&pev_.mtrkPfType,"mtrkPfType[nParticle]/I");
+      trackTree_->Branch("mtrkPfCandPt",&pev_.mtrkPfCandPt,"mtrkPfCandPt[nParticle]/F");
       trackTree_->Branch("mtrkPfSumEcal",&pev_.mtrkPfSumEcal,"mtrkPfSumEcal[nParticle]/F");
       trackTree_->Branch("mtrkPfSumHcal",&pev_.mtrkPfSumHcal,"mtrkPfSumHcal[nParticle]/F");
     }
