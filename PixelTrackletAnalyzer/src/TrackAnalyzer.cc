@@ -15,7 +15,7 @@ Prepare the Treack Tree for analysis
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.27 2012/01/26 20:45:34 mnguyen Exp $
+// $Id: TrackAnalyzer.cc,v 1.28 2012/01/26 22:16:28 mnguyen Exp $
 //
 //
 
@@ -227,6 +227,7 @@ class TrackAnalyzer : public edm::EDAnalyzer {
     bool doTrack_;
     bool doTrackExtra_;
     bool doSimTrack_;
+    bool doSimVertex_;
     bool doPFMatching_;
     bool useCentrality_;  
     bool useQuality_;
@@ -276,13 +277,15 @@ TrackAnalyzer::TrackAnalyzer(const edm::ParameterSet& iConfig)
 
   trackPtMin_             = iConfig.getUntrackedParameter<double>  ("trackPtMin",0.4);
   qualityString_ = iConfig.getUntrackedParameter<std::string>("qualityString","highPurity"),
-		 simTrackPtMin_             = iConfig.getUntrackedParameter<double>  ("simTrackPtMin",0.4);
+    simTrackPtMin_             = iConfig.getUntrackedParameter<double>  ("simTrackPtMin",0.4);
   fiducialCut_ = (iConfig.getUntrackedParameter<bool>("fiducialCut",false));
   trackSrc_ = iConfig.getParameter<edm::InputTag>("trackSrc");
   tpFakeSrc_ =  iConfig.getUntrackedParameter<edm::InputTag>("tpFakeSrc",edm::InputTag("cutsTPForFak"));
   tpEffSrc_ =  iConfig.getUntrackedParameter<edm::InputTag>("tpEffSrc",edm::InputTag("cutsTPForEff"));
   vertexSrc_ = iConfig.getParameter<vector<string> >("vertexSrc");
+  // isn't simVertexSrc supposed to be mergedtruth? -Matt
   simVertexSrc_ =  iConfig.getUntrackedParameter<edm::InputTag>("tpVtxSrc",edm::InputTag("cutsTPForFak"));
+  doSimVertex_             = iConfig.getUntrackedParameter<bool>  ("doSimVertex",false);
   beamSpotProducer_  = iConfig.getUntrackedParameter<edm::InputTag>("beamSpotSrc",edm::InputTag("offlineBeamSpot"));   
   pfCandSrc_ = iConfig.getParameter<edm::InputTag>("pfCandSrc");
 }
@@ -339,7 +342,7 @@ TrackAnalyzer::fillVertices(const edm::Event& iEvent){
   pev_.vyError[0]=0;
   pev_.vzError[0]=0;
 
-  if(doSimTrack_){
+  if(doSimVertex_){
     Handle<TrackingVertexCollection> vertices;
     iEvent.getByLabel(simVertexSrc_, vertices);
     int greatestvtx = -1;
