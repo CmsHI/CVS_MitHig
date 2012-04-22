@@ -15,7 +15,7 @@ Prepare the Treack Tree for analysis
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.28 2012/01/26 22:16:28 mnguyen Exp $
+// $Id: TrackAnalyzer.cc,v 1.29 2012/03/27 18:38:20 mnguyen Exp $
 //
 //
 
@@ -268,26 +268,31 @@ class TrackAnalyzer : public edm::EDAnalyzer {
 TrackAnalyzer::TrackAnalyzer(const edm::ParameterSet& iConfig)
 
 {
-  doTrack_             = iConfig.getUntrackedParameter<bool>  ("doTrack",true);
-  doTrackExtra_             = iConfig.getUntrackedParameter<bool>  ("doTrackExtra",false);
-  doSimTrack_             = iConfig.getUntrackedParameter<bool>  ("doSimTrack",false);
-  doPFMatching_             = iConfig.getUntrackedParameter<bool>  ("doPFMatching",false);
-  useCentrality_ = iConfig.getUntrackedParameter<bool>("useCentrality",false);
-  useQuality_ = iConfig.getUntrackedParameter<bool>("useQuality",false);
 
-  trackPtMin_             = iConfig.getUntrackedParameter<double>  ("trackPtMin",0.4);
-  qualityString_ = iConfig.getUntrackedParameter<std::string>("qualityString","highPurity"),
-    simTrackPtMin_             = iConfig.getUntrackedParameter<double>  ("simTrackPtMin",0.4);
-  fiducialCut_ = (iConfig.getUntrackedParameter<bool>("fiducialCut",false));
-  trackSrc_ = iConfig.getParameter<edm::InputTag>("trackSrc");
-  tpFakeSrc_ =  iConfig.getUntrackedParameter<edm::InputTag>("tpFakeSrc",edm::InputTag("cutsTPForFak"));
-  tpEffSrc_ =  iConfig.getUntrackedParameter<edm::InputTag>("tpEffSrc",edm::InputTag("cutsTPForEff"));
-  vertexSrc_ = iConfig.getParameter<vector<string> >("vertexSrc");
-  // isn't simVertexSrc supposed to be mergedtruth? -Matt
-  simVertexSrc_ =  iConfig.getUntrackedParameter<edm::InputTag>("tpVtxSrc",edm::InputTag("cutsTPForFak"));
+   doTrack_             = iConfig.getUntrackedParameter<bool>  ("doTrack",true);
+   doTrackExtra_             = iConfig.getUntrackedParameter<bool>  ("doTrackExtra",false);
+   doSimTrack_             = iConfig.getUntrackedParameter<bool>  ("doSimTrack",false);
+   doPFMatching_             = iConfig.getUntrackedParameter<bool>  ("doPFMatching",false);
+   useCentrality_ = iConfig.getUntrackedParameter<bool>("useCentrality",false);
+   useQuality_ = iConfig.getUntrackedParameter<bool>("useQuality",false);
+
+   trackPtMin_             = iConfig.getUntrackedParameter<double>  ("trackPtMin",0.4);
+   qualityString_ = iConfig.getUntrackedParameter<std::string>("qualityString","highPurity"),
+   simTrackPtMin_             = iConfig.getUntrackedParameter<double>  ("simTrackPtMin",0.4);
+   fiducialCut_ = (iConfig.getUntrackedParameter<bool>("fiducialCut",false));
+   trackSrc_ = iConfig.getParameter<edm::InputTag>("trackSrc");
+   //   tpFakeSrc_ =  iConfig.getUntrackedParameter<edm::InputTag>("tpFakeSrc",edm::InputTag("cutsTPForFak"));
+   //   tpEffSrc_ =  iConfig.getUntrackedParameter<edm::InputTag>("tpEffSrc",edm::InputTag("cutsTPForEff"));
+   tpFakeSrc_ =  iConfig.getUntrackedParameter<edm::InputTag>("tpFakeSrc",edm::InputTag("mergedtruth","MergedTrackTruth"));
+   tpEffSrc_ =  iConfig.getUntrackedParameter<edm::InputTag>("tpEffSrc",edm::InputTag("mergedtruth","MergedTrackTruth"));
+
+   vertexSrc_ = iConfig.getParameter<vector<string> >("vertexSrc");
+   simVertexSrc_ =  iConfig.getUntrackedParameter<edm::InputTag>("tpVtxSrc",edm::InputTag("mergedtruth","MergedTrackTruth"));
+   beamSpotProducer_  = iConfig.getUntrackedParameter<edm::InputTag>("beamSpotSrc",edm::InputTag("offlineBeamSpot"));   
+   pfCandSrc_ = iConfig.getParameter<edm::InputTag>("pfCandSrc");
+
   doSimVertex_             = iConfig.getUntrackedParameter<bool>  ("doSimVertex",false);
-  beamSpotProducer_  = iConfig.getUntrackedParameter<edm::InputTag>("beamSpotSrc",edm::InputTag("offlineBeamSpot"));   
-  pfCandSrc_ = iConfig.getParameter<edm::InputTag>("pfCandSrc");
+
 }
 
 //--------------------------------------------------------------------------------------------------

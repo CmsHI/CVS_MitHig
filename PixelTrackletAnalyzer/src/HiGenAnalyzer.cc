@@ -13,7 +13,7 @@ Implementation:
 //
 // Original Author:  Yetkin Yilmaz, Frank Ma
 //         Created:  Tue Dec 18 09:44:41 EST 2007
-// $Id: HiGenAnalyzer.cc,v 1.2 2011/03/31 20:52:13 frankma Exp $
+// $Id: HiGenAnalyzer.cc,v 1.3 2011/10/10 12:05:36 yilmaz Exp $
 //
 //
 
@@ -162,7 +162,7 @@ HiGenAnalyzer::HiGenAnalyzer(const edm::ParameterSet& iConfig)
   fNFileName = iConfig.getUntrackedParameter<std::string>("output_n", "n_values.txt");
   fMFileName = iConfig.getUntrackedParameter<std::string>("output_m", "m_values.txt");
   doAnalysis_ = iConfig.getUntrackedParameter<Bool_t>("doAnalysis", true);
-  useHepMCProduct_ = iConfig.getUntrackedParameter<Bool_t>("useHepMCProduct", true);
+  useHepMCProduct_ = iConfig.getUntrackedParameter<Bool_t>("useHepMCProduct", false);
   printLists_ = iConfig.getUntrackedParameter<Bool_t>("printLists", false);
   doCF_ = iConfig.getUntrackedParameter<Bool_t>("doMixed", false);
   doVertex_ = iConfig.getUntrackedParameter<Bool_t>("doVertex", false);
