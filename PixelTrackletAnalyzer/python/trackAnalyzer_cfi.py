@@ -10,7 +10,5 @@ anaTrack = cms.EDAnalyzer('TrackAnalyzer',
                           doPFMatching = cms.untracked.bool(False),
                           doSimTrack = cms.untracked.bool(False),
                           useQuality = cms.untracked.bool(False),
-                          qualityString = cms.untracked.string('highPurity'),
-                          tpFakeSrc = cms.untracked.InputTag('cutsTPForFak'),
-                          tpEffSrc = cms.untracked.InputTag('cutsTPForEff')
+                          qualityString = cms.untracked.string('highPurity')
                           )
