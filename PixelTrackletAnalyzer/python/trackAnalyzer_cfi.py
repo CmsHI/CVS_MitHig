@@ -10,5 +10,7 @@ anaTrack = cms.EDAnalyzer('TrackAnalyzer',
                           doPFMatching = cms.untracked.bool(False),
                           doSimTrack = cms.untracked.bool(False),
                           useQuality = cms.untracked.bool(False),
-                          qualityString = cms.untracked.string('highPurity')
+                          qualityString = cms.untracked.string('highPurity'),
+                          tpFakeSrc = cms.untracked.InputTag('mergedtruth','MergedTrackTruth'),
+                          tpEffSrc = cms.untracked.InputTag('mergedtruth','MergedTrackTruth')
                           )
