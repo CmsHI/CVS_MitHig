@@ -15,7 +15,7 @@ Prepare the Treack Tree for analysis
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.30 2012/04/22 19:39:36 yilmaz Exp $
+// $Id: TrackAnalyzer.cc,v 1.31 2012/05/11 15:19:36 yilmaz Exp $
 //
 //
 
@@ -938,12 +938,13 @@ TrackAnalyzer::beginJob()
 	trackTree_->Branch("mtrkDxy1",&pev_.mtrkDxy1,"mtrkDxy1[nParticle]/F");
 	trackTree_->Branch("mtrkDxyError1",&pev_.mtrkDxyError1,"mtrkDxyError1[nParticle]/F");
 	trackTree_->Branch("mtrkAlgo",&pev_.mtrkAlgo,"mtrkAlgo[nParticle]/F");
-     }
-     if (doPFMatching_) {
-	trackTree_->Branch("mtrkPfType",&pev_.mtrkPfType,"mtrkPfType[nParticle]/I");
-	trackTree_->Branch("mtrkPfCandPt",&pev_.mtrkPfCandPt,"mtrkPfCandPt[nParticle]/F");
-	trackTree_->Branch("mtrkPfSumEcal",&pev_.mtrkPfSumEcal,"mtrkPfSumEcal[nParticle]/F");
-	trackTree_->Branch("mtrkPfSumHcal",&pev_.mtrkPfSumHcal,"mtrkPfSumHcal[nParticle]/F");
+     
+	if (doPFMatching_) {
+	   trackTree_->Branch("mtrkPfType",&pev_.mtrkPfType,"mtrkPfType[nParticle]/I");
+	   trackTree_->Branch("mtrkPfCandPt",&pev_.mtrkPfCandPt,"mtrkPfCandPt[nParticle]/F");
+	   trackTree_->Branch("mtrkPfSumEcal",&pev_.mtrkPfSumEcal,"mtrkPfSumEcal[nParticle]/F");
+	   trackTree_->Branch("mtrkPfSumHcal",&pev_.mtrkPfSumHcal,"mtrkPfSumHcal[nParticle]/F");
+	}
      }
   }
 
