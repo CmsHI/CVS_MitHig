@@ -15,7 +15,7 @@ Prepare the Treack Tree for analysis
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.29 2012/03/27 18:38:20 mnguyen Exp $
+// $Id: TrackAnalyzer.cc,v 1.30 2012/04/22 19:39:36 yilmaz Exp $
 //
 //
 
@@ -195,6 +195,7 @@ struct TrackEvent{
 };
 
 class TrackAnalyzer : public edm::EDAnalyzer {
+
   public:
     explicit TrackAnalyzer(const edm::ParameterSet&);
     ~TrackAnalyzer();
@@ -228,6 +229,7 @@ class TrackAnalyzer : public edm::EDAnalyzer {
     bool doTrackExtra_;
     bool doSimTrack_;
     bool doSimVertex_;
+    bool fillSimTrack_;
     bool doPFMatching_;
     bool useCentrality_;  
     bool useQuality_;
@@ -262,6 +264,7 @@ class TrackAnalyzer : public edm::EDAnalyzer {
       FPix1_neg=3, FPix2_neg=4,
       FPix1_pos=5, FPix2_pos=6,
       nLayers=7};
+
 };
 
 //--------------------------------------------------------------------------------------------------
@@ -272,6 +275,8 @@ TrackAnalyzer::TrackAnalyzer(const edm::ParameterSet& iConfig)
    doTrack_             = iConfig.getUntrackedParameter<bool>  ("doTrack",true);
    doTrackExtra_             = iConfig.getUntrackedParameter<bool>  ("doTrackExtra",false);
    doSimTrack_             = iConfig.getUntrackedParameter<bool>  ("doSimTrack",false);
+   fillSimTrack_             = iConfig.getUntrackedParameter<bool>  ("fillSimTrack",false);
+
    doPFMatching_             = iConfig.getUntrackedParameter<bool>  ("doPFMatching",false);
    useCentrality_ = iConfig.getUntrackedParameter<bool>("useCentrality",false);
    useQuality_ = iConfig.getUntrackedParameter<bool>("useQuality",false);
@@ -305,6 +310,7 @@ TrackAnalyzer::~TrackAnalyzer()
 TrackAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
   // Get tracker geometry
+
   edm::ESHandle<TrackerGeometry> tGeo;
   iSetup.get<TrackerDigiGeometryRecord>().get(tGeo);
   geo_ = tGeo.product();
@@ -626,6 +632,7 @@ TrackAnalyzer::fillSimTracks(const edm::Event& iEvent, const edm::EventSetup& iS
 
     ++pev_.nParticle;
   }
+
 }
 
 
@@ -907,34 +914,37 @@ TrackAnalyzer::beginJob()
 
   // Sim Tracks
   if (doSimTrack_) {
-    trackTree_->Branch("nParticle",&pev_.nParticle,"nParticle/I");
-    trackTree_->Branch("pStatus",&pev_.pStatus,"pStatus[nParticle]/F");
-    trackTree_->Branch("pPId",&pev_.pPId,"pPId[nParticle]/F");
-    trackTree_->Branch("pEta",&pev_.pEta,"pEta[nParticle]/F");
-    trackTree_->Branch("pPhi",&pev_.pPhi,"pPhi[nParticle]/F");
-    trackTree_->Branch("pPt",&pev_.pPt,"pPt[nParticle]/F");
-    trackTree_->Branch("pAcc",&pev_.pAcc,"pAcc[nParticle]/F");
-    trackTree_->Branch("pNRec",&pev_.pNRec,"pNRec[nParticle]/F");
-    trackTree_->Branch("pNHit",&pev_.pNHit,"pNHit[nParticle]/I");
-    trackTree_->Branch("mtrkPt",&pev_.mtrkPt,"mtrkPt[nParticle]/F");
-    trackTree_->Branch("mtrkPtError",&pev_.mtrkPtError,"mtrkPtError[nParticle]/F");
-    trackTree_->Branch("mtrkNHit",&pev_.mtrkNHit,"mtrkNHit[nParticle]/I");
-    trackTree_->Branch("mtrkNlayer",&pev_.mtrkNlayer,"mtrkNlayer[nParticle]/I");
-    trackTree_->Branch("mtrkNlayer3D",&pev_.mtrkNlayer3D,"mtrkNlayer3D[nParticle]/I");
-    trackTree_->Branch("mtrkQual",&pev_.mtrkQual,"mtrkQual[nParticle]/I");
-    trackTree_->Branch("mtrkChi2",&pev_.mtrkChi2,"mtrkChi2[nParticle]/F");
-    trackTree_->Branch("mtrkNdof",&pev_.mtrkNdof,"mtrkNdof[nParticle]/F");
-    trackTree_->Branch("mtrkDz1",&pev_.mtrkDz1,"mtrkDz1[nParticle]/F");
-    trackTree_->Branch("mtrkDzError1",&pev_.mtrkDzError1,"mtrkDzError1[nParticle]/F");
-    trackTree_->Branch("mtrkDxy1",&pev_.mtrkDxy1,"mtrkDxy1[nParticle]/F");
-    trackTree_->Branch("mtrkDxyError1",&pev_.mtrkDxyError1,"mtrkDxyError1[nParticle]/F");
-    trackTree_->Branch("mtrkAlgo",&pev_.mtrkAlgo,"mtrkAlgo[nParticle]/F");
-    if (doPFMatching_) {
-      trackTree_->Branch("mtrkPfType",&pev_.mtrkPfType,"mtrkPfType[nParticle]/I");
-      trackTree_->Branch("mtrkPfCandPt",&pev_.mtrkPfCandPt,"mtrkPfCandPt[nParticle]/F");
-      trackTree_->Branch("mtrkPfSumEcal",&pev_.mtrkPfSumEcal,"mtrkPfSumEcal[nParticle]/F");
-      trackTree_->Branch("mtrkPfSumHcal",&pev_.mtrkPfSumHcal,"mtrkPfSumHcal[nParticle]/F");
-    }
+
+     if(fillSimTrack_){
+	trackTree_->Branch("nParticle",&pev_.nParticle,"nParticle/I");
+	trackTree_->Branch("pStatus",&pev_.pStatus,"pStatus[nParticle]/F");
+	trackTree_->Branch("pPId",&pev_.pPId,"pPId[nParticle]/F");
+	trackTree_->Branch("pEta",&pev_.pEta,"pEta[nParticle]/F");
+	trackTree_->Branch("pPhi",&pev_.pPhi,"pPhi[nParticle]/F");
+	trackTree_->Branch("pPt",&pev_.pPt,"pPt[nParticle]/F");
+	trackTree_->Branch("pAcc",&pev_.pAcc,"pAcc[nParticle]/F");
+	trackTree_->Branch("pNRec",&pev_.pNRec,"pNRec[nParticle]/F");
+	trackTree_->Branch("pNHit",&pev_.pNHit,"pNHit[nParticle]/I");
+	trackTree_->Branch("mtrkPt",&pev_.mtrkPt,"mtrkPt[nParticle]/F");
+	trackTree_->Branch("mtrkPtError",&pev_.mtrkPtError,"mtrkPtError[nParticle]/F");
+	trackTree_->Branch("mtrkNHit",&pev_.mtrkNHit,"mtrkNHit[nParticle]/I");
+	trackTree_->Branch("mtrkNlayer",&pev_.mtrkNlayer,"mtrkNlayer[nParticle]/I");
+	trackTree_->Branch("mtrkNlayer3D",&pev_.mtrkNlayer3D,"mtrkNlayer3D[nParticle]/I");
+	trackTree_->Branch("mtrkQual",&pev_.mtrkQual,"mtrkQual[nParticle]/I");
+	trackTree_->Branch("mtrkChi2",&pev_.mtrkChi2,"mtrkChi2[nParticle]/F");
+	trackTree_->Branch("mtrkNdof",&pev_.mtrkNdof,"mtrkNdof[nParticle]/F");
+	trackTree_->Branch("mtrkDz1",&pev_.mtrkDz1,"mtrkDz1[nParticle]/F");
+	trackTree_->Branch("mtrkDzError1",&pev_.mtrkDzError1,"mtrkDzError1[nParticle]/F");
+	trackTree_->Branch("mtrkDxy1",&pev_.mtrkDxy1,"mtrkDxy1[nParticle]/F");
+	trackTree_->Branch("mtrkDxyError1",&pev_.mtrkDxyError1,"mtrkDxyError1[nParticle]/F");
+	trackTree_->Branch("mtrkAlgo",&pev_.mtrkAlgo,"mtrkAlgo[nParticle]/F");
+     }
+     if (doPFMatching_) {
+	trackTree_->Branch("mtrkPfType",&pev_.mtrkPfType,"mtrkPfType[nParticle]/I");
+	trackTree_->Branch("mtrkPfCandPt",&pev_.mtrkPfCandPt,"mtrkPfCandPt[nParticle]/F");
+	trackTree_->Branch("mtrkPfSumEcal",&pev_.mtrkPfSumEcal,"mtrkPfSumEcal[nParticle]/F");
+	trackTree_->Branch("mtrkPfSumHcal",&pev_.mtrkPfSumHcal,"mtrkPfSumHcal[nParticle]/F");
+     }
   }
 
 
