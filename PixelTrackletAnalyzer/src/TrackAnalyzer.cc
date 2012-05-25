@@ -15,7 +15,7 @@ Prepare the Treack Tree for analysis
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.31 2012/05/11 15:19:36 yilmaz Exp $
+// $Id: TrackAnalyzer.cc,v 1.32 2012/05/11 15:24:19 yilmaz Exp $
 //
 //
 
@@ -74,6 +74,8 @@ Prepare the Treack Tree for analysis
 #include "SimTracker/Records/interface/TrackAssociatorRecord.h"
 #include "DataFormats/RecoCandidate/interface/TrackAssociation.h"
 #include "SimTracker/TrackAssociation/interface/TrackAssociatorByHits.h"
+#include "DataFormats/TrackReco/interface/DeDxData.h"
+
 
 // Heavyion
 #include "DataFormats/HeavyIonEvent/interface/Centrality.h"
@@ -99,6 +101,7 @@ using namespace reco;
 
 #define MAXTRACKS 50000
 #define MAXVTX 100
+#define MAXQUAL 5
 
 struct TrackEvent{
 
@@ -129,7 +132,7 @@ struct TrackEvent{
   int trkNHit[MAXTRACKS];
   int trkNlayer[MAXTRACKS];
   int trkNlayer3D[MAXTRACKS];
-  int trkQual[MAXTRACKS];
+  bool trkQual[MAXQUAL][MAXTRACKS];
   float trkChi2[MAXTRACKS];
   float trkChi2hit1D[MAXTRACKS];
   float trkNdof[MAXTRACKS];
@@ -152,6 +155,7 @@ struct TrackEvent{
   float trkVz[MAXTRACKS];
   bool  trkFake[MAXTRACKS];
   float trkAlgo[MAXTRACKS];
+   float dedx[MAXTRACKS];
 
   float trkExpHit1Eta[MAXTRACKS];
   float trkExpHit2Eta[MAXTRACKS];
@@ -233,15 +237,19 @@ class TrackAnalyzer : public edm::EDAnalyzer {
     bool doPFMatching_;
     bool useCentrality_;  
     bool useQuality_;
+   bool doDeDx_;
 
     double trackPtMin_;
-    std::string qualityString_;
+   std::vector<std::string> qualityStrings_;
+   std::string qualityString_;
+   
     double simTrackPtMin_;
     bool fiducialCut_;
     edm::InputTag trackSrc_;
     edm::InputTag tpFakeSrc_;
     edm::InputTag tpEffSrc_;
     edm::InputTag pfCandSrc_;
+   edm::InputTag DeDxSrc_;
 
     vector<string> vertexSrc_;
     edm::InputTag simVertexSrc_;
@@ -277,12 +285,18 @@ TrackAnalyzer::TrackAnalyzer(const edm::ParameterSet& iConfig)
    doSimTrack_             = iConfig.getUntrackedParameter<bool>  ("doSimTrack",false);
    fillSimTrack_             = iConfig.getUntrackedParameter<bool>  ("fillSimTrack",false);
 
+   doDeDx_             = iConfig.getUntrackedParameter<bool>  ("doDeDx",false);
+
    doPFMatching_             = iConfig.getUntrackedParameter<bool>  ("doPFMatching",false);
    useCentrality_ = iConfig.getUntrackedParameter<bool>("useCentrality",false);
    useQuality_ = iConfig.getUntrackedParameter<bool>("useQuality",false);
 
    trackPtMin_             = iConfig.getUntrackedParameter<double>  ("trackPtMin",0.4);
-   qualityString_ = iConfig.getUntrackedParameter<std::string>("qualityString","highPurity"),
+   qualityString_ = iConfig.getUntrackedParameter<std::string>("qualityStrings","highPurity");
+
+   qualityStrings_ = iConfig.getUntrackedParameter<std::vector<std::string> >("qualityStrings",std::vector<std::string>(0));
+   if(qualityStrings_.size() == 0) qualityStrings_.push_back(qualityString_);
+
    simTrackPtMin_             = iConfig.getUntrackedParameter<double>  ("simTrackPtMin",0.4);
    fiducialCut_ = (iConfig.getUntrackedParameter<bool>("fiducialCut",false));
    trackSrc_ = iConfig.getParameter<edm::InputTag>("trackSrc");
@@ -432,6 +446,11 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetu
   const TrackAssociatorByHits *theAssociatorByHits;
   reco::RecoToSimCollection recSimColl;
 
+  Handle<DeDxDataValueMap> DeDxMap;
+  if(doDeDx_){
+     iEvent.getByLabel(DeDxSrc_, DeDxMap);
+  }
+
   if(doSimTrack_) {
     iEvent.getByLabel(tpFakeSrc_,TPCollectionHfake);
     iSetup.get<TrackAssociatorRecord>().get("TrackAssociatorByHits",theAssociator);
@@ -444,12 +463,23 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetu
   pev_.nTrk=0;
   for(unsigned it=0; it<etracks->size(); ++it){
     const reco::Track & etrk = (*etracks)[it];
+    reco::TrackRef trackRef=reco::TrackRef(etracks,it);
+
     if (etrk.pt()<trackPtMin_) continue;
     if(fiducialCut_ && hitDeadPXF(etrk)) continue; // if track hits the dead region, igonore it;
 
-    pev_.trkQual[pev_.nTrk]=0;
-    if(etrk.quality(reco::TrackBase::qualityByName(qualityString_))) pev_.trkQual[pev_.nTrk]=1;
-    if(useQuality_ && pev_.trkQual[pev_.nTrk] != 1) continue;
+
+    for(unsigned int iq = 0; iq < qualityStrings_.size(); ++iq){
+       pev_.trkQual[iq][pev_.nTrk]=0;
+       if(etrk.quality(reco::TrackBase::qualityByName(qualityStrings_[iq].data()))) pev_.trkQual[iq][pev_.nTrk]=1;
+    }
+
+    if(useQuality_ && etrk.quality(reco::TrackBase::qualityByName(qualityString_)) != 1) continue;
+
+    if(doDeDx_){
+       pev_.dedx[pev_.nTrk]=(*DeDxMap)[trackRef].dEdx();
+    }
+
 
     trackingRecHit_iterator edh = etrk.recHitsEnd();
     int count1dhits=0;
@@ -501,7 +531,6 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetu
     //
     if (doSimTrack_) {
       pev_.trkFake[pev_.nTrk]=0;
-      reco::TrackRef trackRef=reco::TrackRef(etracks,it);
       if(recSimColl.find(edm::RefToBase<reco::Track>(trackRef)) == recSimColl.end())
 	pev_.trkFake[pev_.nTrk]=1;
     }
@@ -874,7 +903,14 @@ TrackAnalyzer::beginJob()
   trackTree_->Branch("trkNlayer3D",&pev_.trkNlayer3D,"trkNlayer3D[nTrk]/I");
   trackTree_->Branch("trkEta",&pev_.trkEta,"trkEta[nTrk]/F");
   trackTree_->Branch("trkPhi",&pev_.trkPhi,"trkPhi[nTrk]/F");
-  trackTree_->Branch("trkQual",&pev_.trkQual,"trkQual[nTrk]/I");
+
+  //  trackTree_->Branch("trkQual",&pev_.trkQual,"trkQual[nTrk]/I");
+
+  for(unsigned int i  = 0; i < qualityStrings_.size(); ++i){
+     trackTree_->Branch(qualityStrings_[i].data(),&pev_.trkQual[i],(qualityStrings_[i]+"[nTrk]/O").data());
+  }
+
+
   trackTree_->Branch("trkChi2",&pev_.trkChi2,"trkChi2[nTrk]/F");
   trackTree_->Branch("trkChi2hit1D",&pev_.trkChi2hit1D,"trkChi2hit1D[nTrk]/F");
   trackTree_->Branch("trkNdof",&pev_.trkNdof,"trkNdof[nTrk]/F");
