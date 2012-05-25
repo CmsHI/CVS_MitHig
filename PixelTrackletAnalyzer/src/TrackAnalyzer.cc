@@ -15,7 +15,7 @@ Prepare the Treack Tree for analysis
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.32 2012/05/11 15:24:19 yilmaz Exp $
+// $Id: TrackAnalyzer.cc,v 1.33 2012/05/25 09:35:57 yilmaz Exp $
 //
 //
 
@@ -903,6 +903,7 @@ TrackAnalyzer::beginJob()
   trackTree_->Branch("trkNlayer3D",&pev_.trkNlayer3D,"trkNlayer3D[nTrk]/I");
   trackTree_->Branch("trkEta",&pev_.trkEta,"trkEta[nTrk]/F");
   trackTree_->Branch("trkPhi",&pev_.trkPhi,"trkPhi[nTrk]/F");
+  trackTree_->Branch("dedx",&pev_.dedx,"dedx[nTrk]/F");
 
   //  trackTree_->Branch("trkQual",&pev_.trkQual,"trkQual[nTrk]/I");
 
