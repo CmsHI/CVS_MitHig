@@ -13,7 +13,7 @@ Implementation:
 //
 // Original Author:  Yetkin Yilmaz, Frank Ma
 //         Created:  Tue Dec 18 09:44:41 EST 2007
-// $Id: HiGenAnalyzer.cc,v 1.3 2011/10/10 12:05:36 yilmaz Exp $
+// $Id: HiGenAnalyzer.cc,v 1.4 2012/04/22 19:43:36 yilmaz Exp $
 //
 //
 
@@ -58,7 +58,7 @@ Implementation:
 
 using namespace std;
 
-static const Int_t MAXPARTICLES = 5000000;
+static const Int_t MAXPARTICLES = 100000;
 static const Int_t MAXVTX = 1000;
 static const Int_t ETABINS = 3; // Fix also in branch string
 
