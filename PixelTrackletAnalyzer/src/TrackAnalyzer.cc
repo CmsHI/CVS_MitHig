@@ -99,8 +99,8 @@ using namespace reco;
 
 #define PI 3.14159265358979
 
-#define MAXTRACKS 10000
-#define MAXVTX 50
+#define MAXTRACKS 50000
+#define MAXVTX 100
 #define MAXQUAL 5
 
 struct TrackEvent{
@@ -324,20 +324,24 @@ TrackAnalyzer::~TrackAnalyzer()
 TrackAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
   // Get tracker geometry
-
+  cout <<"StartFill"<<endl;
+  
   edm::ESHandle<TrackerGeometry> tGeo;
   iSetup.get<TrackerDigiGeometryRecord>().get(tGeo);
   geo_ = tGeo.product();
   iSetup.getData(pdt);
 
+  cout <<"Got data"<<endl;
   pev_.nEv = (int)iEvent.id().event();
   pev_.nRun = (int)iEvent.id().run();
   pev_.nLumi = (int)iEvent.luminosityBlock();
   pev_.nBX = (int)iEvent.bunchCrossing();
 
   pev_.nv = 0;
+  pev_.nParticle = 0;
+  pev_.nTrk = 0;
 
-  //cout <<"Fill Vtx"<<endl;
+  cout <<"Fill Vtx"<<endl;
   fillVertices(iEvent);
 
   if(useCentrality_){
@@ -346,10 +350,13 @@ TrackAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
     pev_.cbin = centrality_->getBin();
   }
 
-  //cout <<"Fill Tracks"<<endl;
+  cout <<"Fill Tracks"<<endl;
   if (doTrack_) fillTracks(iEvent, iSetup);
+  cout <<"Tracks filled!"<<endl;
   if (doSimTrack_) fillSimTracks(iEvent, iSetup);
+  cout <<"SimTracks filled!"<<endl;
   trackTree_->Fill();
+  cout <<"Tree filled!"<<endl;
   memset(&pev_,0,sizeof pev_);
 
 }

@@ -58,7 +58,7 @@ Implementation:
 
 using namespace std;
 
-static const Int_t MAXPARTICLES = 100000;
+static const Int_t MAXPARTICLES = 50000;
 static const Int_t MAXVTX = 1000;
 static const Int_t ETABINS = 3; // Fix also in branch string
 
