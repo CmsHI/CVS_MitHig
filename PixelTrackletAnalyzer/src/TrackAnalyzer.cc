@@ -15,7 +15,7 @@ Prepare the Treack Tree for analysis
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.34 2012/05/25 10:28:17 yilmaz Exp $
+// $Id: TrackAnalyzer.cc,v 1.37 2012/06/04 14:32:39 yjlee Exp $
 //
 //
 
@@ -292,7 +292,7 @@ TrackAnalyzer::TrackAnalyzer(const edm::ParameterSet& iConfig)
    useQuality_ = iConfig.getUntrackedParameter<bool>("useQuality",false);
 
    trackPtMin_             = iConfig.getUntrackedParameter<double>  ("trackPtMin",0.4);
-   qualityString_ = iConfig.getUntrackedParameter<std::string>("qualityStrings","highPurity");
+   qualityString_ = iConfig.getUntrackedParameter<std::string>("qualityString","highPurity");
 
    qualityStrings_ = iConfig.getUntrackedParameter<std::vector<std::string> >("qualityStrings",std::vector<std::string>(0));
    if(qualityStrings_.size() == 0) qualityStrings_.push_back(qualityString_);
