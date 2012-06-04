@@ -15,7 +15,7 @@ Prepare the Treack Tree for analysis
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.33 2012/05/25 09:35:57 yilmaz Exp $
+// $Id: TrackAnalyzer.cc,v 1.34 2012/05/25 10:28:17 yilmaz Exp $
 //
 //
 
@@ -99,8 +99,8 @@ using namespace reco;
 
 #define PI 3.14159265358979
 
-#define MAXTRACKS 50000
-#define MAXVTX 100
+#define MAXTRACKS 10000
+#define MAXVTX 50
 #define MAXQUAL 5
 
 struct TrackEvent{
