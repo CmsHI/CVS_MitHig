@@ -15,7 +15,7 @@ Prepare the Treack Tree for analysis
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.34 2012/05/25 10:28:17 yilmaz Exp $
+// $Id: TrackAnalyzer.cc,v 1.39 2012/06/04 22:19:34 yilmaz Exp $
 //
 //
 
@@ -238,6 +238,7 @@ class TrackAnalyzer : public edm::EDAnalyzer {
     bool useCentrality_;  
     bool useQuality_;
    bool doDeDx_;
+    bool doDebug_;
 
     double trackPtMin_;
    std::vector<std::string> qualityStrings_;
@@ -286,6 +287,7 @@ TrackAnalyzer::TrackAnalyzer(const edm::ParameterSet& iConfig)
    fillSimTrack_             = iConfig.getUntrackedParameter<bool>  ("fillSimTrack",false);
 
    doDeDx_             = iConfig.getUntrackedParameter<bool>  ("doDeDx",false);
+   doDebug_             = iConfig.getUntrackedParameter<bool>  ("doDebug",false);
 
    doPFMatching_             = iConfig.getUntrackedParameter<bool>  ("doPFMatching",false);
    useCentrality_ = iConfig.getUntrackedParameter<bool>("useCentrality",false);
@@ -907,10 +909,11 @@ TrackAnalyzer::beginJob()
   trackTree_->Branch("trkPtError",&pev_.trkPtError,"trkPtError[nTrk]/F");
   trackTree_->Branch("trkNHit",&pev_.trkNHit,"trkNHit[nTrk]/I");
   trackTree_->Branch("trkNlayer",&pev_.trkNlayer,"trkNlayer[nTrk]/I");
-  trackTree_->Branch("trkNlayer3D",&pev_.trkNlayer3D,"trkNlayer3D[nTrk]/I");
   trackTree_->Branch("trkEta",&pev_.trkEta,"trkEta[nTrk]/F");
   trackTree_->Branch("trkPhi",&pev_.trkPhi,"trkPhi[nTrk]/F");
-  trackTree_->Branch("dedx",&pev_.dedx,"dedx[nTrk]/F");
+  if (doDeDx_) {
+    trackTree_->Branch("dedx",&pev_.dedx,"dedx[nTrk]/F");
+  }
 
   //  trackTree_->Branch("trkQual",&pev_.trkQual,"trkQual[nTrk]/I");
 
@@ -920,27 +923,31 @@ TrackAnalyzer::beginJob()
 
 
   trackTree_->Branch("trkChi2",&pev_.trkChi2,"trkChi2[nTrk]/F");
-  trackTree_->Branch("trkChi2hit1D",&pev_.trkChi2hit1D,"trkChi2hit1D[nTrk]/F");
   trackTree_->Branch("trkNdof",&pev_.trkNdof,"trkNdof[nTrk]/F");
-  trackTree_->Branch("trkDz",&pev_.trkDz,"trkDz[nTrk]/F");
-  trackTree_->Branch("trkDzError",&pev_.trkDzError,"trkDzError[nTrk]/F");
-  trackTree_->Branch("trkDzError1",&pev_.trkDzError1,"trkDzError1[nTrk]/F");
-  trackTree_->Branch("trkDzError2",&pev_.trkDzError2,"trkDzError2[nTrk]/F");
-  trackTree_->Branch("trkDxy",&pev_.trkDxy,"trkDxy[nTrk]/F");
-  trackTree_->Branch("trkDxyBS",&pev_.trkDxyBS,"trkDxyBS[nTrk]/F");
   trackTree_->Branch("trkDxy1",&pev_.trkDxy1,"trkDxy1[nTrk]/F");
-  trackTree_->Branch("trkDxy2",&pev_.trkDxy2,"trkDxy2[nTrk]/F");
-  trackTree_->Branch("trkDxyError",&pev_.trkDxyError,"trkDxyError[nTrk]/F");
-  trackTree_->Branch("trkDxyErrorBS",&pev_.trkDxyErrorBS,"trkDxyErrorBS[nTrk]/F");
   trackTree_->Branch("trkDxyError1",&pev_.trkDxyError1,"trkDxyError1[nTrk]/F");
-  trackTree_->Branch("trkDxyError2",&pev_.trkDxyError2,"trkDxyError2[nTrk]/F");
   trackTree_->Branch("trkDz1",&pev_.trkDz1,"trkDz1[nTrk]/F");
-  trackTree_->Branch("trkDz2",&pev_.trkDz2,"trkDz2[nTrk]/F");
-  trackTree_->Branch("trkVx",&pev_.trkVx,"trkVx[nTrk]/F");
-  trackTree_->Branch("trkVy",&pev_.trkVy,"trkVy[nTrk]/F");
-  trackTree_->Branch("trkVz",&pev_.trkVz,"trkVz[nTrk]/F");
+  trackTree_->Branch("trkDzError1",&pev_.trkDzError1,"trkDzError1[nTrk]/F");
   trackTree_->Branch("trkFake",&pev_.trkFake,"trkFake[nTrk]/O");
   trackTree_->Branch("trkAlgo",&pev_.trkAlgo,"trkAlgo[nTrk]/F");
+
+  if (doDebug_) {
+     trackTree_->Branch("trkNlayer3D",&pev_.trkNlayer3D,"trkNlayer3D[nTrk]/I");
+     trackTree_->Branch("trkDxyBS",&pev_.trkDxyBS,"trkDxyBS[nTrk]/F");
+     trackTree_->Branch("trkDxyErrorBS",&pev_.trkDxyErrorBS,"trkDxyErrorBS[nTrk]/F");
+     trackTree_->Branch("trkDxy",&pev_.trkDxy,"trkDxy[nTrk]/F");
+     trackTree_->Branch("trkDz",&pev_.trkDz,"trkDz[nTrk]/F");
+     trackTree_->Branch("trkDxyError",&pev_.trkDxyError,"trkDxyError[nTrk]/F");
+     trackTree_->Branch("trkDzError",&pev_.trkDzError,"trkDzError[nTrk]/F");
+     trackTree_->Branch("trkChi2hit1D",&pev_.trkChi2hit1D,"trkChi2hit1D[nTrk]/F");
+     trackTree_->Branch("trkDzError2",&pev_.trkDzError2,"trkDzError2[nTrk]/F");
+     trackTree_->Branch("trkDxy2",&pev_.trkDxy2,"trkDxy2[nTrk]/F");
+     trackTree_->Branch("trkDz2",&pev_.trkDz2,"trkDz2[nTrk]/F");
+     trackTree_->Branch("trkDxyError2",&pev_.trkDxyError2,"trkDxyError2[nTrk]/F");
+     trackTree_->Branch("trkVx",&pev_.trkVx,"trkVx[nTrk]/F");
+     trackTree_->Branch("trkVy",&pev_.trkVy,"trkVy[nTrk]/F");
+     trackTree_->Branch("trkVz",&pev_.trkVz,"trkVz[nTrk]/F");
+  }
 
   if (doPFMatching_) {
     trackTree_->Branch("pfType",&pev_.pfType,"pfType[nTrk]/I");
@@ -982,7 +989,7 @@ TrackAnalyzer::beginJob()
 	trackTree_->Branch("mtrkDxy1",&pev_.mtrkDxy1,"mtrkDxy1[nParticle]/F");
 	trackTree_->Branch("mtrkDxyError1",&pev_.mtrkDxyError1,"mtrkDxyError1[nParticle]/F");
 	trackTree_->Branch("mtrkAlgo",&pev_.mtrkAlgo,"mtrkAlgo[nParticle]/F");
-     
+
 	if (doPFMatching_) {
 	   trackTree_->Branch("mtrkPfType",&pev_.mtrkPfType,"mtrkPfType[nParticle]/I");
 	   trackTree_->Branch("mtrkPfCandPt",&pev_.mtrkPfCandPt,"mtrkPfCandPt[nParticle]/F");
