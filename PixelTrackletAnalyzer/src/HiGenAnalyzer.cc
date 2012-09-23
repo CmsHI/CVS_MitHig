@@ -13,7 +13,7 @@ Implementation:
 //
 // Original Author:  Yetkin Yilmaz, Frank Ma
 //         Created:  Tue Dec 18 09:44:41 EST 2007
-// $Id: HiGenAnalyzer.cc,v 1.4 2012/04/22 19:43:36 yilmaz Exp $
+// $Id: HiGenAnalyzer.cc,v 1.7 2012/06/04 22:19:34 yilmaz Exp $
 //
 //
 
@@ -165,6 +165,8 @@ HiGenAnalyzer::HiGenAnalyzer(const edm::ParameterSet& iConfig)
   useHepMCProduct_ = iConfig.getUntrackedParameter<Bool_t>("useHepMCProduct", false);
   printLists_ = iConfig.getUntrackedParameter<Bool_t>("printLists", false);
   doCF_ = iConfig.getUntrackedParameter<Bool_t>("doMixed", false);
+  doHI_ = iConfig.getUntrackedParameter<Bool_t>("doHI", true);
+
   doVertex_ = iConfig.getUntrackedParameter<Bool_t>("doVertex", false);
   etaMax_ = iConfig.getUntrackedParameter<Double_t>("etaMax", 2);
   ptMin_ = iConfig.getUntrackedParameter<Double_t>("ptMin", 0);
@@ -347,6 +349,12 @@ HiGenAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
     if(doHI_){
       edm::Handle<GenHIEvent> higen;
       iEvent.getByLabel(genHIsrc_,higen);
+
+      npart = higen->Npart();
+      ncoll = higen->Ncoll();
+      nhard = higen->Nhard();
+      phi0 = higen->evtPlane();
+
     }
   }
 
