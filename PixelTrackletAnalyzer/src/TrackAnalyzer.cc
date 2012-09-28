@@ -15,7 +15,7 @@ Prepare the Treack Tree for analysis
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.40 2012/06/09 04:54:29 frankma Exp $
+// $Id: TrackAnalyzer.cc,v 1.42 2012/07/14 13:16:57 yilmaz Exp $
 //
 //
 
@@ -119,7 +119,8 @@ struct TrackEvent{
   float vxError[MAXVTX];
   float vyError[MAXVTX];
   float vzError[MAXVTX];
-
+  int nDaugher[MAXVTX];
+  
   // centrality
   int cbin;
 
@@ -380,6 +381,7 @@ TrackAnalyzer::fillVertices(const edm::Event& iEvent){
   pev_.vxError[0]=0;
   pev_.vyError[0]=0;
   pev_.vzError[0]=0;
+  pev_.nDaugher[0]=0;
 
   if(doSimVertex_){
     Handle<TrackingVertexCollection> vertices;
@@ -425,7 +427,7 @@ TrackAnalyzer::fillVertices(const edm::Event& iEvent){
       pev_.vxError[pev_.nv] = (*recoVertices)[greatestvtx].xError();
       pev_.vyError[pev_.nv] = (*recoVertices)[greatestvtx].yError();
       pev_.vzError[pev_.nv] = (*recoVertices)[greatestvtx].zError();
-
+      pev_.nDaugher[pev_.nv] = (*recoVertices)[greatestvtx].tracksSize();
     }else{
       pev_.vx[pev_.nv] =  -99;
       pev_.vy[pev_.nv] =  -99;
@@ -433,6 +435,8 @@ TrackAnalyzer::fillVertices(const edm::Event& iEvent){
       pev_.vxError[pev_.nv] =  -99;
       pev_.vyError[pev_.nv] =  -99;
       pev_.vzError[pev_.nv] =  -99;
+      pev_.nDaugher[pev_.nv] = -99;
+      
     }
     pev_.nv++;
     //cout <<pev_.nv<<endl;
@@ -911,7 +915,11 @@ TrackAnalyzer::beginJob()
   trackTree_->Branch("vx",pev_.vx,"vx[nv]/F");
   trackTree_->Branch("vy",pev_.vy,"vy[nv]/F");
   trackTree_->Branch("vz",pev_.vz,"vz[nv]/F");
-
+  trackTree_->Branch("vxErr",pev_.vxError,"vxErr[nv]/F"); 
+  trackTree_->Branch("vyErr",pev_.vyError,"vyErr[nv]/F"); 
+  trackTree_->Branch("vzErr",pev_.vzError,"vzErr[nv]/F");
+  trackTree_->Branch("nDaugher",pev_.nDaugher,"nDaugher[nv]/I");
+  
   // centrality
   if (useCentrality_) trackTree_->Branch("cbin",&pev_.cbin,"cbin/I");
 
