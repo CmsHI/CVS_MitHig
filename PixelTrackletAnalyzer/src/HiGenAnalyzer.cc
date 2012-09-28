@@ -13,7 +13,7 @@ Implementation:
 //
 // Original Author:  Yetkin Yilmaz, Frank Ma
 //         Created:  Tue Dec 18 09:44:41 EST 2007
-// $Id: HiGenAnalyzer.cc,v 1.7 2012/06/04 22:19:34 yilmaz Exp $
+// $Id: HiGenAnalyzer.cc,v 1.8 2012/09/23 18:57:12 yilmaz Exp $
 //
 //
 
@@ -86,6 +86,7 @@ struct HydjetEvent{
   Int_t pdg[MAXPARTICLES];
   Int_t chg[MAXPARTICLES];
   Int_t sube[MAXPARTICLES];
+   Int_t sta[MAXPARTICLES];
 
   Float_t vx;
   Float_t vy;
@@ -240,7 +241,7 @@ HiGenAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 	HepMC::GenEvent::particle_const_iterator end = subevt->particles_end();
 	for(HepMC::GenEvent::particle_const_iterator it = begin; it != end; ++it){
 	  if ((*it)->momentum().perp()<ptMin_) continue;
-	  if((*it)->status() == 1){
+	  //	  if((*it)->status() == 1){
 	    Int_t pdg_id = (*it)->pdg_id();
 	    Float_t eta = (*it)->momentum().eta();
 	    Float_t phi = (*it)->momentum().phi();
@@ -254,7 +255,7 @@ HiGenAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 	    hev_.phi[hev_.mult] = phi;
 	    hev_.pdg[hev_.mult] = pdg_id;
 	    hev_.chg[hev_.mult] = charge;
-
+	    hev_.sta[hev_.mult] = (*it)->status();
 	    eta = fabs(eta);
 	    Int_t etabin = 0;
 	    if(eta > 0.5) etabin = 1;
@@ -264,7 +265,7 @@ HiGenAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 	      ++(hev_.n[etabin]);
 	    }
 	    ++(hev_.mult);
-	  }
+	    //	  }
 	}
       }
     }else{
@@ -294,7 +295,7 @@ HiGenAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
       HepMC::GenEvent::particle_const_iterator end = evt->particles_end();
       for(HepMC::GenEvent::particle_const_iterator it = begin; it != end; ++it){
 	if ((*it)->momentum().perp()<ptMin_) continue;
-	if((*it)->status() == 1){
+	//	if((*it)->status() == 1){
 	  Int_t pdg_id = (*it)->pdg_id();
 	  Float_t eta = (*it)->momentum().eta();
 	  Float_t phi = (*it)->momentum().phi();
@@ -308,6 +309,7 @@ HiGenAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 	  hev_.phi[hev_.mult] = phi;
 	  hev_.pdg[hev_.mult] = pdg_id;
 	  hev_.chg[hev_.mult] = charge;
+	  hev_.sta[hev_.mult] = (*it)->status();
 
 	  eta = fabs(eta);
 	  Int_t etabin = 0;
@@ -318,7 +320,7 @@ HiGenAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 	    ++(hev_.n[etabin]);
 	  }
 	  ++(hev_.mult);
-	}
+	  //	}
       }
     }
   }else{
@@ -326,7 +328,10 @@ HiGenAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
     iEvent.getByLabel(genParticleSrc_,parts);
     for(UInt_t i = 0; i < parts->size(); ++i){
       const reco::GenParticle& p = (*parts)[i];
-      if (p.status()!=1) continue;
+      //      if (p.status()!=1) continue;
+
+      if (p.numberOfDaughters() != 0) continue;
+
       if (p.pt()<ptMin_) continue;
       if (chargedOnly_&&p.charge()==0) continue;
       hev_.pt[hev_.mult] = p.pt();
@@ -335,6 +340,8 @@ HiGenAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
       hev_.pdg[hev_.mult] = p.pdgId();
       hev_.chg[hev_.mult] = p.charge();
       hev_.sube[hev_.mult] = p.collisionId();
+      hev_.sta[hev_.mult] = p.status();
+
       Double_t eta = fabs(p.eta());
 
       Int_t etabin = 0;
@@ -444,6 +451,8 @@ HiGenAnalyzer::beginJob()
       hydjetTree_->Branch("phi",hev_.phi,"phi[mult]/F");
       hydjetTree_->Branch("pdg",hev_.pdg,"pdg[mult]/I");
       hydjetTree_->Branch("chg",hev_.chg,"chg[mult]/I");
+      hydjetTree_->Branch("sta",hev_.sta,"sta[mult]/I");
+
       hydjetTree_->Branch("sube",hev_.sube,"sube[mult]/I");
 
       hydjetTree_->Branch("vx",&hev_.vx,"vx/F");
