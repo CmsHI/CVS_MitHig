@@ -15,7 +15,7 @@ Prepare the Treack Tree for analysis
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.42 2012/07/14 13:16:57 yilmaz Exp $
+// $Id: TrackAnalyzer.cc,v 1.43 2012/09/28 20:08:26 yilmaz Exp $
 //
 //
 
@@ -358,13 +358,13 @@ TrackAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
     pev_.cbin = centrality_->getBin();
   }
 
-  cout <<"Fill Tracks"<<endl;
+  //cout <<"Fill Tracks"<<endl;
   if (doTrack_) fillTracks(iEvent, iSetup);
-  cout <<"Tracks filled!"<<endl;
+  //  cout <<"Tracks filled!"<<endl;
   if (doSimTrack_) fillSimTracks(iEvent, iSetup);
-  cout <<"SimTracks filled!"<<endl;
+  //  cout <<"SimTracks filled!"<<endl;
   trackTree_->Fill();
-  cout <<"Tree filled!"<<endl;
+  //  cout <<"Tree filled!"<<endl;
   memset(&pev_,0,sizeof pev_);
 
 }
