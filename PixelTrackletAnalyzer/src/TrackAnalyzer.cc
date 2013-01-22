@@ -15,7 +15,7 @@ Prepare the Treack Tree for analysis
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.43 2012/09/28 20:08:26 yilmaz Exp $
+// $Id: TrackAnalyzer.cc,v 1.44 2013/01/16 16:36:58 yilmaz Exp $
 //
 //
 
@@ -120,7 +120,22 @@ struct TrackEvent{
   float vyError[MAXVTX];
   float vzError[MAXVTX];
   int nDaugher[MAXVTX];
-  
+
+  // Multiple vtx information
+  int nVtx;
+
+  float nTrkVtx[MAXVTX];
+  float nTrkVtxHard[MAXVTX];
+  int maxVtx;
+  int maxVtxHard;
+
+  float xVtx[MAXVTX];
+  float yVtx[MAXVTX];
+  float zVtx[MAXVTX];
+  float xVtxErr[MAXVTX];
+  float yVtxErr[MAXVTX];
+  float zVtxErr[MAXVTX];
+
   // centrality
   int cbin;
 
@@ -414,11 +429,23 @@ TrackAnalyzer::fillVertices(const edm::Event& iEvent){
     int greatestvtx = 0;
 
     nVertex = recoVertices->size();
+    pev_.nVtx = nVertex;
     for (unsigned int i = 0 ; i< recoVertices->size(); ++i){
       daughter = (*recoVertices)[i].tracksSize();
       if( daughter > (*recoVertices)[greatestvtx].tracksSize()) greatestvtx = i;
+
+      pev_.xVtx[i] = (*recoVertices)[i].position().x();
+      pev_.yVtx[i] = (*recoVertices)[i].position().y();
+      pev_.zVtx[i] = (*recoVertices)[i].position().z();
+      pev_.xVtxErr[i] = (*recoVertices)[i].xError();
+      pev_.yVtxErr[i] = (*recoVertices)[i].yError();
+      pev_.zVtxErr[i] = (*recoVertices)[i].zError();
+      pev_.nTrkVtx[i] = (*recoVertices)[i].tracksSize();
+
       //         cout <<"Vertex: "<< (*recoVertices)[i].position().z()<<" "<<daughter<<endl;
     }
+
+    pev_.maxVtx = greatestvtx;
 
     if(recoVertices->size()>0){
       pev_.vx[pev_.nv] = (*recoVertices)[greatestvtx].position().x();
@@ -919,7 +946,23 @@ TrackAnalyzer::beginJob()
   trackTree_->Branch("vyErr",pev_.vyError,"vyErr[nv]/F"); 
   trackTree_->Branch("vzErr",pev_.vzError,"vzErr[nv]/F");
   trackTree_->Branch("nDaugher",pev_.nDaugher,"nDaugher[nv]/I");
-  
+
+  trackTree_->Branch("nVtx",&pev_.nVtx,"nVtx/I");
+  trackTree_->Branch("maxVtx",&pev_.maxVtx,"maxVtx/I");
+  trackTree_->Branch("maxVtxHard",&pev_.maxVtxHard,"maxVtxHard/I");
+
+  trackTree_->Branch("nTrkVtx",pev_.nTrkVtx,"nTrkVtx[nVtx]/I");
+  trackTree_->Branch("nTrkVtxHard",pev_.nTrkVtxHard,"nTrkVtxHard[nVtx]/I");
+
+  trackTree_->Branch("xVtx",pev_.xVtx,"xVtx[nVtx]/F");
+  trackTree_->Branch("yVtx",pev_.yVtx,"yVtx[nVtx]/F");
+  trackTree_->Branch("zVtx",pev_.zVtx,"zVtx[nVtx]/F");
+
+  trackTree_->Branch("xVtxErr",pev_.xVtxErr,"xVtxErr[nVtxErr]/F");
+  trackTree_->Branch("yVtxErr",pev_.yVtxErr,"yVtxErr[nVtxErr]/F");
+  trackTree_->Branch("zVtxErr",pev_.zVtxErr,"zVtxErr[nVtxErr]/F");
+
+
   // centrality
   if (useCentrality_) trackTree_->Branch("cbin",&pev_.cbin,"cbin/I");
 
