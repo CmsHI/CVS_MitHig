@@ -15,7 +15,7 @@ Prepare the Treack Tree for analysis
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.45 2013/01/22 16:32:58 yilmaz Exp $
+// $Id: TrackAnalyzer.cc,v 1.46 2013/01/22 17:11:54 yilmaz Exp $
 //
 //
 
@@ -124,8 +124,8 @@ struct TrackEvent{
   // Multiple vtx information
   int nVtx;
 
-  float nTrkVtx[MAXVTX];
-  float nTrkVtxHard[MAXVTX];
+  int nTrkVtx[MAXVTX];
+  int nTrkVtxHard[MAXVTX];
   int maxVtx;
   int maxVtxHard;
 
@@ -949,10 +949,10 @@ TrackAnalyzer::beginJob()
 
   trackTree_->Branch("nVtx",&pev_.nVtx,"nVtx/I");
   trackTree_->Branch("maxVtx",&pev_.maxVtx,"maxVtx/I");
-  trackTree_->Branch("maxVtxHard",&pev_.maxVtxHard,"maxVtxHard/I");
+  //  trackTree_->Branch("maxVtxHard",&pev_.maxVtxHard,"maxVtxHard/I");
 
   trackTree_->Branch("nTrkVtx",pev_.nTrkVtx,"nTrkVtx[nVtx]/I");
-  trackTree_->Branch("nTrkVtxHard",pev_.nTrkVtxHard,"nTrkVtxHard[nVtx]/I");
+  //  trackTree_->Branch("nTrkVtxHard",pev_.nTrkVtxHard,"nTrkVtxHard[nVtx]/I");
 
   trackTree_->Branch("xVtx",pev_.xVtx,"xVtx[nVtx]/F");
   trackTree_->Branch("yVtx",pev_.yVtx,"yVtx[nVtx]/F");
