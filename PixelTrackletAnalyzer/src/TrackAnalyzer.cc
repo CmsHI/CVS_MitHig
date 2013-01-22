@@ -15,7 +15,7 @@ Prepare the Treack Tree for analysis
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.44 2013/01/16 16:36:58 yilmaz Exp $
+// $Id: TrackAnalyzer.cc,v 1.45 2013/01/22 16:32:58 yilmaz Exp $
 //
 //
 
@@ -958,9 +958,9 @@ TrackAnalyzer::beginJob()
   trackTree_->Branch("yVtx",pev_.yVtx,"yVtx[nVtx]/F");
   trackTree_->Branch("zVtx",pev_.zVtx,"zVtx[nVtx]/F");
 
-  trackTree_->Branch("xVtxErr",pev_.xVtxErr,"xVtxErr[nVtxErr]/F");
-  trackTree_->Branch("yVtxErr",pev_.yVtxErr,"yVtxErr[nVtxErr]/F");
-  trackTree_->Branch("zVtxErr",pev_.zVtxErr,"zVtxErr[nVtxErr]/F");
+  trackTree_->Branch("xVtxErr",pev_.xVtxErr,"xVtxErr[nVtx]/F");
+  trackTree_->Branch("yVtxErr",pev_.yVtxErr,"yVtxErr[nVtx]/F");
+  trackTree_->Branch("zVtxErr",pev_.zVtxErr,"zVtxErr[nVtx]/F");
 
 
   // centrality
