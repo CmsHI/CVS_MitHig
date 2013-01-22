@@ -1,8 +1,0 @@
-#!/bin/sh
-
-for num in `seq $1 $2`
-do
-run=`printf "%06d" $num`
-cat mb_cfg.py | ~/scripts/replace __RANDOM__ $RANDOM | ~/scripts/replace __BASE__ pythia_gen_r${run} > run${run}_cfg.py
-cmsRun run${run}_cfg.py 1>${run}.out 2>${run}.err
-done
