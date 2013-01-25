@@ -15,7 +15,7 @@ Prepare the Treack Tree for analysis
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.47 2013/01/22 17:42:26 yilmaz Exp $
+// $Id: TrackAnalyzer.cc,v 1.48 2013/01/25 22:39:32 yjlee Exp $
 //
 //
 
@@ -348,14 +348,14 @@ TrackAnalyzer::~TrackAnalyzer()
 TrackAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
 {
   // Get tracker geometry
-  cout <<"StartFill"<<endl;
+  //  cout <<"StartFill"<<endl;
   
   edm::ESHandle<TrackerGeometry> tGeo;
   iSetup.get<TrackerDigiGeometryRecord>().get(tGeo);
   geo_ = tGeo.product();
   iSetup.getData(pdt);
 
-  cout <<"Got data"<<endl;
+  //  cout <<"Got data"<<endl;
   pev_.nEv = (int)iEvent.id().event();
   pev_.nRun = (int)iEvent.id().run();
   pev_.nLumi = (int)iEvent.luminosityBlock();
@@ -366,7 +366,7 @@ TrackAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   pev_.nParticle = 0;
   pev_.nTrk = 0;
 
-  cout <<"Fill Vtx"<<endl;
+  //  cout <<"Fill Vtx"<<endl;
   fillVertices(iEvent);
 
   if(useCentrality_){
