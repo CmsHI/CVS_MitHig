@@ -15,7 +15,7 @@ Prepare the Treack Tree for analysis
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.46 2013/01/22 17:11:54 yilmaz Exp $
+// $Id: TrackAnalyzer.cc,v 1.47 2013/01/22 17:42:26 yilmaz Exp $
 //
 //
 
@@ -110,6 +110,7 @@ struct TrackEvent{
   int nEv;
   int nLumi;
   int nBX;
+  int N; // multiplicity variable 
 
   // Vertex information
   int nv;
@@ -359,6 +360,7 @@ TrackAnalyzer::analyze(const edm::Event& iEvent, const edm::EventSetup& iSetup)
   pev_.nRun = (int)iEvent.id().run();
   pev_.nLumi = (int)iEvent.luminosityBlock();
   pev_.nBX = (int)iEvent.bunchCrossing();
+  pev_.N = 0;
 
   pev_.nv = 0;
   pev_.nParticle = 0;
@@ -506,6 +508,7 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetu
   }
 
   pev_.nTrk=0;
+  pev_.N=0;
   for(unsigned it=0; it<etracks->size(); ++it){
     const reco::Track & etrk = (*etracks)[it];
     reco::TrackRef trackRef=reco::TrackRef(etracks,it);
@@ -571,7 +574,14 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetu
 
     pev_.trkAlgo[pev_.nTrk] = etrk.algo();
 
-
+    // multiplicity variable
+    if (pev_.trkQual[0][pev_.nTrk]&&
+        (fabs(pev_.trkDz1[pev_.nTrk]/pev_.trkDzError1[pev_.nTrk]) < 3)&&
+        (fabs(pev_.trkDxy1[pev_.nTrk]/pev_.trkDxyError1[pev_.nTrk]) < 3)&&
+        (pev_.trkPtError[pev_.nTrk]/pev_.trkPt[pev_.nTrk]<0.1)&&
+        (fabs(pev_.trkEta[pev_.nTrk]) < 2.4)&&
+        (pev_.trkPt[pev_.nTrk] > 0.4)
+       ) pev_.N++;
 
     //
     if (doSimTrack_) {
@@ -936,6 +946,7 @@ TrackAnalyzer::beginJob()
   trackTree_->Branch("nLumi",&pev_.nLumi,"nLumi/I");
   trackTree_->Branch("nBX",&pev_.nBX,"nBX/I");
   trackTree_->Branch("nRun",&pev_.nRun,"nRun/I");
+  trackTree_->Branch("N",&pev_.N,"N/I");
 
   // vertex
   trackTree_->Branch("nv",&pev_.nv,"nv/I");
