@@ -15,7 +15,7 @@ Prepare the Treack Tree for analysis
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.48 2013/01/25 22:39:32 yjlee Exp $
+// $Id: TrackAnalyzer.cc,v 1.49 2013/01/25 23:12:52 yilmaz Exp $
 //
 //
 
@@ -406,7 +406,11 @@ TrackAnalyzer::fillVertices(const edm::Event& iEvent){
     int greatestvtx = -1;
     for (unsigned int i = 0 ; i< vertices->size(); ++i){
       unsigned int daughter = (*vertices)[i].nDaughterTracks();
-      if( daughter >(*vertices)[greatestvtx].nDaughterTracks()&&fabs((*vertices)[i].position().z())<30000) greatestvtx = i;
+      if (greatestvtx==-1) {
+         greatestvtx = i;
+      } else {
+         if( daughter >(*vertices)[greatestvtx].nDaughterTracks()&&fabs((*vertices)[i].position().z())<30000) greatestvtx = i;
+      }
     }
 
     if(greatestvtx != -1){
