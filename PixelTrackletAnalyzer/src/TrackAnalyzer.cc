@@ -15,7 +15,7 @@ Prepare the Treack Tree for analysis
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.49 2013/01/25 23:12:52 yilmaz Exp $
+// $Id: TrackAnalyzer.cc,v 1.50 2013/01/26 14:21:05 yjlee Exp $
 //
 //
 
@@ -126,9 +126,11 @@ struct TrackEvent{
   int nVtx;
 
   int nTrkVtx[MAXVTX];
-  int nTrkVtxHard[MAXVTX];
+  float normChi2Vtx[MAXVTX];
+  float sumPtVtx[MAXVTX];
+  //int nTrkVtxHard[MAXVTX];
   int maxVtx;
-  int maxVtxHard;
+  //int maxVtxHard;
 
   float xVtx[MAXVTX];
   float yVtx[MAXVTX];
@@ -447,8 +449,16 @@ TrackAnalyzer::fillVertices(const edm::Event& iEvent){
       pev_.yVtxErr[i] = (*recoVertices)[i].yError();
       pev_.zVtxErr[i] = (*recoVertices)[i].zError();
       pev_.nTrkVtx[i] = (*recoVertices)[i].tracksSize();
+      pev_.normChi2Vtx[i] = (*recoVertices)[i].normalizedChi2();
 
       //         cout <<"Vertex: "<< (*recoVertices)[i].position().z()<<" "<<daughter<<endl;
+
+      float vtxSumPt=0.;
+      for (reco::Vertex::trackRef_iterator it = (*recoVertices)[i].tracks_begin(); it != (*recoVertices)[i].tracks_end(); it++) {
+	vtxSumPt += (**it).pt();
+      }          
+      pev_.sumPtVtx[i] = vtxSumPt;
+      
     }
 
     pev_.maxVtx = greatestvtx;
@@ -536,7 +546,7 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetu
     int count1dhits=0;
     for (trackingRecHit_iterator ith = etrk.recHitsBegin(); ith != edh; ++ith) {
       const TrackingRecHit * hit = ith->get();
-      DetId detid = hit->geographicalId();
+      //DetId detid = hit->geographicalId();
       if (hit->isValid()) {
 	if (typeid(*hit) == typeid(SiStripRecHit1D)) ++count1dhits;
       }
@@ -967,6 +977,8 @@ TrackAnalyzer::beginJob()
   //  trackTree_->Branch("maxVtxHard",&pev_.maxVtxHard,"maxVtxHard/I");
 
   trackTree_->Branch("nTrkVtx",pev_.nTrkVtx,"nTrkVtx[nVtx]/I");
+  trackTree_->Branch("normChi2Vtx",pev_.normChi2Vtx,"normChi2Vtx[nVtx]/F");
+  trackTree_->Branch("sumPtVtx",pev_.sumPtVtx,"sumPtVtx[nVtx]/F");
   //  trackTree_->Branch("nTrkVtxHard",pev_.nTrkVtxHard,"nTrkVtxHard[nVtx]/I");
 
   trackTree_->Branch("xVtx",pev_.xVtx,"xVtx[nVtx]/F");
