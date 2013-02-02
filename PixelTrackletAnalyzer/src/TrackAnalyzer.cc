@@ -15,7 +15,7 @@ Prepare the Treack Tree for analysis
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.50 2013/01/26 14:21:05 yjlee Exp $
+// $Id: TrackAnalyzer.cc,v 1.51 2013/01/29 21:49:52 mnguyen Exp $
 //
 //
 
@@ -76,7 +76,6 @@ Prepare the Treack Tree for analysis
 #include "SimTracker/TrackAssociation/interface/TrackAssociatorByHits.h"
 #include "DataFormats/TrackReco/interface/DeDxData.h"
 
-
 // Heavyion
 #include "DataFormats/HeavyIonEvent/interface/Centrality.h"
 
@@ -85,6 +84,9 @@ Prepare the Treack Tree for analysis
 #include "DataFormats/ParticleFlowReco/interface/PFBlock.h"
 #include "DataFormats/ParticleFlowReco/interface/PFCluster.h"
 #include "DataFormats/ParticleFlowReco/interface/PFClusterFwd.h"
+
+// Vertex significance
+#include "RecoBTag/SecondaryVertex/interface/SecondaryVertex.h"
 
 // Root include files
 #include "TTree.h"
@@ -138,6 +140,14 @@ struct TrackEvent{
   float xVtxErr[MAXVTX];
   float yVtxErr[MAXVTX];
   float zVtxErr[MAXVTX];
+
+  float vtxDist2D[MAXVTX];
+  float vtxDist2DErr[MAXVTX];
+  float vtxDist2DSig[MAXVTX];
+  float vtxDist3D[MAXVTX];
+  float vtxDist3DErr[MAXVTX];
+  float vtxDist3DSig[MAXVTX];
+
 
   // centrality
   int cbin;
@@ -425,6 +435,7 @@ TrackAnalyzer::fillVertices(const edm::Event& iEvent){
   }
 
   pev_.nv++;
+
   // Fill reconstructed vertices.   
   for(unsigned int iv = 0; iv < vertexSrc_.size(); ++iv){
     const reco::VertexCollection * recoVertices;
@@ -434,7 +445,7 @@ TrackAnalyzer::fillVertices(const edm::Event& iEvent){
     recoVertices = vertexCollection.product();
     unsigned int daughter = 0;
     int nVertex = 0;
-    int greatestvtx = 0;
+    unsigned int greatestvtx = 0;
 
     nVertex = recoVertices->size();
     pev_.nVtx = nVertex;
@@ -462,6 +473,20 @@ TrackAnalyzer::fillVertices(const edm::Event& iEvent){
     }
 
     pev_.maxVtx = greatestvtx;
+
+    //loop over vertices again to get the significance wrt the leading vertex -Matt
+    for (unsigned int i = 0 ; i< recoVertices->size(); ++i){
+      if(i==greatestvtx) continue;
+      GlobalVector direction = GlobalVector(pev_.xVtx[i]-pev_.xVtx[greatestvtx],pev_.xVtx[i]-pev_.xVtx[greatestvtx],pev_.xVtx[i]-pev_.xVtx[greatestvtx]);
+      Measurement1D vtxDist2D = reco::SecondaryVertex::computeDist2d((*recoVertices)[greatestvtx], (*recoVertices)[i], direction, true);
+      Measurement1D vtxDist3D = reco::SecondaryVertex::computeDist3d((*recoVertices)[greatestvtx], (*recoVertices)[i], direction, true);
+      pev_.vtxDist2D[i]=vtxDist2D.value();
+      pev_.vtxDist2DErr[i]=vtxDist2D.error();
+      pev_.vtxDist2DSig[i]=vtxDist2D.significance();
+      pev_.vtxDist3D[i]=vtxDist3D.value();
+      pev_.vtxDist3DErr[i]=vtxDist3D.error();
+      pev_.vtxDist3DSig[i]=vtxDist3D.significance();
+    }
 
     if(recoVertices->size()>0){
       pev_.vx[pev_.nv] = (*recoVertices)[greatestvtx].position().x();
@@ -598,6 +623,24 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetu
        ) pev_.N++;
 
     //
+    /*
+    const reco::Vertex::Point vert1 = etrk.vertex();  
+    //loop over verticies and set index   
+    for(unsigned int iv = 0; iv < vertexSrc_.size(); ++iv){
+      const reco::VertexCollection * recoVertices;
+      edm::Handle<reco::VertexCollection> vertexCollection;
+      iEvent.getByLabel(vertexSrc_[iv],vertexCollection);
+      recoVertices = vertexCollection.product();
+      int nVertex = recoVertices->size();
+      for (unsigned int i = 0 ; i< recoVertices->size(); ++i){
+	//if(etrk.vertex() == (*recoVertices)[i]) cout<<" hello "<<endl;
+	//const reco::Vertex vert1 = etrk.vertex();
+	const reco::Vertex::Point vert2 = (*recoVertices)[i].position();
+	cout<<" v1 "<<vert1.Z()<<" v2 "<<vert2.Z()<<endl;
+	//if(vert1==vert2) cout<<" halelujah "<<endl;
+      }
+    }
+    */
     if (doSimTrack_) {
       pev_.trkFake[pev_.nTrk]=0;
       pev_.trkStatus[pev_.nTrk]=-999;
@@ -984,11 +1027,16 @@ TrackAnalyzer::beginJob()
   trackTree_->Branch("xVtx",pev_.xVtx,"xVtx[nVtx]/F");
   trackTree_->Branch("yVtx",pev_.yVtx,"yVtx[nVtx]/F");
   trackTree_->Branch("zVtx",pev_.zVtx,"zVtx[nVtx]/F");
-
   trackTree_->Branch("xVtxErr",pev_.xVtxErr,"xVtxErr[nVtx]/F");
   trackTree_->Branch("yVtxErr",pev_.yVtxErr,"yVtxErr[nVtx]/F");
   trackTree_->Branch("zVtxErr",pev_.zVtxErr,"zVtxErr[nVtx]/F");
 
+  trackTree_->Branch("vtxDist2D",pev_.vtxDist2D,"vtxDist2D[nVtx]/F");
+  trackTree_->Branch("vtxDist2DErr",pev_.vtxDist2DErr,"vtxDist2DErr[nVtx]/F");
+  trackTree_->Branch("vtxDist2DSig",pev_.vtxDist2DSig,"vtxDist2DSig[nVtx]/F");
+  trackTree_->Branch("vtxDist2D",pev_.vtxDist3D,"vtxDist3D[nVtx]/F");
+  trackTree_->Branch("vtxDist3DErr",pev_.vtxDist3DErr,"vtxDist3DErr[nVtx]/F");
+  trackTree_->Branch("vtxDist3DSig",pev_.vtxDist3DSig,"vtxDist3DSig[nVtx]/F");
 
   // centrality
   if (useCentrality_) trackTree_->Branch("cbin",&pev_.cbin,"cbin/I");
