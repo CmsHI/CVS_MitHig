@@ -1,4 +1,3 @@
-
 // -*- C++ -*-
 //
 // Package:    TrackAnalyzer
@@ -15,7 +14,7 @@ Prepare the Treack Tree for analysis
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.51 2013/01/29 21:49:52 mnguyen Exp $
+// $Id: TrackAnalyzer.cc,v 1.52 2013/02/02 16:26:31 mnguyen Exp $
 //
 //
 
@@ -186,6 +185,7 @@ struct TrackEvent{
   float trkAlgo[MAXTRACKS];
   float dedx[MAXTRACKS];
   int trkCharge[MAXTRACKS];
+  unsigned int trkVtxIndex[MAXTRACKS];
 
   float trkExpHit1Eta[MAXTRACKS];
   float trkExpHit2Eta[MAXTRACKS];
@@ -462,14 +462,26 @@ TrackAnalyzer::fillVertices(const edm::Event& iEvent){
       pev_.nTrkVtx[i] = (*recoVertices)[i].tracksSize();
       pev_.normChi2Vtx[i] = (*recoVertices)[i].normalizedChi2();
 
-      //         cout <<"Vertex: "<< (*recoVertices)[i].position().z()<<" "<<daughter<<endl;
-
+    
       float vtxSumPt=0.;
       for (reco::Vertex::trackRef_iterator it = (*recoVertices)[i].tracks_begin(); it != (*recoVertices)[i].tracks_end(); it++) {
 	vtxSumPt += (**it).pt();
-      }          
+
+	Handle<vector<Track> > etracks;
+	iEvent.getByLabel(trackSrc_, etracks);
+
+	for(unsigned itrack=0; itrack<etracks->size(); ++itrack){
+	  reco::TrackRef trackRef=reco::TrackRef(etracks,itrack);
+	  //cout<<" trackRef.key() "<<trackRef.key()<< " it->key() "<<it->key()<<endl;
+	  if(trackRef.key()==it->key()){
+	    pev_.trkVtxIndex[itrack] = i+1;  // note that index starts from 1 
+	    //cout<< " matching track "<<itrack<<endl;
+	  }
+	}
+      }
+
       pev_.sumPtVtx[i] = vtxSumPt;
-      
+	  
     }
 
     pev_.maxVtx = greatestvtx;
@@ -622,25 +634,30 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetu
         (pev_.trkPt[pev_.nTrk] > 0.4)
        ) pev_.N++;
 
-    //
     /*
-    const reco::Vertex::Point vert1 = etrk.vertex();  
-    //loop over verticies and set index   
+      // done in vertex loop instead
     for(unsigned int iv = 0; iv < vertexSrc_.size(); ++iv){
       const reco::VertexCollection * recoVertices;
       edm::Handle<reco::VertexCollection> vertexCollection;
       iEvent.getByLabel(vertexSrc_[iv],vertexCollection);
       recoVertices = vertexCollection.product();
-      int nVertex = recoVertices->size();
-      for (unsigned int i = 0 ; i< recoVertices->size(); ++i){
-	//if(etrk.vertex() == (*recoVertices)[i]) cout<<" hello "<<endl;
-	//const reco::Vertex vert1 = etrk.vertex();
-	const reco::Vertex::Point vert2 = (*recoVertices)[i].position();
-	cout<<" v1 "<<vert1.Z()<<" v2 "<<vert2.Z()<<endl;
-	//if(vert1==vert2) cout<<" halelujah "<<endl;
+      
+      
+      for (unsigned int ivert = 0 ; ivert< recoVertices->size(); ++ivert){
+
+	for (reco::Vertex::trackRef_iterator tr_it = (*recoVertices)[ivert].tracks_begin(); tr_it != (*recoVertices)[ivert].tracks_end(); tr_it++) {
+	  
+	    cout<<" trackRef.key() "<<trackRef.key()<< " tr_it->key() "<<tr_it->key()<<endl;
+	    if(trackRef.key()==tr_it->key()){
+	      //pev_.trkVtxIndex[itrack] = i+1;  // note that index starts from 1 
+	      pev_.trkVtxIndex[pev_.nTrk] = 1;  // note that index starts from 1 
+	      cout<< " matching track "<<pev_.nTrk<<endl;
+	    }
+	  }
       }
     }
     */
+
     if (doSimTrack_) {
       pev_.trkFake[pev_.nTrk]=0;
       pev_.trkStatus[pev_.nTrk]=-999;
@@ -1050,6 +1067,7 @@ TrackAnalyzer::beginJob()
   trackTree_->Branch("trkEta",&pev_.trkEta,"trkEta[nTrk]/F");
   trackTree_->Branch("trkPhi",&pev_.trkPhi,"trkPhi[nTrk]/F");
   trackTree_->Branch("trkCharge",&pev_.trkCharge,"trkCharge[nTrk]/I");
+  trackTree_->Branch("trkVtxIndex",&pev_.trkVtxIndex,"trkVtxIndex[nTrk]/I");
 
   if (doDeDx_) {
     trackTree_->Branch("dedx",&pev_.dedx,"dedx[nTrk]/F");
