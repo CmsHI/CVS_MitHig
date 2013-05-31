@@ -14,7 +14,7 @@ Prepare the Treack Tree for analysis
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.52 2013/02/02 16:26:31 mnguyen Exp $
+// $Id: TrackAnalyzer.cc,v 1.53 2013/02/03 20:00:06 mnguyen Exp $
 //
 //
 
@@ -191,6 +191,8 @@ struct TrackEvent{
   float trkExpHit2Eta[MAXTRACKS];
   float trkExpHit3Eta[MAXTRACKS];
   float trkStatus[MAXTRACKS];
+  float trkPId[MAXTRACKS];
+  float trkMPId[MAXTRACKS];
 
   //matched PF Candidate Info
   int pfType[MAXTRACKS];
@@ -661,13 +663,22 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetu
     if (doSimTrack_) {
       pev_.trkFake[pev_.nTrk]=0;
       pev_.trkStatus[pev_.nTrk]=-999;
+      pev_.trkPId[pev_.nTrk]=-999;
+      pev_.trkMPId[pev_.nTrk]=-999;
 
       reco::RecoToSimCollection::const_iterator matchedSim = recSimColl.find(edm::RefToBase<reco::Track>(trackRef));
 
       if(matchedSim == recSimColl.end()){
 	 pev_.trkFake[pev_.nTrk]=1;
       }else{
-	 //  pev_.trkStatus[pev_.nTrk]=matchedSim->status();
+         const TrackingParticle* tparticle = matchedSim->val[0].first.get();
+	 pev_.trkStatus[pev_.nTrk]=tparticle->status();
+	 pev_.trkPId[pev_.nTrk]=tparticle->pdgId();
+         if (tparticle->parentVertex().isNonnull() && !tparticle->parentVertex()->sourceTracks().empty()) {
+	    pev_.trkMPId[pev_.nTrk]=tparticle->parentVertex()->sourceTracks()[0]->pdgId();
+	 } else {
+	    pev_.trkMPId[pev_.nTrk]=-999;
+         }
       }
     }
 
@@ -1124,6 +1135,8 @@ TrackAnalyzer::beginJob()
   // Sim Tracks
   if (doSimTrack_) {
      trackTree_->Branch("trkStatus",&pev_.trkStatus,"trkStatus[nTrk]/F");
+     trackTree_->Branch("trkPId",&pev_.trkPId,"trkPId[nTrk]/F");
+     trackTree_->Branch("trkMPId",&pev_.trkMPId,"trkMPId[nTrk]/F");
 
      if(fillSimTrack_){
 
