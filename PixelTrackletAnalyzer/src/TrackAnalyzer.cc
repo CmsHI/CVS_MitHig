@@ -14,7 +14,7 @@ Prepare the Treack Tree for analysis
 // Original Author:  Yilmaz Yetkin, Yen-Jie Lee
 // Updated: Frank Ma, Matt Nguyen
 //         Created:  Tue Sep 30 15:14:28 CEST 2008
-// $Id: TrackAnalyzer.cc,v 1.53 2013/02/03 20:00:06 mnguyen Exp $
+// $Id: TrackAnalyzer.cc,v 1.54 2013/05/31 15:08:31 yjlee Exp $
 //
 //
 
@@ -74,6 +74,7 @@ Prepare the Treack Tree for analysis
 #include "DataFormats/RecoCandidate/interface/TrackAssociation.h"
 #include "SimTracker/TrackAssociation/interface/TrackAssociatorByHits.h"
 #include "DataFormats/TrackReco/interface/DeDxData.h"
+#include "DataFormats/HepMCCandidate/interface/GenParticle.h"
 
 // Heavyion
 #include "DataFormats/HeavyIonEvent/interface/Centrality.h"
@@ -104,6 +105,15 @@ using namespace reco;
 #define MAXVTX 100
 #define MAXQUAL 5
 
+        const HepMC::GenParticle * getGpMother(const HepMC::GenParticle *gp) {
+            if (gp != 0) {
+                const HepMC::GenVertex *vtx = gp->production_vertex();
+                if (vtx != 0 && vtx->particles_in_size() > 0) {
+                    return *vtx->particles_in_const_begin();
+                }
+            }
+            return 0;
+        }
 struct TrackEvent{
 
   // event information
@@ -193,6 +203,7 @@ struct TrackEvent{
   float trkStatus[MAXTRACKS];
   float trkPId[MAXTRACKS];
   float trkMPId[MAXTRACKS];
+  float trkGMPId[MAXTRACKS];
 
   //matched PF Candidate Info
   int pfType[MAXTRACKS];
@@ -665,6 +676,7 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetu
       pev_.trkStatus[pev_.nTrk]=-999;
       pev_.trkPId[pev_.nTrk]=-999;
       pev_.trkMPId[pev_.nTrk]=-999;
+      pev_.trkGMPId[pev_.nTrk]=-999;
 
       reco::RecoToSimCollection::const_iterator matchedSim = recSimColl.find(edm::RefToBase<reco::Track>(trackRef));
 
@@ -679,6 +691,12 @@ TrackAnalyzer::fillTracks(const edm::Event& iEvent, const edm::EventSetup& iSetu
 	 } else {
 	    pev_.trkMPId[pev_.nTrk]=-999;
          }
+         if (!tparticle->genParticle().empty()) {
+            const HepMC::GenParticle * genMom = getGpMother(tparticle->genParticle()[0].get());
+	    if (genMom) {
+                       pev_.trkGMPId[pev_.nTrk] = genMom->pdg_id();
+	    }
+	 }   	    
       }
     }
 
@@ -1137,6 +1155,7 @@ TrackAnalyzer::beginJob()
      trackTree_->Branch("trkStatus",&pev_.trkStatus,"trkStatus[nTrk]/F");
      trackTree_->Branch("trkPId",&pev_.trkPId,"trkPId[nTrk]/F");
      trackTree_->Branch("trkMPId",&pev_.trkMPId,"trkMPId[nTrk]/F");
+     trackTree_->Branch("trkGMPId",&pev_.trkGMPId,"trkGMPId[nTrk]/F");
 
      if(fillSimTrack_){
 
